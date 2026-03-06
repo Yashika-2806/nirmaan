@@ -25,15 +25,10 @@ const authLimiter = rateLimit({
     },
 });
 
-// AI endpoint limiter (more generous for paid users)
+// AI endpoint limiter
 const aiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: async (req) => {
-        // Check user subscription tier
-        if (req.user?.subscription?.tier === 'enterprise') return 100;
-        if (req.user?.subscription?.tier === 'pro') return 30;
-        return 10; // free tier
-    },
+    max: 20, // 20 AI requests per minute
     message: 'AI request limit exceeded',
     handler: (req, res) => {
         ApiResponse.tooManyRequests(res, 'AI request limit exceeded. Upgrade your plan for higher limits.');

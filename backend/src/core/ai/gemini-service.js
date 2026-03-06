@@ -482,6 +482,171 @@ Return ONLY the summary text (no JSON, no explanation, no quotes):
             return "Error regenerating summary: " + error.message;
         }
     }
+
+    /**
+     * Generates tailored interview questions for a company/role/round.
+     * Uses GEMINI_KEY_2 (Interview Service)
+     */
+    async generateInterviewQuestions({ company, role, round, experienceLevel = 'mid', count = 8 }) {
+        console.log(`[GeminiService] Generating ${count} ${round} questions for ${role} at ${company}...`);
+        const model = this.getModel('interview');
+
+        if (!model) {
+            return { error: "Configuration Error: AI Service Key (GEMINI_KEY_2) is missing." };
+        }
+
+        const roundDescriptions = {
+            technical: 'Data structures, algorithms, coding problems, language internals, debugging, system fundamentals',
+            behavioral: 'Past experiences, STAR-format stories, teamwork, leadership, conflict resolution, growth mindset',
+            'system-design': 'Architectural decisions, scalability, database design, API design, trade-offs, real-world system scaling',
+            hr: 'Culture fit, career goals, salary expectations, work style, company knowledge',
+        };
+
+        const levelDescriptions = {
+            fresher: 'entry-level, 0-1 years experience or final year student',
+            mid: 'mid-level, 2-4 years experience',
+            senior: 'senior, 5+ years experience',
+        };
+
+        try {
+            const prompt = `
+You are a senior technical interviewer at ${company} with deep knowledge of how ${company} conducts their hiring process.
+
+Generate exactly ${count} interview questions for a ${role} position at ${company}.
+
+INTERVIEW DETAILS:
+- Company: ${company}
+- Role: ${role}
+- Round Type: ${round} (${roundDescriptions[round] || round})
+- Candidate Level: ${experienceLevel} (${levelDescriptions[experienceLevel] || experienceLevel})
+
+REQUIREMENTS:
+1. Questions must be tailored to ${company}'s actual interview style and culture.
+2. Questions must be appropriate for ${round} round.
+3. Vary difficulty: 2 easy warm-up, ${count - 4} medium core questions, 2 challenging.
+4. For technical: include coding/algorithmic thinking questions relevant to ${company}.
+5. For behavioral: use ${company}'s known behavioral competencies.
+6. For system-design: reference real systems similar to what ${company} builds at scale.
+7. Each question should have a clear "what they are testing" hint.
+
+Return STRICT JSON array (no markdown, no backticks, no explanation):
+[
+  {
+    "id": 1,
+    "question": "The full question text",
+    "hint": "What the interviewer is testing / what a good answer covers in 1 sentence",
+    "difficulty": "easy|medium|hard",
+    "category": "sub-category (e.g. Arrays, Leadership, API Design)"
+  }
+]
+`;
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+
+            const questions = JSON.parse(text);
+            console.log(`[GeminiService] Generated ${questions.length} interview questions.`);
+            return { questions };
+        } catch (error) {
+            console.error("Gemini AI API Error (Generate Questions):", error);
+            return { error: "AI Service Error: " + error.message };
+        }
+    }
+
+    /**
+     * Evaluates a candidate's answer to an interview question.
+     * Uses GEMINI_KEY_2 (Interview Service)
+     */
+    async evaluateInterviewAnswer({ company, role, round, question, hint, answer, experienceLevel = 'mid' }) {
+        console.log(`[GeminiService] Evaluating interview answer for "${question.substring(0, 50)}..."`);
+        const model = this.getModel('interview');
+
+        if (!model) {
+            return { error: "Configuration Error: AI Service Key (GEMINI_KEY_2) is missing." };
+        }
+
+        try {
+            const prompt = `
+You are a senior interviewer at ${company} evaluating a candidate for a ${role} position (${experienceLevel}-level).
+
+QUESTION: "${question}"
+${hint ? `WHAT IS BEING TESTED: ${hint}` : ''}
+CANDIDATE'S ANSWER: "${answer}"
+ROUND TYPE: ${round}
+
+Evaluate this answer with professional rigor. Be honest but constructive.
+
+Return STRICT JSON (no markdown, no backticks):
+{
+  "score": <integer 0-100>,
+  "verdict": "Strong" | "Good" | "Average" | "Needs Improvement" | "Insufficient",
+  "strengths": ["What the candidate did well (2-3 specific points)"],
+  "improvements": ["Specific gap or missed point (2-3 items)"],
+  "idealAnswer": "A concise model answer (3-6 sentences) covering the key points an ${experienceLevel}-level candidate should mention",
+  "followUpQuestion": "One natural follow-up question an interviewer would ask based on this answer",
+  "tip": "One actionable tip to improve this specific type of answer in future"
+}
+`;
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+
+            const evaluation = JSON.parse(text);
+            console.log(`[GeminiService] Answer evaluated. Score: ${evaluation.score}`);
+            return evaluation;
+        } catch (error) {
+            console.error("Gemini AI API Error (Evaluate Answer):", error);
+            return { error: "AI Service Error: " + error.message };
+        }
+    }
+
+    /**
+     * Check if an interview answer appears to be copied from the internet.
+     * Returns { isPlagiarized, confidence, reason }
+     */
+    async checkAnswerOriginality({ question, answer }) {
+        const model = this.getModel('interview');
+        if (!model) return { isPlagiarized: false, confidence: 'low', reason: 'AI unavailable' };
+        try {
+            const prompt = `You are a plagiarism detection expert for technical interviews.
+Analyze the answer below and determine if it appears to have been COPIED from an internet source (Wikipedia, documentation, tutorials, Stack Overflow, blogs) rather than written genuinely by the candidate.
+
+Question: "${question}"
+Answer: "${answer}"
+
+Signs of plagiarism / internet copying:
+- Encyclopedic, overly formal or textbook-like language
+- Perfect structure (numbered lists, headers) atypical of spontaneous writing
+- Third-person or passive voice throughout
+- Verbatim definitions or phrasing matching common docs/wikis
+- No personal experience, no first-person voice, no concrete examples
+- Suspiciously polished grammar inconsistent with a test environment
+
+Return ONLY valid JSON, no markdown:
+{
+  "isPlagiarized": true or false,
+  "confidence": "low" | "medium" | "high",
+  "reason": "One short sentence explaining your decision (max 15 words)"
+}`;
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const parsed = JSON.parse(text);
+            console.log(`[GeminiService] Plagiarism check: isPlagiarized=${parsed.isPlagiarized}, confidence=${parsed.confidence}`);
+            return parsed;
+        } catch (error) {
+            console.error('Gemini AI API Error (Plagiarism Check):', error);
+            return { isPlagiarized: false, confidence: 'low', reason: 'Check failed' };
+        }
+    }
 }
 
 module.exports = new GeminiService();

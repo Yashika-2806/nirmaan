@@ -7,8 +7,8 @@ const authRoutes = require('../core/auth/routes');
 const aiKeyRoutes = require('../core/ai-key-manager/routes');
 const dsaRoutes = require('../modules/dsa/routes');
 const aiRoutes = require('./ai-routes');
-
 const resumeRoutes = require('../modules/resume/routes');
+const interviewRoutes = require('../modules/interview/routes');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -25,6 +25,7 @@ router.use('/admin/ai-keys', aiKeyRoutes);
 router.use('/dsa', dsaRoutes);
 router.use('/ai', aiRoutes);
 router.use('/resume', resumeRoutes);
+router.use('/interview', interviewRoutes);
 
 // TODO: Add other module routes
 // router.use('/interview', interviewRoutes);

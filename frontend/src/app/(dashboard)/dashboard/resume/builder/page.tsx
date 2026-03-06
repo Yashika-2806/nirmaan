@@ -7,8 +7,9 @@ import toast from 'react-hot-toast';
 import {
     User, Briefcase, GraduationCap, Code, Code2, FileText, ArrowLeft, Eye,
     Save, Wand2, Github, Globe, CheckCircle, Loader2, Clock, Edit,
-    Plus, Trash2, Download, FolderGit2, Award, RefreshCw, BarChart2, X
+    Plus, Trash2, Download, FolderGit2, Award, RefreshCw, BarChart2, X, Layout
 } from 'lucide-react';
+import { ResumeTemplate, TEMPLATES, type TemplateId } from '@/components/resume/ResumeTemplates';
 
 const STEPS = [
     { id: 'personal',   label: 'Personal',   icon: User },
@@ -22,8 +23,84 @@ const STEPS = [
 const inputCls = 'w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:border-[#00D9FF] outline-none transition-colors placeholder:text-gray-600';
 const labelCls = 'text-xs font-bold text-gray-500 uppercase mb-1 block';
 
+const DUMMY_DATA = {
+    personal: {
+        fullName: 'Alex Johnson',
+        email: 'alex@example.com',
+        phone: '+1 (555) 123-4567',
+        location: 'San Francisco, CA',
+        linkedin: 'linkedin.com/in/alexjohnson',
+        github: 'github.com/alexjohnson',
+        portfolio: 'alexjohnson.dev',
+        summary: 'Full-stack software engineer with 3+ years building scalable web applications. Passionate about clean architecture, developer experience, and shipping impactful products.',
+    },
+    skills: {
+        languages: ['TypeScript', 'Python', 'Go', 'SQL'],
+        frameworks: ['React', 'Next.js', 'Node.js', 'FastAPI'],
+        tools: ['Docker', 'Kubernetes', 'AWS', 'PostgreSQL', 'Redis'],
+        concepts: ['System Design', 'REST APIs', 'CI/CD', 'Microservices'],
+    },
+    experience: [
+        {
+            role: 'Software Engineer II',
+            company: 'Stripe',
+            location: 'San Francisco, CA',
+            startDate: 'Jun 2023',
+            endDate: 'Present',
+            bullets: [
+                'Led migration of payment processing service to event-driven architecture, reducing latency by 40%.',
+                'Built internal developer tooling adopted by 60+ engineers, cutting deploy times from 12 min to 4 min.',
+                'Mentored 2 junior engineers; conducted 20+ technical interviews.',
+            ],
+        },
+        {
+            role: 'Software Engineer Intern',
+            company: 'Meta',
+            location: 'Menlo Park, CA',
+            startDate: 'May 2022',
+            endDate: 'Aug 2022',
+            bullets: [
+                'Shipped a React feature used by 5M+ users in News Feed ranking pipeline.',
+                'Reduced GraphQL query time by 25% through batching optimizations.',
+            ],
+        },
+    ],
+    education: [
+        { school: 'University of California, Berkeley', degree: 'B.S.', fieldOfStudy: 'Computer Science', year: '2023', grade: 'GPA 3.9 / 4.0' },
+    ],
+    projects: [
+        {
+            name: 'Distributed Task Queue',
+            link: 'github.com/alexjohnson/taskq',
+            bullets: [
+                'Built a Redis-backed distributed task queue in Go supporting 10k+ jobs/sec with retry logic and dead-letter queues.',
+                'Implemented priority scheduling and worker autoscaling using Kubernetes HPA.',
+            ],
+            techStack: ['Go', 'Redis', 'Kubernetes', 'Prometheus'],
+        },
+        {
+            name: 'AI Resume Builder',
+            link: 'github.com/alexjohnson/resumai',
+            bullets: [
+                'Full-stack SaaS with Next.js frontend and FastAPI backend, generating ATS-optimised resumes via GPT-4.',
+                'Integrated GitHub & LeetCode APIs to auto-populate skills and projects.',
+            ],
+            techStack: ['Next.js', 'FastAPI', 'PostgreSQL', 'OpenAI'],
+        },
+    ],
+    certifications: [
+        { name: 'AWS Certified Solutions Architect', issuer: 'Amazon', date: '2024' },
+    ],
+    competitiveProgramming: 'LeetCode: Knight (top 3%) • Codeforces: Candidate Master (1920)',
+    achievements: [
+        '1st place — UC Berkeley Hackathon 2022 (250+ teams)',
+        'Google Summer of Code 2022 contributor — Apache projects',
+        'Dean\'s List all semesters at UC Berkeley',
+    ],
+};
+
 export default function ResumeBuilder() {
-    const [phase, setPhase] = useState<'onboarding' | 'editing'>('onboarding');
+    const [phase, setPhase] = useState<'template-select' | 'onboarding' | 'editing'>('template-select');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -36,6 +113,8 @@ export default function ResumeBuilder() {
     const [activeTab, setActiveTab] = useState<'new' | 'myResumes'>('new');
     const [myResumes, setMyResumes] = useState<any[]>([]);
     const [isLoadingResumes, setIsLoadingResumes] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('classic');
+    const [showTemplatePicker, setShowTemplatePicker] = useState(false);
     const previewRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -282,6 +361,123 @@ export default function ResumeBuilder() {
     };
 
     // ─────────────────────────────────────────────────────────────────────────
+    // TEMPLATE SELECTION
+    // ─────────────────────────────────────────────────────────────────────────
+    if (phase === 'template-select') {
+        const active = TEMPLATES.find(t => t.id === selectedTemplate) || TEMPLATES[0];
+        return (
+            <div className="-m-8 min-h-screen flex flex-col bg-[#0a0a0a]">
+                {/* Header */}
+                <div className="sticky top-0 z-20 bg-[#0a0a0a]/95 backdrop-blur border-b border-gray-800 px-8 py-4 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#00D9FF]/10 rounded-lg border border-[#00D9FF]/20">
+                            <Layout className="w-5 h-5 text-[#00D9FF]" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-white">Choose a Template</h1>
+                            <p className="text-xs text-gray-500">Pick a design, then we'll build your resume with AI</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setPhase('onboarding')}
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00D9FF] to-cyan-400 text-black font-bold rounded-xl hover:shadow-[0_0_30px_rgba(0,217,255,0.35)] transition-all text-sm"
+                    >
+                        Use <span className="font-black">{active.name}</span> Template →
+                    </button>
+                </div>
+
+                {/* Body: sidebar + preview */}
+                <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 73px)' }}>
+
+                    {/* LEFT: template list */}
+                    <div className="w-64 shrink-0 bg-[#0d0d0d] border-r border-gray-800 overflow-y-auto p-4 flex flex-col gap-3">
+                        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1 mb-1">Templates</p>
+                        {TEMPLATES.map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => setSelectedTemplate(t.id)}
+                                className={`w-full text-left p-3 rounded-xl border transition-all group ${
+                                    selectedTemplate === t.id
+                                        ? 'bg-[#00D9FF]/10 border-[#00D9FF]/50 shadow-[0_0_15px_rgba(0,217,255,0.1)]'
+                                        : 'bg-[#111111] border-gray-800 hover:border-gray-600'
+                                }`}
+                            >
+                                {/* Mini thumbnail */}
+                                <div className={`w-full h-16 rounded-lg mb-2.5 overflow-hidden border-2 relative ${
+                                    selectedTemplate === t.id ? 'border-[#00D9FF]' : 'border-gray-700'
+                                }`}>
+                                    {/* Fake page lines */}
+                                    <div className={`absolute inset-0 ${
+                                        t.id === 'modern' ? 'flex' : ''
+                                    }`}>
+                                        {t.id === 'modern' && (
+                                            <div className="w-[35%] h-full" style={{ backgroundColor: '#0ea5e9' }} />
+                                        )}
+                                        {t.id === 'executive' && (
+                                            <div className="absolute top-0 left-0 right-0 h-[30%]" style={{ backgroundColor: '#1e3a5f' }} />
+                                        )}
+                                        {t.id === 'creative' && (
+                                            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ backgroundColor: '#7c3aed' }} />
+                                        )}
+                                        <div className="absolute inset-0 p-2 flex flex-col gap-1 justify-end">
+                                            <div className={`h-1.5 rounded-full w-2/3 ${
+                                                t.id === 'modern' ? 'ml-[37%] bg-gray-800' :
+                                                t.id === 'executive' ? 'bg-white/80 mt-auto' : 'bg-gray-800'
+                                            }`} />
+                                            <div className={`h-1 rounded-full w-1/2 ${
+                                                t.id === 'modern' ? 'ml-[37%] bg-gray-300' :
+                                                t.id === 'executive' ? 'bg-gray-300' : 'bg-gray-300'
+                                            }`} />
+                                            <div className={`h-1 rounded-full w-3/4 ${
+                                                t.id === 'modern' ? 'ml-[37%] bg-gray-200' : 'bg-gray-200'
+                                            }`} />
+                                        </div>
+                                    </div>
+                                    <div className="absolute inset-0 bg-white" style={{ zIndex: -1 }} />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-sm font-bold ${
+                                        selectedTemplate === t.id ? 'text-[#00D9FF]' : 'text-white'
+                                    }`}>{t.name}</span>
+                                    {selectedTemplate === t.id && (
+                                        <CheckCircle className="w-4 h-4 text-[#00D9FF]" />
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-gray-500 mt-0.5">{t.description}</p>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* RIGHT: full live preview with dummy data */}
+                    <div className="flex-1 overflow-y-auto bg-gray-300 p-8 flex flex-col items-center">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Sample Preview — {active.name}</p>
+                        <div
+                            className="bg-white shadow-2xl overflow-hidden"
+                            style={{ width: '210mm', minHeight: '297mm', padding: selectedTemplate === 'modern' ? '0' : '15mm 20mm' }}
+                        >
+                            <ResumeTemplate
+                                template={selectedTemplate}
+                                resumeData={DUMMY_DATA as any}
+                                inputData={{ photoPreview: '' }}
+                            />
+                        </div>
+                        <div className="mt-8 mb-4 flex flex-col items-center gap-3">
+                            <button
+                                onClick={() => setPhase('onboarding')}
+                                className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#00D9FF] to-cyan-400 text-black font-bold text-base rounded-xl hover:shadow-[0_0_40px_rgba(0,217,255,0.4)] transition-all transform hover:scale-105 active:scale-100"
+                            >
+                                <Wand2 className="w-5 h-5" />
+                                Use {active.name} &amp; Fill My Details
+                            </button>
+                            <p className="text-xs text-gray-500">AI will auto-populate your resume from your GitHub, LeetCode &amp; Codeforces profiles</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // ONBOARDING
     // ─────────────────────────────────────────────────────────────────────────
     if (phase === 'onboarding') {
@@ -298,6 +494,13 @@ export default function ResumeBuilder() {
                             <h1 className="text-xl font-bold text-white">AI Resume Generator</h1>
                             <p className="text-xs text-gray-500">Build a FAANG-ready resume instantly from your profiles</p>
                         </div>
+                        <button
+                            onClick={() => setPhase('template-select')}
+                            className="flex items-center gap-1.5 ml-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111111] border border-gray-700 text-gray-400 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 transition-all"
+                        >
+                            <Layout className="w-3.5 h-3.5" />
+                            {TEMPLATES.find(t => t.id === selectedTemplate)?.name ?? 'Classic'}
+                        </button>
                     </div>
                     {/* Tabs */}
                     <div className="flex items-center bg-[#111111] border border-gray-800 rounded-xl p-1 gap-1">
@@ -645,6 +848,14 @@ export default function ResumeBuilder() {
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Save
                     </button>
+                    <button onClick={() => setShowTemplatePicker(v => !v)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border transition-colors ${
+                            showTemplatePicker
+                                ? 'bg-violet-500/10 text-violet-400 border-violet-500/30'
+                                : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
+                        }`}>
+                        <Layout className="w-4 h-4" /> Template
+                    </button>
                     <button onClick={() => setIsPreviewOpen(v => !v)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border transition-colors ${
                             isPreviewOpen
@@ -978,7 +1189,28 @@ export default function ResumeBuilder() {
                 {isPreviewOpen && (
                     <div className="flex-1 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-h-0">
                         <div className="bg-gray-100 px-3 py-2 border-b flex justify-between items-center shrink-0">
-                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview (A4)</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview (A4)</span>
+                                {showTemplatePicker && (
+                                    <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2 py-1 shadow-lg">
+                                        {TEMPLATES.map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => { setSelectedTemplate(t.id); setShowTemplatePicker(false); }}
+                                                title={t.description}
+                                                className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                                                    selectedTemplate === t.id
+                                                        ? 'bg-[#0a0a0a] text-white'
+                                                        : 'text-gray-600 hover:bg-gray-100'
+                                                }`}
+                                            >
+                                                <div className={`w-7 h-9 rounded border-2 ${t.preview} ${selectedTemplate === t.id ? 'ring-2 ring-offset-1 ring-[#00D9FF]' : ''}`} />
+                                                {t.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex gap-1.5">
                                 <div className="w-3 h-3 rounded-full bg-red-400" />
                                 <div className="w-3 h-3 rounded-full bg-yellow-400" />
@@ -989,9 +1221,16 @@ export default function ResumeBuilder() {
                             {/* A4 Page */}
                             <div
                                 ref={previewRef}
-                                className="bg-white mx-auto shadow-md"
-                                style={{ width: '210mm', minHeight: '297mm', padding: '15mm 20mm' }}
+                                className="bg-white mx-auto shadow-md overflow-hidden"
+                                style={{ width: '210mm', minHeight: '297mm', padding: selectedTemplate === 'modern' ? '0' : '15mm 20mm' }}
                             >
+                                <ResumeTemplate
+                                    template={selectedTemplate}
+                                    resumeData={resumeData}
+                                    inputData={inputData}
+                                />
+                                {/* PLACEHOLDER so old code below is removed */}
+                                {false && (
                                 <div className="font-serif text-black text-[13px] leading-relaxed">
                                     {/* Header */}
                                     <header className="border-b-2 border-gray-900 pb-4 mb-5">
@@ -1175,6 +1414,7 @@ export default function ResumeBuilder() {
                                         </section>
                                     )}
                                 </div>
+                                )}
                             </div>
                         </div>
                     </div>
