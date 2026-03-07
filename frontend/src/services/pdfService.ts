@@ -37,7 +37,7 @@ export const pdfService = {
         const formData = new FormData();
         formData.append('pdf', file);
         const res = await api.post('/pdf/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': undefined }, // let browser/axios set multipart boundary automatically
         });
         return res.data.data;
     },
