@@ -11,6 +11,7 @@ const resumeRoutes = require('../modules/resume/routes');
 const interviewRoutes = require('../modules/interview/routes');
 const roadmapRoutes = require('../modules/roadmap/routes');
 const pdfRoutes = require('./pdf-routes');
+const researchRoutes = require('./research-routes');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -30,6 +31,7 @@ router.use('/resume', resumeRoutes);
 router.use('/interview', interviewRoutes);
 router.use('/roadmap', roadmapRoutes);
 router.use('/pdf', pdfRoutes);
+router.use('/research', researchRoutes);
 
 module.exports = router;
 

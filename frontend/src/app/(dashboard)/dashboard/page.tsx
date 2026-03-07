@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
                     {/* Research Assistant */}
                     <ActionCard
-                        href="/dashboard/research"
+                        href="/research"
                         icon={<Brain className="w-8 h-8 text-[#00D9FF]" />}
                         title="Research Assistant"
                         description="AI-powered research help"

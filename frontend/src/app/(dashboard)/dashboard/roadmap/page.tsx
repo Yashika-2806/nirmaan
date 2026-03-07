@@ -61,6 +61,77 @@ function isPaidResource(title: string, paid?: boolean): boolean {
     return paidKeywords.some(k => t.includes(k));
 }
 
+type Resource = Roadmap['milestones'][0]['resources'][0];
+
+/** Augment week resources with curated ones based on skills so each week has ≥4 resources */
+function getAugmentedWeekResources(existing: Roadmap['milestones'][0]['resources'], skills: string[]): Resource[] {
+    const result: Resource[] = [...(existing || [])];
+    const st = skills.join(' ').toLowerCase();
+
+    const candidates: Resource[] = [];
+
+    if (st.match(/python|data science|machine learning|ml|ai|deep learning|nlp/)) {
+        candidates.push({ title: 'Kaggle – Free ML Courses & Datasets', type: 'course', url: 'https://www.kaggle.com/learn', paid: false });
+        candidates.push({ title: 'fast.ai – Practical Deep Learning (Free)', type: 'course', url: 'https://course.fast.ai', paid: false });
+        candidates.push({ title: 'Google ML Crash Course (Free)', type: 'course', url: 'https://developers.google.com/machine-learning/crash-course', paid: false });
+        candidates.push({ title: 'Machine Learning A-Z – Udemy', type: 'course', url: 'https://www.udemy.com/course/machinelearning/', paid: true });
+        candidates.push({ title: 'Python for Data Science Handbook (Free)', type: 'book', url: 'https://jakevdp.github.io/PythonDataScienceHandbook/', paid: false });
+    }
+    if (st.match(/javascript|typescript|react|vue|angular|frontend|html|css/)) {
+        candidates.push({ title: 'MDN Web Docs (Free)', type: 'article', url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript', paid: false });
+        candidates.push({ title: 'React Official Docs (Free)', type: 'article', url: 'https://react.dev', paid: false });
+        candidates.push({ title: 'JavaScript30 – 30 Day JS Challenge (Free)', type: 'course', url: 'https://javascript30.com', paid: false });
+        candidates.push({ title: 'The Complete JavaScript Course – Udemy', type: 'course', url: 'https://www.udemy.com/course/the-complete-javascript-course/', paid: true });
+        candidates.push({ title: 'CSS-Tricks – Complete Guide to Flexbox (Free)', type: 'article', url: 'https://css-tricks.com/snippets/css/a-guide-to-flexbox/', paid: false });
+    }
+    if (st.match(/node|express|backend|api|rest|graphql|server/)) {
+        candidates.push({ title: 'Node.js Official Docs (Free)', type: 'article', url: 'https://nodejs.org/en/docs', paid: false });
+        candidates.push({ title: 'The Odin Project – NodeJS Path (Free)', type: 'course', url: 'https://www.theodinproject.com/paths/full-stack-javascript', paid: false });
+        candidates.push({ title: 'NodeJS – The Complete Guide – Udemy', type: 'course', url: 'https://www.udemy.com/course/nodejs-the-complete-guide/', paid: true });
+        candidates.push({ title: 'REST API Design Best Practices – freeCodeCamp (Free)', type: 'article', url: 'https://www.freecodecamp.org/news/rest-api-design-best-practices-build-a-rest-api/', paid: false });
+    }
+    if (st.match(/cloud|aws|azure|gcp|devops|docker|kubernetes|ci\/cd|deployment/)) {
+        candidates.push({ title: 'AWS Free Tier & Getting Started (Free)', type: 'course', url: 'https://aws.amazon.com/free', paid: false });
+        candidates.push({ title: 'Play with Docker – Interactive Labs (Free)', type: 'practice', url: 'https://labs.play-with-docker.com', paid: false });
+        candidates.push({ title: 'Google Cloud Skills Boost (Free tier)', type: 'course', url: 'https://www.cloudskillsboost.google', paid: false });
+        candidates.push({ title: 'Docker & Kubernetes: The Complete Guide – Udemy', type: 'course', url: 'https://www.udemy.com/course/docker-and-kubernetes-the-complete-guide/', paid: true });
+    }
+    if (st.match(/database|sql|mongodb|postgresql|mysql|nosql|redis/)) {
+        candidates.push({ title: 'SQLZoo – Interactive SQL Practice (Free)', type: 'practice', url: 'https://sqlzoo.net', paid: false });
+        candidates.push({ title: 'MongoDB University (Free)', type: 'course', url: 'https://university.mongodb.com', paid: false });
+        candidates.push({ title: 'PostgreSQL Tutorial (Free)', type: 'article', url: 'https://www.postgresqltutorial.com', paid: false });
+        candidates.push({ title: 'The Complete SQL Bootcamp – Udemy', type: 'course', url: 'https://www.udemy.com/course/the-complete-sql-bootcamp/', paid: true });
+    }
+    if (st.match(/algorithm|data structure|leetcode|dsa|system design|architecture/)) {
+        candidates.push({ title: 'LeetCode – Practice Problems (Free/Paid)', type: 'practice', url: 'https://leetcode.com', paid: false });
+        candidates.push({ title: 'NeetCode – DSA Video Solutions (Free)', type: 'course', url: 'https://neetcode.io', paid: false });
+        candidates.push({ title: 'System Design Primer – GitHub (Free)', type: 'article', url: 'https://github.com/donnemartin/system-design-primer', paid: false });
+        candidates.push({ title: 'Grokking the System Design Interview – Educative', type: 'course', url: 'https://www.educative.io/courses/grokking-modern-system-design-interview', paid: true });
+    }
+    if (st.match(/git|github|version control|collaboration/)) {
+        candidates.push({ title: 'Pro Git Book (Free)', type: 'book', url: 'https://git-scm.com/book/en/v2', paid: false });
+        candidates.push({ title: 'Learn Git Branching – Interactive (Free)', type: 'practice', url: 'https://learngitbranching.js.org', paid: false });
+        candidates.push({ title: 'GitHub Learning Lab (Free)', type: 'course', url: 'https://github.com/apps/github-learning-lab', paid: false });
+    }
+    if (st.match(/security|cybersecurity|networking|linux|os/)) {
+        candidates.push({ title: 'TryHackMe – Cybersecurity Labs (Free tier)', type: 'practice', url: 'https://tryhackme.com', paid: false });
+        candidates.push({ title: 'Linux Journey – Interactive Linux (Free)', type: 'course', url: 'https://linuxjourney.com', paid: false });
+        candidates.push({ title: 'Computer Networking: A Top-Down Approach', type: 'book', url: 'https://gaia.cs.umass.edu/kurose_ross/index.php', paid: false });
+    }
+
+    // Always add freeCodeCamp + W3Schools as universal fallbacks
+    candidates.push({ title: 'freeCodeCamp – Free Full-Stack Curriculum (Free)', type: 'course', url: 'https://www.freecodecamp.org/learn', paid: false });
+    candidates.push({ title: 'The Odin Project – Full Stack (Free)', type: 'course', url: 'https://www.theodinproject.com', paid: false });
+    candidates.push({ title: 'YouTube – Traversy Media (Free)', type: 'course', url: 'https://www.youtube.com/@TraversyMedia', paid: false });
+
+    // Add from candidates until we have at least 4 unique resources
+    for (const c of candidates) {
+        if (result.length >= 5) break;
+        if (!result.some(r => r.title === c.title)) result.push(c);
+    }
+    return result;
+}
+
 
 /** Quiz questions bank */
 const QUIZ_QUESTIONS: Array<{ q: string; options: string[]; answer: number }> = [
@@ -365,11 +436,16 @@ function WeekCard({ weekNum, skills, resources, isCompleted, onMarkComplete }: {
     onMarkComplete: () => void;
 }) {
     const [expanded, setExpanded] = useState(false);
+    const augmentedResources = getAugmentedWeekResources(resources, skills);
 
     return (
-        <div className={`rounded-xl border transition-all ${isCompleted ? 'bg-green-500/5 border-green-500/20' : 'bg-white/[0.03] border-white/[0.08] hover:border-white/15'}`}>
+        <div
+            className={`rounded-xl border transition-all cursor-pointer ${isCompleted ? 'bg-green-500/5 border-green-500/20' : 'bg-white/[0.03] border-white/[0.08] hover:border-white/15'}`}
+            onClick={() => setExpanded(e => !e)}
+        >
             <div className="flex items-center gap-3 p-4">
-                <button onClick={onMarkComplete}
+                <button
+                    onClick={e => { e.stopPropagation(); onMarkComplete(); }}
                     className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                         isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-white/25 text-white/30 hover:border-[#00D9FF]/50'
                     }`}>
@@ -388,9 +464,7 @@ function WeekCard({ weekNum, skills, resources, isCompleted, onMarkComplete }: {
                         </div>
                     )}
                 </div>
-                <button onClick={() => setExpanded(e => !e)} className="p-1 text-white/30 hover:text-white/60 transition-colors">
-                    <ChevronRight className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                </button>
+                <ChevronRight className={`w-4 h-4 text-white/30 transition-transform ${expanded ? 'rotate-90' : ''}`} />
             </div>
 
             {expanded && (
@@ -405,13 +479,14 @@ function WeekCard({ weekNum, skills, resources, isCompleted, onMarkComplete }: {
                             </div>
                         </div>
                     )}
-                    {resources && resources.length > 0 && (
+                    {augmentedResources.length > 0 && (
                         <div>
                             <p className="text-base font-medium text-white/40 uppercase tracking-wide mb-2">Resources</p>
                             <div className="space-y-2">
-                                {resources.map((r, i) =>
+                                {augmentedResources.map((r, i) =>
                                     r.url ? (
                                         <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+                                            onClick={e => e.stopPropagation()}
                                             className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-lg px-4 py-3 transition-all group cursor-pointer">
                                             {resourceIcon(r.type)}
                                             <span className="flex-1 text-lg text-white/80 group-hover:text-white transition-colors">{r.title}</span>
@@ -481,11 +556,12 @@ function SkillInput({ skills, onChange }: { skills: string[]; onChange: (s: stri
 
 // ─── Milestone card ───────────────────────────────────────────────────────────
 function MilestoneCard({
-    milestone, index, total, onToggle, isToggling, onWeekComplete
+    milestone, index, total, onToggle, isToggling, onWeekComplete, onWeekProgress
 }: {
     milestone: Roadmap['milestones'][0]; index: number; total: number;
     onToggle: () => void; isToggling: boolean;
     onWeekComplete: (skills: string[], title: string) => void;
+    onWeekProgress: (completedCount: number) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const numWeeks = parseDurationToWeeks(milestone.duration);
@@ -495,6 +571,7 @@ function MilestoneCard({
         const updated = [...completedWeeks];
         updated[weekIdx] = !updated[weekIdx];
         setCompletedWeeks(updated);
+        onWeekProgress(updated.filter(Boolean).length);
         if (updated[weekIdx]) {
             const weekSkills = getWeekSkills(milestone.skills, weekIdx, numWeeks);
             onWeekComplete(weekSkills, `${milestone.title} – Week ${weekIdx + 1}`);
@@ -609,10 +686,17 @@ function RoadmapDetail({
 }) {
     const [togglingIndex, setTogglingIndex] = useState<number | null>(null);
     const [quiz, setQuiz] = useState<{ skills: string[]; title: string } | null>(null);
+    const [weekProgress, setWeekProgress] = useState<Record<number, number>>({});
+
+    const totalWeeks = roadmap.milestones.reduce((sum, m) => sum + parseDurationToWeeks(m.duration), 0);
+    const completedWeeksCount = roadmap.milestones.reduce((sum, m, i) => {
+        const numWeeks = parseDurationToWeeks(m.duration);
+        return sum + (m.completed ? numWeeks : (weekProgress[i] ?? 0));
+    }, 0);
+    const pct = totalWeeks > 0 ? Math.round((completedWeeksCount / totalWeeks) * 100) : 0;
     const completed = roadmap.milestones.filter(m => m.completed).length;
     const total = roadmap.milestones.length;
-    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const isRoadmapComplete = pct === 100 && total > 0;
+    const isRoadmapComplete = pct === 100 && totalWeeks > 0;
 
     const handleToggle = async (index: number) => {
         setTogglingIndex(index);
@@ -663,7 +747,7 @@ function RoadmapDetail({
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-end gap-3">
                         <span className="text-4xl font-bold text-white">{pct}%</span>
-                        <span className="text-lg text-white/40 mb-0.5">{completed}/{total} milestones done</span>
+                        <span className="text-lg text-white/40 mb-0.5">{completedWeeksCount}/{totalWeeks} weeks done · {completed}/{total} milestones</span>
                     </div>
                     <div className="flex items-center gap-6 text-base text-white/40">
                         <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />{roadmap.timelineMonths}m timeline</span>
@@ -693,6 +777,7 @@ function RoadmapDetail({
                                 onToggle={() => handleToggle(i)}
                                 isToggling={togglingIndex === i}
                                 onWeekComplete={(skills, title) => setQuiz({ skills, title })}
+                                onWeekProgress={(count) => setWeekProgress(prev => ({ ...prev, [i]: count }))}
                             />
                         ))}
                     </div>
