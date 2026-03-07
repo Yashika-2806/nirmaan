@@ -39,8 +39,22 @@ function parseDurationToWeeks(duration: string): number {
     return 4;
 }
 
-/** Distribute skills evenly across weeks */
-function getWeekSkills(skills: string[], weekIdx: number, numWeeks: number): string[] {
+/** Distribute resources evenly across weeks */
+function getWeekResources(resources: Roadmap['milestones'][0]['resources'], weekIdx: number, numWeeks: number) {
+    if (!resources || resources.length === 0) return [];
+    const perWeek = Math.ceil(resources.length / numWeeks);
+    return resources.slice(weekIdx * perWeek, (weekIdx + 1) * perWeek);
+}
+
+/** Infer if a resource is paid based on its title */
+function isPaidResource(title: string, paid?: boolean): boolean {
+    if (paid !== undefined) return paid;
+    const t = title.toLowerCase();
+    const paidKeywords = ['udemy', 'coursera', 'pluralsight', 'linkedin learning', 'educative', 'o\'reilly', 'oreilly', 'codecademy pro', 'datacamp', 'skillshare', 'frontendmasters'];
+    return paidKeywords.some(k => t.includes(k));
+}
+
+
     if (skills.length === 0) return [];
     const perWeek = Math.ceil(skills.length / numWeeks);
     return skills.slice(weekIdx * perWeek, (weekIdx + 1) * perWeek);
@@ -399,12 +413,18 @@ function WeekCard({ weekNum, skills, resources, isCompleted, onMarkComplete }: {
                                             className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-lg px-4 py-3 transition-all group cursor-pointer">
                                             {resourceIcon(r.type)}
                                             <span className="flex-1 text-lg text-white/80 group-hover:text-white transition-colors">{r.title}</span>
+                                            <span className={`shrink-0 text-sm font-semibold px-2.5 py-0.5 rounded-full ${isPaidResource(r.title, r.paid) ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/15 text-green-400 border border-green-500/30'}`}>
+                                                {isPaidResource(r.title, r.paid) ? 'Paid' : 'Free'}
+                                            </span>
                                             <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-[#00D9FF] transition-colors" />
                                         </a>
                                     ) : (
                                         <div key={i} className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-3">
                                             {resourceIcon(r.type)}
                                             <span className="flex-1 text-lg text-white/80">{r.title}</span>
+                                            <span className={`shrink-0 text-sm font-semibold px-2.5 py-0.5 rounded-full ${isPaidResource(r.title, r.paid) ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/15 text-green-400 border border-green-500/30'}`}>
+                                                {isPaidResource(r.title, r.paid) ? 'Paid' : 'Free'}
+                                            </span>
                                         </div>
                                     )
                                 )}
@@ -564,37 +584,13 @@ function MilestoneCard({
                                         key={weekIdx}
                                         weekNum={weekIdx + 1}
                                         skills={getWeekSkills(milestone.skills, weekIdx, numWeeks)}
-                                        resources={weekIdx === 0 ? milestone.resources : []}
+                                        resources={getWeekResources(milestone.resources, weekIdx, numWeeks)}
                                         isCompleted={completedWeeks[weekIdx]}
                                         onMarkComplete={() => toggleWeek(weekIdx)}
                                     />
                                 ))}
                             </div>
                         </div>
-
-                        {/* All resources */}
-                        {milestone.resources && milestone.resources.length > 0 && (
-                            <div>
-                                <p className="text-base font-semibold text-white/50 uppercase tracking-wider mb-3">All Resources</p>
-                                <div className="space-y-2">
-                                    {milestone.resources.map((r, i) =>
-                                        r.url ? (
-                                            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-lg px-4 py-3 transition-all group cursor-pointer">
-                                                {resourceIcon(r.type)}
-                                                <span className="flex-1 text-lg text-white/80 group-hover:text-white transition-colors">{r.title}</span>
-                                                <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-[#00D9FF] transition-colors" />
-                                            </a>
-                                        ) : (
-                                            <div key={i} className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-3">
-                                                {resourceIcon(r.type)}
-                                                <span className="flex-1 text-lg text-white/80">{r.title}</span>
-                                            </div>
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>

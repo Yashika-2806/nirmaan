@@ -4,6 +4,7 @@ export interface RoadmapResource {
     title: string;
     type: 'course' | 'book' | 'article' | 'project' | 'practice';
     url: string;
+    paid?: boolean;
 }
 
 export interface RoadmapMilestone {
