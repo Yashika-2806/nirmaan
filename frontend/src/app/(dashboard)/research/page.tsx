@@ -6,7 +6,7 @@ import {
     FlaskConical, GraduationCap, Copy, CheckCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { runResearch } from './actions';
+import api from '@/lib/axios';
 
 type ResearchType = 'literature-review' | 'methodology' | 'citations';
 
@@ -81,13 +81,13 @@ export default function ResearchPage() {
         setContent('');
         setCitations([]);
         try {
-            const result = await runResearch(topic, researchType);
-            setContent(result.content);
-            if (result.citations?.length) setCitations(result.citations);
+            const response = await api.post(`/research/${researchType}`, { topic });
+            setContent(response.data.data.content);
+            if (response.data.data.citations?.length) setCitations(response.data.data.citations);
             setHistory(prev => [{ topic: topic.trim(), type: researchType, timestamp: new Date() }, ...prev.slice(0, 9)]);
             toast.success('Research completed!');
         } catch (error: any) {
-            toast.error(error?.message || 'Failed to conduct research');
+            toast.error(error.response?.data?.message || error?.message || 'Failed to conduct research');
         } finally {
             setIsLoading(false);
         }
