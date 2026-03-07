@@ -39,6 +39,13 @@ function parseDurationToWeeks(duration: string): number {
     return 4;
 }
 
+/** Distribute skills evenly across weeks */
+function getWeekSkills(skills: string[], weekIdx: number, numWeeks: number): string[] {
+    if (skills.length === 0) return [];
+    const perWeek = Math.ceil(skills.length / numWeeks);
+    return skills.slice(weekIdx * perWeek, (weekIdx + 1) * perWeek);
+}
+
 /** Distribute resources evenly across weeks */
 function getWeekResources(resources: Roadmap['milestones'][0]['resources'], weekIdx: number, numWeeks: number) {
     if (!resources || resources.length === 0) return [];
@@ -54,11 +61,6 @@ function isPaidResource(title: string, paid?: boolean): boolean {
     return paidKeywords.some(k => t.includes(k));
 }
 
-
-    if (skills.length === 0) return [];
-    const perWeek = Math.ceil(skills.length / numWeeks);
-    return skills.slice(weekIdx * perWeek, (weekIdx + 1) * perWeek);
-}
 
 /** Quiz questions bank */
 const QUIZ_QUESTIONS: Array<{ q: string; options: string[]; answer: number }> = [
