@@ -568,10 +568,10 @@ function selectionSort(arr) {
                 {/* Filters */}
                 <div className="bg-[#111111] border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                        <label className="text-xs text-gray-500 font-bold mb-1 block uppercase">DSA Sheet</label>
+                        <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">DSA Sheet</label>
                         <div className="relative">
                             <select
-                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 appearance-none focus:border-[#00D9FF] outline-none cursor-pointer"
+                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none focus:border-[#00D9FF] outline-none cursor-pointer"
                                 value={activeSheet.id}
                                 onChange={(e) => {
                                     if (e.target.value === 'custom') {
@@ -592,11 +592,11 @@ function selectionSort(arr) {
                         </div>
                     </div>
 
-                    <div className="w-32">
-                        <label className="text-xs text-gray-500 font-bold mb-1 block uppercase">Difficulty</label>
+                    <div className="w-36">
+                        <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Difficulty</label>
                         <div className="relative">
                             <select
-                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 appearance-none outline-none"
+                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none"
                                 value={difficulty}
                                 onChange={(e) => setDifficulty(e.target.value)}
                             >
@@ -609,11 +609,11 @@ function selectionSort(arr) {
                         </div>
                     </div>
 
-                    <div className="w-32">
-                        <label className="text-xs text-gray-500 font-bold mb-1 block uppercase">Topic</label>
+                    <div className="w-36">
+                        <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Topic</label>
                         <div className="relative">
                             <select
-                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-sm rounded-lg px-3 py-2 appearance-none outline-none"
+                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none"
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
                             >
@@ -636,13 +636,13 @@ function selectionSort(arr) {
                                 <Code className="w-8 h-8 text-[#00D9FF]" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">{activeSheet.name}</h2>
-                                <p className="text-gray-400 text-sm">{activeSheet.desc}</p>
+                                <h2 className="text-3xl font-bold text-white mb-1">{activeSheet.name}</h2>
+                                <p className="text-gray-400 text-lg">{activeSheet.desc}</p>
                             </div>
                         </div>
 
                         {/* Progress */}
-                        <div className="mb-2 flex justify-between text-sm">
+                        <div className="mb-2 flex justify-between text-base">
                             <span className="text-gray-400">Progress: {filteredQuestions.filter(q => q.status === 'solved').length} / {filteredQuestions.length}</span>
                             <span className="text-[#00D9FF] font-bold">
                                 {filteredQuestions.length > 0
@@ -671,10 +671,10 @@ function selectionSort(arr) {
                 {/* Search & List */}
                 <div className="flex-1 flex flex-col gap-4 min-h-0">
                     <div className="relative">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+                        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
                         <input
                             placeholder="Search problems by title or topic..."
-                            className="w-full bg-[#111111] border border-gray-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-[#00D9FF] outline-none"
+                            className="w-full bg-[#111111] border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-base text-white focus:border-[#00D9FF] outline-none"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -707,18 +707,18 @@ function selectionSort(arr) {
                                             )}
                                         </button>
                                         <div>
-                                            <h3 className={`text-sm font-medium transition-colors flex items-center gap-2 ${q.status === 'solved' ? 'text-gray-500 line-through' : 'text-gray-200 group-hover:text-white'}`}>
+                                            <h3 className={`text-base font-medium transition-colors flex items-center gap-2 ${q.status === 'solved' ? 'text-gray-500 line-through' : 'text-gray-200 group-hover:text-white'}`}>
                                                 {i + 1}. {q.title}
-                                                {q.leetcodeUrl !== '#' && <Target className="w-3 h-3 text-gray-600 group-hover:text-[#00D9FF] transition-colors" />}
-                                                {q.sheet.startsWith('custom-') && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1 rounded">Custom</span>}
+                                                {q.leetcodeUrl !== '#' && <Target className="w-4 h-4 text-gray-600 group-hover:text-[#00D9FF] transition-colors" />}
+                                                {q.sheet.startsWith('custom-') && <span className="text-xs bg-blue-500/20 text-blue-400 px-1 rounded">Custom</span>}
                                             </h3>
                                             <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[10px] text-gray-500">{q.topic}</span>
+                                                <span className="text-sm text-gray-500">{q.topic}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <span className={`text-xs px-2 py-0.5 rounded border ${q.difficulty === 'Easy' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                                    <span className={`text-sm px-2.5 py-1 rounded border font-medium ${q.difficulty === 'Easy' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
                                         q.difficulty === 'Medium' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
                                             'bg-red-500/10 text-red-500 border-red-500/20'
                                         }`}>
@@ -742,8 +742,8 @@ function selectionSort(arr) {
 function StatBox({ label, value }: { label: string, value: string }) {
     return (
         <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3">
-            <div className="text-xl font-bold text-white mb-1">{value}</div>
-            <div className="text-xs text-gray-500 uppercase font-bold">{label}</div>
+            <div className="text-3xl font-bold text-white mb-1">{value}</div>
+            <div className="text-sm text-gray-500 uppercase font-bold">{label}</div>
         </div>
     );
 }

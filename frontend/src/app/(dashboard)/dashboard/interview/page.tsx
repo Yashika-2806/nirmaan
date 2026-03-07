@@ -707,14 +707,14 @@ export default function InterviewPage() {
 
             {/* ── Session Phase ── */}
             {phase === 'session' && session && (
-                <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-5 min-h-[calc(100vh-10rem)]">
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-6 gap-5 min-h-[calc(100vh-10rem)]">
                     {/* Left: question navigator */}
                     <div className="lg:col-span-1">
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-1 sticky top-4">
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-2 space-y-1 sticky top-4">
                             <p className="text-xs text-white/40 font-semibold uppercase tracking-wider px-2 mb-2">Questions</p>
                             {session.questions.map((q, i) => (
                                 <button key={i} onClick={() => { setCurrentIndex(i); setCurrentAnswer(''); setShowHint(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${i === currentIndex ? 'bg-[#00D9FF]/10 border border-[#00D9FF]/30 text-[#00D9FF]' : q.score != null ? 'bg-green-500/5 text-green-400/70' : 'text-white/40 hover:bg-white/5'}`}>
+                                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm transition-all ${i === currentIndex ? 'bg-[#00D9FF]/10 border border-[#00D9FF]/30 text-[#00D9FF]' : q.score != null ? 'bg-green-500/5 text-green-400/70' : 'text-white/40 hover:bg-white/5'}`}>
                                     <span className="font-mono text-xs">Q{i + 1}</span>
                                     {q.score != null
                                         ? <span className={`text-xs font-bold ${scoreColor(q.score)}`}>{q.score}</span>
@@ -725,7 +725,7 @@ export default function InterviewPage() {
                     </div>
 
                     {/* Center: question card */}
-                    <div className="lg:col-span-3 flex flex-col gap-4">
+                    <div className="lg:col-span-5 flex flex-col gap-4">
                         <div className="flex-1 rounded-xl bg-white/5 border border-white/10 p-7 flex flex-col gap-6">
                             {/* Header row */}
                             <div className="flex items-center justify-between gap-3 flex-wrap">

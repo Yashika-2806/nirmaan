@@ -9,6 +9,7 @@ const dsaRoutes = require('../modules/dsa/routes');
 const aiRoutes = require('./ai-routes');
 const resumeRoutes = require('../modules/resume/routes');
 const interviewRoutes = require('../modules/interview/routes');
+const roadmapRoutes = require('../modules/roadmap/routes');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -26,6 +27,7 @@ router.use('/dsa', dsaRoutes);
 router.use('/ai', aiRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/interview', interviewRoutes);
+router.use('/roadmap', roadmapRoutes);
 
 // TODO: Add other module routes
 // router.use('/interview', interviewRoutes);

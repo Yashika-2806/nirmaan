@@ -469,7 +469,7 @@ export const getQuestions = (sheetId: string) => {
                     difficulty: data.difficulty,
                     topic,
                     status: 'pending',
-                    sheet: 'neetcode-150',
+                    sheet: sheetId,
                     leetcodeUrl: data.url
                 });
             });
@@ -498,9 +498,8 @@ export const getQuestions = (sheetId: string) => {
 
     // 3. Grind 75 (Fallback to Blind 75 logic or empty)
     if (sheetId === 'grind-75') {
-        // Grind 75 is similar to Blind 75 but updated. For now, serve Blind 75
-        // or just return minimal set.
-        return getQuestions('blind-75');
+        // Grind 75 is similar to Blind 75 but updated. Tag all questions as 'grind-75'
+        return getQuestions('blind-75').map(q => ({ ...q, sheet: 'grind-75' }));
     }
 
     return [];

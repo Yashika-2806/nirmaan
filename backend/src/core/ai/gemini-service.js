@@ -607,6 +607,72 @@ Return STRICT JSON (no markdown, no backticks):
     }
 
     /**
+     * Generate a personalised career roadmap.
+     * Returns { title, summary, milestones[], totalSkills[], keyInsights[] }
+     */
+    async generateRoadmap({ currentRole, targetGoal, timelineMonths, skills = [], experience = '' }) {
+        const model = this.getModel('roadmap');
+        if (!model) return { error: 'AI unavailable' };
+        try {
+            const prompt = `You are an expert career coach and technical mentor.
+
+Generate a detailed, actionable career roadmap for this person:
+
+Current Role: "${currentRole}"
+Target Goal: "${targetGoal}"
+Timeline: ${timelineMonths} months
+Current Skills: ${skills.length > 0 ? skills.join(', ') : 'Not specified'}
+Experience Notes: ${experience || 'Not specified'}
+
+Return ONLY valid JSON (no markdown fences), structured exactly like this:
+{
+  "title": "Engaging roadmap title (max 10 words)",
+  "summary": "2-3 sentence overview of the path and key focus areas",
+  "milestones": [
+    {
+      "title": "Milestone title",
+      "description": "What will be learned and built in this phase",
+      "skills": ["Skill 1", "Skill 2", "Skill 3"],
+      "resources": [
+        { "title": "Resource name", "type": "course|book|article|project|practice", "url": "" }
+      ],
+      "duration": "Month X-Y",
+      "weeklyHours": 10,
+      "deliverable": "Concrete project or outcome to complete this milestone"
+    }
+  ],
+  "totalSkills": ["All unique skills across roadmap"],
+  "keyInsights": [
+    "Key insight or tip 1",
+    "Key insight or tip 2",
+    "Key insight or tip 3"
+  ]
+}
+
+Rules:
+- Create ${Math.max(4, Math.round(timelineMonths / 2))} milestones that span the full ${timelineMonths} months
+- Each milestone must build on the previous one logically
+- Skills should be specific technologies, tools, or concepts (not vague)
+- Resources should be realistic and helpful; use empty string for URL when unsure
+- Weekly hours should be realistic (5-20 range)
+- The roadmap should be industry-realistic for ${new Date().getFullYear()}
+- Focus on practical, job-market-relevant skills`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const roadmap = JSON.parse(text);
+            console.log(`[GeminiService] Roadmap generated: ${roadmap.milestones?.length} milestones for "${targetGoal}"`);
+            return roadmap;
+        } catch (error) {
+            console.error('Gemini AI API Error (Generate Roadmap):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
      * Check if an interview answer appears to be copied from the internet.
      * Returns { isPlagiarized, confidence, reason }
      */
