@@ -329,7 +329,7 @@ function CompletionRecommendations({ roadmap }: { roadmap: Roadmap }) {
                                 <p className="text-base text-white/50">{intern.platform}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-sm bg-white/10 text-white/60 px-2 py-0.5 rounded-full">{intern.type}</span>
+                                <span className="text-base bg-white/10 text-white/60 px-2.5 py-0.5 rounded-full">{intern.type}</span>
                                 <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-[#00D9FF] transition-colors" />
                             </div>
                         </a>
@@ -366,9 +366,9 @@ function WeekCard({ weekNum, skills, resources, isCompleted, onMarkComplete }: {
                     {!expanded && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
                             {skills.slice(0, 4).map((s, i) => (
-                                <span key={i} className="text-sm bg-white/5 text-white/50 px-2 py-0.5 rounded">{s}</span>
+                                <span key={i} className="text-base bg-white/5 text-white/50 px-2.5 py-0.5 rounded">{s}</span>
                             ))}
-                            {skills.length > 4 && <span className="text-sm text-white/30">+{skills.length - 4} more</span>}
+                            {skills.length > 4 && <span className="text-base text-white/30">+{skills.length - 4} more</span>}
                         </div>
                     )}
                 </div>
@@ -660,92 +660,48 @@ function RoadmapDetail({
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left: milestones */}
-                <div className="lg:col-span-2 space-y-4">
-                    {roadmap.summary && (
-                        <div className="rounded-xl bg-white/5 border border-white/10 px-6 py-4">
-                            <p className="text-xl text-white/75 leading-relaxed">{roadmap.summary}</p>
-                        </div>
-                    )}
-
-                    <div className="rounded-xl bg-white/5 border border-white/10 p-6">
-                        <h2 className="text-2xl font-bold text-white mb-6">Milestones</h2>
-                        <div>
-                            {roadmap.milestones.map((m, i) => (
-                                <MilestoneCard
-                                    key={i} milestone={m} index={i} total={roadmap.milestones.length}
-                                    onToggle={() => handleToggle(i)}
-                                    isToggling={togglingIndex === i}
-                                    onWeekComplete={(skills, title) => setQuiz({ skills, title })}
-                                />
-                            ))}
-                        </div>
+            {/* ── Progress Bar (top) ── */}
+            <div className="rounded-xl bg-white/5 border border-white/10 px-6 py-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-end gap-3">
+                        <span className="text-4xl font-bold text-white">{pct}%</span>
+                        <span className="text-lg text-white/40 mb-0.5">{completed}/{total} milestones done</span>
                     </div>
+                    <div className="flex items-center gap-6 text-base text-white/40">
+                        <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />{roadmap.timelineMonths}m timeline</span>
+                        <span className="flex items-center gap-1.5"><Brain className="w-4 h-4" />{roadmap.totalSkills?.length ?? 0} skills</span>
+                        <span className="flex items-center gap-1.5"><Target className="w-4 h-4" />{total} milestones</span>
+                    </div>
+                </div>
+                <div className="w-full bg-white/10 rounded-full h-3">
+                    <div className={`h-3 rounded-full transition-all duration-500 ${progressColor(pct)}`} style={{ width: `${pct}%` }} />
+                </div>
+            </div>
 
-                    {/* Completion Recommendations shown after 100% */}
-                    {isRoadmapComplete && <CompletionRecommendations roadmap={roadmap} />}
+            {/* ── Full-width milestones ── */}
+            <div className="space-y-4">
+                {roadmap.summary && (
+                    <div className="rounded-xl bg-white/5 border border-white/10 px-6 py-5">
+                        <p className="text-xl text-white/75 leading-relaxed">{roadmap.summary}</p>
+                    </div>
+                )}
+
+                <div className="rounded-xl bg-white/5 border border-white/10 p-6">
+                    <h2 className="text-2xl font-bold text-white mb-6">Milestones</h2>
+                    <div>
+                        {roadmap.milestones.map((m, i) => (
+                            <MilestoneCard
+                                key={i} milestone={m} index={i} total={roadmap.milestones.length}
+                                onToggle={() => handleToggle(i)}
+                                isToggling={togglingIndex === i}
+                                onWeekComplete={(skills, title) => setQuiz({ skills, title })}
+                            />
+                        ))}
+                    </div>
                 </div>
 
-                {/* Right: stats sidebar */}
-                <div className="space-y-5">
-                    {/* Progress */}
-                    <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-4">
-                        <h3 className="text-xl font-bold text-white">Progress</h3>
-                        <div className="flex items-end gap-3">
-                            <span className="text-5xl font-bold text-white">{pct}%</span>
-                            <span className="text-white/40 text-lg mb-1">{completed}/{total} done</span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-3">
-                            <div className={`h-3 rounded-full transition-all ${progressColor(pct)}`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="bg-white/5 rounded-lg p-2">
-                                <div className="text-xl font-bold text-white">{roadmap.timelineMonths}m</div>
-                                <div className="text-base text-white/40">Timeline</div>
-                            </div>
-                            <div className="bg-white/5 rounded-lg p-2">
-                                <div className="text-xl font-bold text-white">{total}</div>
-                                <div className="text-base text-white/40">Milestones</div>
-                            </div>
-                            <div className="bg-white/5 rounded-lg p-2">
-                                <div className="text-xl font-bold text-white">{roadmap.totalSkills.length}</div>
-                                <div className="text-base text-white/40">Skills</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Key Insights */}
-                    {roadmap.keyInsights && roadmap.keyInsights.length > 0 && (
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-3">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Lightbulb className="w-5 h-5 text-yellow-400" /> Key Insights
-                            </h3>
-                            <ul className="space-y-2.5">
-                                {roadmap.keyInsights.map((tip, i) => (
-                                    <li key={i} className="flex gap-2.5 text-lg text-white/70 leading-relaxed">
-                                        <Star className="w-4 h-4 text-yellow-400/60 shrink-0 mt-1" />
-                                        {tip}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* Total Skills */}
-                    {roadmap.totalSkills && roadmap.totalSkills.length > 0 && (
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-3">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Brain className="w-5 h-5 text-[#00D9FF]" /> All Skills
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {roadmap.totalSkills.map((s, i) => (
-                                    <span key={i} className="text-base bg-white/5 border border-white/10 text-white/60 px-3 py-1 rounded-full">{s}</span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                {/* Completion Recommendations shown after 100% */}
+                {isRoadmapComplete && <CompletionRecommendations roadmap={roadmap} />}
             </div>
         </div>
     );
