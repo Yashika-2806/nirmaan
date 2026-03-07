@@ -673,6 +673,162 @@ Rules:
     }
 
     /**
+     * Generates a multiple-choice quiz from PDF text.
+     * Uses GEMINI_KEY_5 (Skills/General)
+     */
+    async generatePDFQuiz(pdfText, numQuestions = 10) {
+        console.log(`[GeminiService] Generating PDF quiz (${numQuestions} questions)...`);
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are an expert educator creating a multiple-choice quiz from the following document content.
+
+DOCUMENT CONTENT (first 15000 chars):
+${pdfText.substring(0, 15000)}
+
+Create exactly ${numQuestions} multiple-choice questions strictly based on the content above.
+
+Rules:
+- Every question MUST be answerable from the document
+- Each question must have exactly 4 options labeled A, B, C, D
+- Only one option is correct
+- Vary difficulty: some factual recall, some inference
+- Include a short AI feedback message explaining WHY the correct answer is right
+
+Return ONLY valid JSON array (no markdown, no backticks):
+[
+  {
+    "id": 1,
+    "question": "Question text here?",
+    "options": {
+      "A": "Option A text",
+      "B": "Option B text",
+      "C": "Option C text",
+      "D": "Option D text"
+    },
+    "correctAnswer": "A",
+    "feedback": "Short explanation of why this is the correct answer, referencing the document."
+  }
+]`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const questions = JSON.parse(text);
+            console.log(`[GeminiService] Generated ${questions.length} PDF quiz questions.`);
+            return { questions };
+        } catch (error) {
+            console.error('Gemini AI API Error (PDF Quiz):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
+     * Generates marked exam questions from PDF text.
+     * Each question has a mark value and an expected answer.
+     * Uses GEMINI_KEY_5 (Skills/General)
+     */
+    async generateMarkedQuestions(pdfText, numQuestions = 6) {
+        console.log(`[GeminiService] Generating marked exam questions...`);
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are an experienced examiner creating a structured exam paper from the following document.
+
+DOCUMENT CONTENT (first 15000 chars):
+${pdfText.substring(0, 15000)}
+
+Create exactly ${numQuestions} exam questions based strictly on the document content.
+
+Rules:
+- Questions must vary in marks: use values like 2, 3, 5, 8, or 10 marks
+- Short questions (2-3 marks): factual recall, definitions, short explanations
+- Medium questions (5 marks): analysis, comparisons, application
+- Long questions (8-10 marks): detailed explanations, in-depth analysis, discussion
+- Each question must have a model answer showing what a student should write
+- The model answer should be proportional to the marks
+
+Return ONLY valid JSON array (no markdown, no backticks):
+[
+  {
+    "id": 1,
+    "question": "Full question text here?",
+    "marks": 5,
+    "topic": "Topic/concept being tested",
+    "expectedAnswer": "A detailed model answer showing exactly what a student needs to write to get full marks. Include key points that must be mentioned."
+  }
+]`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const questions = JSON.parse(text);
+            console.log(`[GeminiService] Generated ${questions.length} marked exam questions.`);
+            return { questions };
+        } catch (error) {
+            console.error('Gemini AI API Error (Marked Questions):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
+     * Grades a student's answer against an expected answer for a given mark.
+     * Returns a score + detailed feedback.
+     * Uses GEMINI_KEY_5 (Skills/General)
+     */
+    async gradeStudentAnswer({ question, marks, expectedAnswer, studentAnswer }) {
+        console.log(`[GeminiService] Grading student answer for question (${marks} marks)...`);
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are a strict but fair examiner grading a student's answer.
+
+QUESTION: "${question}"
+TOTAL MARKS: ${marks}
+MODEL ANSWER: "${expectedAnswer}"
+STUDENT'S ANSWER: "${studentAnswer}"
+
+Grade the student's answer by comparing it to the model answer.
+
+Rules:
+- Award marks proportionally based on how many key points from the model answer the student covered
+- A completely correct and complete answer gets full marks (${marks})
+- A blank or completely wrong answer gets 0
+- Be strict but fair — partial credit for partial coverage
+- Provide specific, actionable feedback mentioning what was good and what was missing
+
+Return ONLY valid JSON (no markdown, no backticks):
+{
+  "score": <integer 0 to ${marks}>,
+  "percentage": <integer 0-100>,
+  "verdict": "Excellent" | "Good" | "Partial" | "Poor" | "No Attempt",
+  "feedback": "Detailed feedback explaining the score. Mention specific points the student got right, points they missed, and how they could improve. 3-5 sentences.",
+  "keyPointsCovered": ["Key point 1 the student covered", "Key point 2 covered"],
+  "keyPointsMissed": ["Key point 1 that was missing", "Key point 2 missing"]
+}`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const grading = JSON.parse(text);
+            console.log(`[GeminiService] Answer graded: ${grading.score}/${marks}`);
+            return grading;
+        } catch (error) {
+            console.error('Gemini AI API Error (Grade Answer):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
      * Check if an interview answer appears to be copied from the internet.
      * Returns { isPlagiarized, confidence, reason }
      */

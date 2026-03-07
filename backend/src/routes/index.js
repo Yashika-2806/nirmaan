@@ -10,6 +10,7 @@ const aiRoutes = require('./ai-routes');
 const resumeRoutes = require('../modules/resume/routes');
 const interviewRoutes = require('../modules/interview/routes');
 const roadmapRoutes = require('../modules/roadmap/routes');
+const pdfRoutes = require('./pdf-routes');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -28,13 +29,7 @@ router.use('/ai', aiRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/interview', interviewRoutes);
 router.use('/roadmap', roadmapRoutes);
-
-// TODO: Add other module routes
-// router.use('/interview', interviewRoutes);
-// router.use('/roadmap', roadmapRoutes);
-// router.use('/research', researchRoutes);
-// router.use('/pdf', pdfRoutes);
-// router.use('/skill-marketplace', skillMarketplaceRoutes);
-// router.use('/career-twin', careerTwinRoutes);
+router.use('/pdf', pdfRoutes);
 
 module.exports = router;
+
