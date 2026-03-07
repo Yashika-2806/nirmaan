@@ -84,25 +84,54 @@ Provide the same citations in BibTeX format for LaTeX users.
 };
 
 async function callGemini(prompt: string): Promise<string> {
-    const apiKey = process.env.GEMINI_KEY_1 || process.env.GEMINI_KEY_4 || process.env.GEMINI_RESEARCH_KEY;
-    if (!apiKey) throw new Error('Gemini API key not configured. Add GEMINI_KEY_1 to frontend .env.local');
+    // KEY_6 is dedicated to research (general). Fall back to other keys on quota error.
+    const keyOrder = [
+        process.env.GEMINI_KEY_6,
+        process.env.GEMINI_KEY_5,
+        process.env.GEMINI_KEY_4,
+        process.env.GEMINI_KEY_3,
+        process.env.GEMINI_KEY_2,
+        process.env.GEMINI_KEY_1,
+    ].filter(Boolean) as string[];
 
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    if (keyOrder.length === 0) throw new Error('No Gemini API keys configured in frontend .env.local');
+
+    let lastError = '';
+    for (const apiKey of keyOrder) {
+        try {
+            const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                }
+            );
+
+            if (res.status === 429 || res.status === 403) {
+                // Quota exceeded — try next key
+                const err = await res.json().catch(() => ({}));
+                lastError = err?.error?.message || `HTTP ${res.status}`;
+                continue;
+            }
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error?.message || `Gemini API error: ${res.status}`);
+            }
+
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        } catch (err: any) {
+            if (err.message?.includes('quota') || err.message?.includes('429')) {
+                lastError = err.message;
+                continue;
+            }
+            throw err;
         }
-    );
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `Gemini API error: ${res.status}`);
     }
 
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    throw new Error(`All API keys exhausted. Last error: ${lastError}`);
 }
 
 export async function runResearch(topic: string, type: string): Promise<{ content: string; citations: string[] }> {
