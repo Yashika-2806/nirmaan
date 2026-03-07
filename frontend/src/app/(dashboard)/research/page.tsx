@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import {
     BookOpen, Search, FileText, Quote, Sparkles, Loader2,
-    FlaskConical, GraduationCap, Copy, CheckCheck, ChevronDown, ExternalLink
+    FlaskConical, GraduationCap, Copy, CheckCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '@/lib/axios';
+import { runResearch } from './actions';
 
 type ResearchType = 'literature-review' | 'methodology' | 'citations';
 
@@ -81,15 +81,13 @@ export default function ResearchPage() {
         setContent('');
         setCitations([]);
         try {
-            const response = await api.post(`/research/${researchType}`, { topic });
-            setContent(response.data.data.content);
-            if (response.data.data.citations?.length) {
-                setCitations(response.data.data.citations);
-            }
+            const result = await runResearch(topic, researchType);
+            setContent(result.content);
+            if (result.citations?.length) setCitations(result.citations);
             setHistory(prev => [{ topic: topic.trim(), type: researchType, timestamp: new Date() }, ...prev.slice(0, 9)]);
             toast.success('Research completed!');
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Failed to conduct research');
+            toast.error(error?.message || 'Failed to conduct research');
         } finally {
             setIsLoading(false);
         }
