@@ -67,7 +67,7 @@ export default function DashboardLayout({
 
                     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-4 mt-6">Tools</div>
                     <NavLink href="/dashboard/roadmap" icon={<Map size={18} />} label="Roadmap" active={pathname === '/dashboard/roadmap'} />
-                    <NavLink href="/dashboard/research" icon={<BookOpen size={18} />} label="Research" active={pathname === '/dashboard/research'} />
+                    <NavLink href="/research" icon={<BookOpen size={18} />} label="Research" active={pathname === '/research'} />
                     <NavLink href="/dashboard/pdf" icon={<FileUp size={18} />} label="PDF Learning" active={pathname === '/dashboard/pdf'} />
                     <NavLink href="/dashboard/skill-marketplace" icon={<Users size={18} />} label="Community" active={pathname === '/dashboard/skill-marketplace'} />
                     <NavLink href="/dashboard/career-twin" icon={<Bot size={18} />} label="AI Twin" active={pathname === '/dashboard/career-twin'} />
