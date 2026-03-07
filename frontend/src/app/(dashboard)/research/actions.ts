@@ -85,7 +85,7 @@ Provide the same citations in BibTeX format for LaTeX users.
 
 async function callGemini(prompt: string): Promise<string> {
     // KEY_6 is dedicated to research (general). Fall back to other keys on quota error.
-    const keyOrder = [
+    const keys = [
         process.env.GEMINI_KEY_6,
         process.env.GEMINI_KEY_5,
         process.env.GEMINI_KEY_4,
@@ -94,44 +94,52 @@ async function callGemini(prompt: string): Promise<string> {
         process.env.GEMINI_KEY_1,
     ].filter(Boolean) as string[];
 
-    if (keyOrder.length === 0) throw new Error('No Gemini API keys configured in frontend .env.local');
+    // Try multiple models — flash-lite has higher free-tier RPM limits
+    const models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+
+    if (keys.length === 0) throw new Error('No Gemini API keys configured in frontend .env.local');
 
     let lastError = '';
-    for (const apiKey of keyOrder) {
-        try {
-            const res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    for (const model of models) {
+        for (const apiKey of keys) {
+            try {
+                const res = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                    }
+                );
+
+                if (res.status === 429 || res.status === 403) {
+                    const err = await res.json().catch(() => ({}));
+                    lastError = err?.error?.message || `HTTP ${res.status}`;
+                    continue; // try next key / model
                 }
-            );
 
-            if (res.status === 429 || res.status === 403) {
-                // Quota exceeded — try next key
-                const err = await res.json().catch(() => ({}));
-                lastError = err?.error?.message || `HTTP ${res.status}`;
-                continue;
-            }
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.error?.message || `Gemini API error: ${res.status}`);
+                }
 
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err?.error?.message || `Gemini API error: ${res.status}`);
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) return text;
+            } catch (err: any) {
+                if (err.message?.includes('quota') || err.message?.includes('429') || err.message?.includes('rate')) {
+                    lastError = err.message;
+                    continue;
+                }
+                throw err;
             }
-
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-        } catch (err: any) {
-            if (err.message?.includes('quota') || err.message?.includes('429')) {
-                lastError = err.message;
-                continue;
-            }
-            throw err;
         }
     }
 
-    throw new Error(`All API keys exhausted. Last error: ${lastError}`);
+    // Extract retry time from last error if available
+    const retryMatch = lastError.match(/retry in ([\d.]+)s/i);
+    const retryMsg = retryMatch ? ` Please wait ${Math.ceil(parseFloat(retryMatch[1]))} seconds and try again.` : ' Please wait a moment and try again.';
+    throw new Error(`Rate limit reached on all API keys.${retryMsg}`);
 }
 
 export async function runResearch(topic: string, type: string): Promise<{ content: string; citations: string[] }> {
