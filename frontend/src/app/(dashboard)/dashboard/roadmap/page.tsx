@@ -556,11 +556,12 @@ function SkillInput({ skills, onChange }: { skills: string[]; onChange: (s: stri
 
 // ─── Milestone card ───────────────────────────────────────────────────────────
 function MilestoneCard({
-    milestone, index, total, onToggle, isToggling, onWeekComplete
+    milestone, index, total, onToggle, isToggling, onWeekComplete, onWeekProgress
 }: {
     milestone: Roadmap['milestones'][0]; index: number; total: number;
     onToggle: () => void; isToggling: boolean;
     onWeekComplete: (skills: string[], title: string) => void;
+    onWeekProgress: (completedCount: number) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const numWeeks = parseDurationToWeeks(milestone.duration);
@@ -570,6 +571,7 @@ function MilestoneCard({
         const updated = [...completedWeeks];
         updated[weekIdx] = !updated[weekIdx];
         setCompletedWeeks(updated);
+        onWeekProgress(updated.filter(Boolean).length);
         if (updated[weekIdx]) {
             const weekSkills = getWeekSkills(milestone.skills, weekIdx, numWeeks);
             onWeekComplete(weekSkills, `${milestone.title} – Week ${weekIdx + 1}`);
@@ -684,10 +686,17 @@ function RoadmapDetail({
 }) {
     const [togglingIndex, setTogglingIndex] = useState<number | null>(null);
     const [quiz, setQuiz] = useState<{ skills: string[]; title: string } | null>(null);
+    const [weekProgress, setWeekProgress] = useState<Record<number, number>>({});
+
+    const totalWeeks = roadmap.milestones.reduce((sum, m) => sum + parseDurationToWeeks(m.duration), 0);
+    const completedWeeksCount = roadmap.milestones.reduce((sum, m, i) => {
+        const numWeeks = parseDurationToWeeks(m.duration);
+        return sum + (m.completed ? numWeeks : (weekProgress[i] ?? 0));
+    }, 0);
+    const pct = totalWeeks > 0 ? Math.round((completedWeeksCount / totalWeeks) * 100) : 0;
     const completed = roadmap.milestones.filter(m => m.completed).length;
     const total = roadmap.milestones.length;
-    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const isRoadmapComplete = pct === 100 && total > 0;
+    const isRoadmapComplete = pct === 100 && totalWeeks > 0;
 
     const handleToggle = async (index: number) => {
         setTogglingIndex(index);
@@ -738,7 +747,7 @@ function RoadmapDetail({
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-end gap-3">
                         <span className="text-4xl font-bold text-white">{pct}%</span>
-                        <span className="text-lg text-white/40 mb-0.5">{completed}/{total} milestones done</span>
+                        <span className="text-lg text-white/40 mb-0.5">{completedWeeksCount}/{totalWeeks} weeks done · {completed}/{total} milestones</span>
                     </div>
                     <div className="flex items-center gap-6 text-base text-white/40">
                         <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />{roadmap.timelineMonths}m timeline</span>
@@ -768,6 +777,7 @@ function RoadmapDetail({
                                 onToggle={() => handleToggle(i)}
                                 isToggling={togglingIndex === i}
                                 onWeekComplete={(skills, title) => setQuiz({ skills, title })}
+                                onWeekProgress={(count) => setWeekProgress(prev => ({ ...prev, [i]: count }))}
                             />
                         ))}
                     </div>
