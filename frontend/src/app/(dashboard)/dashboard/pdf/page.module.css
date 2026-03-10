@@ -1,0 +1,4 @@
+.pdfFontBoost {
+  /* Raise baseline text size by roughly 5pt for this page only. */
+  font-size: calc(1rem + 5pt);
+}
