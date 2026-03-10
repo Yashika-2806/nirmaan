@@ -173,6 +173,35 @@ router.post('/marked-questions', aiLimiter, async (req, res) => {
     }
 });
 
+// ─── POST /api/pdf/assertion-reason ─────────────────────────────────────────
+router.post('/assertion-reason', aiLimiter, async (req, res) => {
+    try {
+        const { sessionId, numQuestions = 8, difficulty = 'mixed' } = req.body;
+        if (!sessionId) return ApiResponse.badRequest(res, 'sessionId is required');
+
+        const allowedDifficulty = ['easy', 'medium', 'hard', 'mixed'];
+        if (!allowedDifficulty.includes(String(difficulty).toLowerCase())) {
+            return ApiResponse.badRequest(res, 'difficulty must be one of: easy, medium, hard, mixed');
+        }
+
+        const session = await PDFSession.findOne({ _id: sessionId, userId: req.user.userId });
+        if (!session) return ApiResponse.notFound(res, 'PDF session not found');
+
+        const safeNumQuestions = Math.max(1, Math.min(parseInt(numQuestions, 10) || 8, 12));
+        const result = await geminiService.generateAssertionReasonQuestions(
+            session.extractedText,
+            safeNumQuestions,
+            String(difficulty).toLowerCase()
+        );
+        if (result.error) return ApiResponse.internalError(res, result.error);
+
+        return ApiResponse.success(res, { questions: result.questions }, 'Assertion-Reason questions generated successfully');
+    } catch (error) {
+        console.error('[PDF] Assertion-Reason generation error:', error);
+        return ApiResponse.internalError(res, 'Failed to generate assertion-reason questions');
+    }
+});
+
 // ─── POST /api/pdf/grade ──────────────────────────────────────────────────────
 router.post('/grade', aiLimiter, async (req, res) => {
     try {

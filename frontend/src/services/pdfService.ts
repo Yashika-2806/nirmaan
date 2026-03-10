@@ -17,6 +17,16 @@ export interface QuizQuestion {
     feedback: string;
 }
 
+export interface AssertionReasonQuestion {
+    id: number;
+    difficulty?: 'easy' | 'medium' | 'hard';
+    assertion: string;
+    reason: string;
+    correctAnswer: 'A' | 'B' | 'C' | 'D';
+    optionReasons?: Partial<Record<'A' | 'B' | 'C' | 'D', string>>;
+    feedback: string;
+}
+
 export interface MarkedQuestion {
     id: number;
     question: string;
@@ -53,6 +63,16 @@ export const pdfService = {
         api.post('/pdf/quiz', {
             sessionId,
             numQuestions: options.numQuestions ?? 10,
+            difficulty: options.difficulty ?? 'mixed',
+        }).then(r => r.data.data),
+
+    generateAssertionReasonQuestions: (
+        sessionId: string,
+        options: { numQuestions?: number; difficulty?: 'easy' | 'medium' | 'hard' | 'mixed' } = {}
+    ): Promise<{ questions: AssertionReasonQuestion[] }> =>
+        api.post('/pdf/assertion-reason', {
+            sessionId,
+            numQuestions: options.numQuestions ?? 8,
             difficulty: options.difficulty ?? 'mixed',
         }).then(r => r.data.data),
 

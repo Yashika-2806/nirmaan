@@ -682,31 +682,38 @@ Rules:
         if (!model) return { error: 'AI unavailable' };
 
         try {
-            const prompt = `You are an expert educator creating a multiple-choice quiz from the following document content.
+                        const buildPrompt = (strictMode = false) => `You are a senior exam-setter and subject-matter expert creating a high-quality exam-style MCQ set.
 
 DOCUMENT CONTENT (first 15000 chars):
 ${pdfText.substring(0, 15000)}
 
-Create exactly ${numQuestions} multiple-choice questions strictly based on the content above.
+Task:
+- First deeply analyze the content and identify the key concepts, mechanisms, and relationships.
+- Then create exactly ${numQuestions} exam-level multiple-choice questions strictly based on the content.
 
 Rules:
-- Every question MUST be answerable from the document
-- Each question must have exactly 4 options labeled A, B, C, D
-- Only one option is correct
-- Required difficulty level: ${difficulty}
-- If difficulty is "mixed", include an intentional blend of easy/medium/hard
-- If difficulty is "easy" or "medium" or "hard", keep all questions aligned to that level
-- Include a short AI feedback message explaining WHY the correct answer is right
-- Add a "difficulty" field per question using one of: "easy", "medium", "hard"
-- Add an "optionReasons" object with concise reasons for each option:
-    - why the correct option is correct
-    - why each wrong option is incorrect
+- Every question MUST be answerable from the document and test conceptual understanding, not surface wording.
+- Prefer application/analysis style questions (scenario, inference, comparison, cause-effect) over list-memorization.
+- Avoid shallow stems like: "which is listed", "which is not listed", "Day 1/Day 2", or section-label trivia.
+- Use clean, natural exam language as used in school/college exams.
+- Each question must have exactly 4 options labeled A, B, C, D.
+- Only one option is correct.
+- Distractors (wrong options) must be plausible and close to the concept, not random nonsense.
+- Required difficulty level: ${difficulty}. If "mixed", produce a balanced easy/medium/hard distribution.
+- Include a "difficulty" field per question: "easy" | "medium" | "hard".
+- Include "feedback": 1-3 lines explaining the core concept behind the correct answer.
+- Include "optionReasons" with A/B/C/D reasons:
+    - For the correct option: explain exactly why it is correct based on concept/evidence.
+    - For each incorrect option: explain exactly why it is incorrect (what misconception it reflects).
+    - Reasons must be specific and logical, not generic lines like "conflicts with document context".
+    - Each reason should be at least one complete sentence.
+${strictMode ? '- STRICT QUALITY MODE: Regenerate mentally until all questions are deep, concept-driven, and explanation quality is high.' : ''}
 
 Return ONLY valid JSON array (no markdown, no backticks):
 [
   {
     "id": 1,
-    "question": "Question text here?",
+        "question": "Conceptual exam question text here?",
         "difficulty": "medium",
     "options": {
       "A": "Option A text",
@@ -721,20 +728,291 @@ Return ONLY valid JSON array (no markdown, no backticks):
             "D": "Reason for option D"
         },
     "correctAnswer": "A",
-    "feedback": "Short explanation of why this is the correct answer, referencing the document."
+    "feedback": "Concept-level explanation of why the correct answer is right."
   }
 ]`;
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            let text = response.text().trim();
-            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
-            if (text.startsWith('```')) text = text.replace(/```/g, '');
-            const questions = JSON.parse(text);
-            console.log(`[GeminiService] Generated ${questions.length} PDF quiz questions.`);
-            return { questions };
+            const extractJSONArrayString = (input) => {
+                const text = String(input || '').trim();
+                const start = text.indexOf('[');
+                if (start < 0) return null;
+
+                let depth = 0;
+                let inString = false;
+                let escaped = false;
+
+                for (let i = start; i < text.length; i += 1) {
+                    const ch = text[i];
+
+                    if (inString) {
+                        if (escaped) {
+                            escaped = false;
+                        } else if (ch === '\\') {
+                            escaped = true;
+                        } else if (ch === '"') {
+                            inString = false;
+                        }
+                        continue;
+                    }
+
+                    if (ch === '"') {
+                        inString = true;
+                        continue;
+                    }
+
+                    if (ch === '[') depth += 1;
+                    if (ch === ']') {
+                        depth -= 1;
+                        if (depth === 0) {
+                            return text.slice(start, i + 1);
+                        }
+                    }
+                }
+
+                return null;
+            };
+
+            const parseQuestions = (rawText) => {
+                let text = String(rawText || '').trim();
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+                try {
+                    return JSON.parse(text);
+                } catch (_) {
+                    // Fall through to tolerant extraction.
+                }
+
+                const extracted = extractJSONArrayString(text);
+                if (extracted) {
+                    return JSON.parse(extracted);
+                }
+
+                throw new Error('Failed to parse quiz JSON from model output');
+            };
+
+            const normalizeQuestions = (questions) => {
+                return (questions || []).map((q, i) => {
+                    const options = q?.options || {};
+                    const correctAnswer = q?.correctAnswer;
+                    const baseFeedback = (q?.feedback || '').trim();
+                    const optionReasons = q?.optionReasons || {};
+
+                    const normalizedReasons = {
+                        A: (optionReasons.A || '').trim(),
+                        B: (optionReasons.B || '').trim(),
+                        C: (optionReasons.C || '').trim(),
+                        D: (optionReasons.D || '').trim(),
+                    };
+
+                    ['A', 'B', 'C', 'D'].forEach((key) => {
+                        if (!normalizedReasons[key]) {
+                            normalizedReasons[key] = key === correctAnswer
+                                ? `Option ${key} is correct because it matches the key concept tested in the question. ${baseFeedback || ''}`.trim()
+                                : `Option ${key} is incorrect because it does not satisfy the concept asked in the question, while option ${correctAnswer} does.`;
+                        }
+                    });
+
+                    return {
+                        id: Number(q?.id) || i + 1,
+                        question: q?.question,
+                        difficulty: q?.difficulty || 'medium',
+                        options,
+                        optionReasons: normalizedReasons,
+                        correctAnswer,
+                        feedback: baseFeedback || 'The correct option aligns with the concept explained in the source material.',
+                    };
+                });
+            };
+
+            const hasLowQualityQuestions = (questions) => {
+                if (!Array.isArray(questions) || questions.length === 0) return true;
+
+                const shallowStemRegex = /(day\s*\d|which\s+of\s+(these|the following)\s+is\s+not\s+listed|not\s+listed|true\s*\/\s*false)/i;
+                const weakReasonRegex = /(conflicts with document context|right answer for this mcq|re-check why|supported by the text\.?$)/i;
+
+                const shallowCount = questions.filter(q => shallowStemRegex.test(String(q?.question || ''))).length;
+
+                let weakReasonCount = 0;
+                questions.forEach((q) => {
+                    const reasons = q?.optionReasons || {};
+                    ['A', 'B', 'C', 'D'].forEach((key) => {
+                        const reason = String(reasons[key] || '').trim();
+                        if (!reason || reason.length < 30 || weakReasonRegex.test(reason)) {
+                            weakReasonCount += 1;
+                        }
+                    });
+                });
+
+                return shallowCount > Math.floor(questions.length * 0.2) || weakReasonCount > 0;
+            };
+
+            const first = await model.generateContent(buildPrompt(false));
+            const firstResponse = await first.response;
+            let questions = parseQuestions(firstResponse.text());
+
+            if (hasLowQualityQuestions(questions)) {
+                console.warn('[GeminiService] Detected shallow/weak quiz output. Retrying with strict quality mode...');
+                const second = await model.generateContent(buildPrompt(true));
+                const secondResponse = await second.response;
+                questions = parseQuestions(secondResponse.text());
+            }
+
+            const normalized = normalizeQuestions(questions);
+            console.log(`[GeminiService] Generated ${normalized.length} PDF quiz questions.`);
+            return { questions: normalized };
         } catch (error) {
             console.error('Gemini AI API Error (PDF Quiz):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
+     * Generates assertion-reason questions from PDF text.
+     * Uses GEMINI_KEY_5 (Skills/General)
+     */
+    async generateAssertionReasonQuestions(pdfText, numQuestions = 8, difficulty = 'mixed') {
+        console.log(`[GeminiService] Generating assertion-reason questions (${numQuestions}, difficulty: ${difficulty})...`);
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are a senior exam-setter creating Assertion-Reason questions from the document below.
+
+DOCUMENT CONTENT (first 15000 chars):
+${pdfText.substring(0, 15000)}
+
+Create exactly ${numQuestions} assertion-reason questions based strictly on document concepts.
+
+Question format (Indian exam style):
+- Assertion (A): statement
+- Reason (R): statement
+
+Options are fixed as:
+A: Both Assertion and Reason are true, and Reason is the correct explanation of Assertion.
+B: Both Assertion and Reason are true, but Reason is not the correct explanation of Assertion.
+C: Assertion is true, but Reason is false.
+D: Assertion is false, but Reason is true.
+
+Rules:
+- Required difficulty: ${difficulty}. If mixed, balance easy/medium/hard.
+- Questions must be conceptual, exam-like, and derived from source content.
+- Avoid trivial section/day label questions.
+- Provide logical, student-friendly explanations.
+- For each option A/B/C/D, provide why that option is correct/incorrect for this question.
+
+Return ONLY valid JSON array:
+[
+  {
+    "id": 1,
+    "difficulty": "medium",
+    "assertion": "Assertion statement",
+    "reason": "Reason statement",
+    "correctAnswer": "A",
+    "optionReasons": {
+      "A": "Why A is correct or not correct in this specific case.",
+      "B": "Why B is correct or not correct in this specific case.",
+      "C": "Why C is correct or not correct in this specific case.",
+      "D": "Why D is correct or not correct in this specific case."
+    },
+    "feedback": "Conceptual explanation in 2-4 lines."
+  }
+]`;
+
+            const extractJSONArrayString = (input) => {
+                const text = String(input || '').trim();
+                const start = text.indexOf('[');
+                if (start < 0) return null;
+
+                let depth = 0;
+                let inString = false;
+                let escaped = false;
+
+                for (let i = start; i < text.length; i += 1) {
+                    const ch = text[i];
+
+                    if (inString) {
+                        if (escaped) escaped = false;
+                        else if (ch === '\\') escaped = true;
+                        else if (ch === '"') inString = false;
+                        continue;
+                    }
+
+                    if (ch === '"') {
+                        inString = true;
+                        continue;
+                    }
+
+                    if (ch === '[') depth += 1;
+                    if (ch === ']') {
+                        depth -= 1;
+                        if (depth === 0) return text.slice(start, i + 1);
+                    }
+                }
+
+                return null;
+            };
+
+            const parseQuestions = (rawText) => {
+                let text = String(rawText || '').trim();
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+                try {
+                    return JSON.parse(text);
+                } catch (_) {
+                    // Continue with tolerant extraction.
+                }
+
+                const extracted = extractJSONArrayString(text);
+                if (extracted) return JSON.parse(extracted);
+                throw new Error('Failed to parse assertion-reason JSON from model output');
+            };
+
+            const optionMeaning = {
+                A: 'Both Assertion and Reason are true, and Reason correctly explains Assertion.',
+                B: 'Both Assertion and Reason are true, but Reason does not correctly explain Assertion.',
+                C: 'Assertion is true, but Reason is false.',
+                D: 'Assertion is false, but Reason is true.',
+            };
+
+            const normalize = (questions) => {
+                return (questions || []).map((q, idx) => {
+                    const correctAnswer = ['A', 'B', 'C', 'D'].includes(q?.correctAnswer) ? q.correctAnswer : 'A';
+                    const reasons = q?.optionReasons || {};
+                    const normalizedReasons = {
+                        A: (reasons.A || '').trim(),
+                        B: (reasons.B || '').trim(),
+                        C: (reasons.C || '').trim(),
+                        D: (reasons.D || '').trim(),
+                    };
+
+                    ['A', 'B', 'C', 'D'].forEach((key) => {
+                        if (!normalizedReasons[key]) {
+                            normalizedReasons[key] = key === correctAnswer
+                                ? `Option ${key} is correct in this question. ${optionMeaning[key]}`
+                                : `Option ${key} is not correct here because the truth/explanation relation does not match this option.`;
+                        }
+                    });
+
+                    return {
+                        id: Number(q?.id) || idx + 1,
+                        difficulty: q?.difficulty || 'medium',
+                        assertion: q?.assertion || 'Assertion text unavailable.',
+                        reason: q?.reason || 'Reason text unavailable.',
+                        correctAnswer,
+                        optionReasons: normalizedReasons,
+                        feedback: (q?.feedback || '').trim() || 'Review the truth values and whether the reason actually explains the assertion.',
+                    };
+                });
+            };
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const parsed = parseQuestions(response.text());
+            const normalized = normalize(parsed);
+            console.log(`[GeminiService] Generated ${normalized.length} assertion-reason questions.`);
+            return { questions: normalized };
+        } catch (error) {
+            console.error('Gemini AI API Error (Assertion-Reason):', error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }

@@ -7,11 +7,11 @@ import {
     PenLine, Send, Trophy, Info
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { pdfService, QuizQuestion, MarkedQuestion, GradingResult } from '@/services/pdfService';
+import { pdfService, QuizQuestion, MarkedQuestion, GradingResult, AssertionReasonQuestion } from '@/services/pdfService';
 import styles from './page.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Phase = 'upload' | 'mode-select' | 'quiz' | 'marked-questions';
+type Phase = 'upload' | 'mode-select' | 'quiz' | 'marked-questions' | 'assertion-reason';
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
 
 interface QuizAnswer {
@@ -34,6 +34,11 @@ interface MarkedConfig {
     numQuestions: number;
     difficulty: Difficulty;
     markDistribution: { '2': number; '3': number; '5': number; '8': number; '10': number };
+}
+
+interface AssertionReasonConfig {
+    numQuestions: number;
+    difficulty: Difficulty;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,6 +70,14 @@ export default function PDFPage() {
     const [quizLoading, setQuizLoading] = useState(false);
     const [quizComplete, setQuizComplete] = useState(false);
     const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, difficulty: 'mixed' });
+
+    // Assertion-Reason state
+    const [arQuestions, setArQuestions] = useState<AssertionReasonQuestion[]>([]);
+    const [arAnswers, setArAnswers] = useState<QuizAnswer[]>([]);
+    const [currentArIdx, setCurrentArIdx] = useState(0);
+    const [arLoading, setArLoading] = useState(false);
+    const [arComplete, setArComplete] = useState(false);
+    const [arConfig, setArConfig] = useState<AssertionReasonConfig>({ numQuestions: 8, difficulty: 'mixed' });
 
     // Marked questions state
     const [markedQuestions, setMarkedQuestions] = useState<MarkedQuestion[]>([]);
@@ -170,9 +183,62 @@ export default function PDFPage() {
         const aiReason = question.optionReasons?.[optionKey as 'A' | 'B' | 'C' | 'D'];
         if (aiReason && aiReason.trim()) return aiReason;
         if (optionKey === question.correctAnswer) {
-            return 'This option matches the key idea from the source text for this question.';
+            return 'This option is correct because it aligns with the core concept tested in this question and matches the document evidence.';
         }
-        return `This option conflicts with the document context. Re-check why option ${question.correctAnswer} is supported by the text.`;
+        return `This option is incorrect because it reflects a misconception about the concept being tested. Option ${question.correctAnswer} better satisfies the question requirement based on the document.`;
+    };
+
+    const getAROptionReason = (question: AssertionReasonQuestion, optionKey: string): string => {
+        const aiReason = question.optionReasons?.[optionKey as 'A' | 'B' | 'C' | 'D'];
+        if (aiReason && aiReason.trim()) return aiReason;
+        if (optionKey === question.correctAnswer) {
+            return `Option ${optionKey} is correct because the truth-values and explanation relation match this assertion-reason pair.`;
+        }
+        return `Option ${optionKey} is not correct for this pair because the truth-values/explanation logic do not match this case.`;
+    };
+
+    const startAssertionReason = async () => {
+        setArLoading(true);
+        setArComplete(false);
+        setCurrentArIdx(0);
+        setArAnswers([]);
+        try {
+            const data = await pdfService.generateAssertionReasonQuestions(sessionId, {
+                numQuestions: arConfig.numQuestions,
+                difficulty: arConfig.difficulty,
+            });
+            setArQuestions(data.questions);
+            setArAnswers(data.questions.map(() => ({ selected: null, submitted: false })));
+            setPhase('assertion-reason');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to generate assertion-reason questions');
+        } finally {
+            setArLoading(false);
+        }
+    };
+
+    const selectAROption = (optKey: string) => {
+        if (arAnswers[currentArIdx]?.submitted) return;
+        setArAnswers(prev => prev.map((a, i) => (i === currentArIdx ? { ...a, selected: optKey } : a)));
+    };
+
+    const submitARAnswer = () => {
+        if (!arAnswers[currentArIdx]?.selected) {
+            toast.error('Please select an option first');
+            return;
+        }
+        setArAnswers(prev => prev.map((a, i) => (i === currentArIdx ? { ...a, submitted: true } : a)));
+    };
+
+    const nextARQuestion = () => {
+        if (currentArIdx < arQuestions.length - 1) setCurrentArIdx(i => i + 1);
+        else setArComplete(true);
+    };
+
+    const getARScore = () => {
+        const answered = arAnswers.filter(a => a.submitted);
+        const correct = answered.filter((a, i) => a.selected === arQuestions[i]?.correctAnswer);
+        return { correct: correct.length, total: answered.length };
     };
 
     // ── Marked Questions Handlers ─────────────────────────────────────────────
@@ -270,6 +336,10 @@ export default function PDFPage() {
         setQuizAnswers([]);
         setMarkedQuestions([]);
         setStudentAnswers([]);
+        setArQuestions([]);
+        setArAnswers([]);
+        setArComplete(false);
+        setCurrentArIdx(0);
         setQuizComplete(false);
         setMarkedComplete(false);
         setCurrentQuizIdx(0);
@@ -373,7 +443,7 @@ export default function PDFPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full flex-1 auto-rows-fr min-h-[calc(100vh-300px)]">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full flex-1 auto-rows-fr min-h-[calc(100vh-300px)]">
                     {/* MCQ Quiz card */}
                     <div className="card hover:shadow-xl transition-shadow border-2 border-cyan-400/70 hover:border-cyan-300 h-full">
                         <div className="flex flex-col items-center text-center p-10 h-full justify-between">
@@ -503,6 +573,58 @@ export default function PDFPage() {
                             <button onClick={startMarkedQuestions} disabled={markedLoading} className="btn-primary w-full flex items-center justify-center gap-2 text-xl py-4">
                                 {markedLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
                                 {markedLoading ? 'Generating...' : 'Start Exam Mode'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Assertion-Reason card */}
+                    <div className="card hover:shadow-xl transition-shadow border-2 border-cyan-400/70 hover:border-cyan-300 h-full">
+                        <div className="flex flex-col items-center text-center p-10 h-full justify-between">
+                            <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-5">
+                                <Info className="w-10 h-10 text-indigo-600" />
+                            </div>
+                            <h2 className="text-3xl font-bold mb-2 text-white">Assertion-Reason</h2>
+                            <p className="text-gray-300 text-lg mb-6 max-w-xl">
+                                Practice assertion-reason exam questions generated from your PDF concepts.
+                            </p>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 w-full mb-5 text-left">
+                                <label className="text-base font-semibold text-gray-200">
+                                    Number of questions
+                                    <input
+                                        type="number"
+                                        min={3}
+                                        max={12}
+                                        title="Assertion-reason number of questions"
+                                        aria-label="Assertion-reason number of questions"
+                                        value={arConfig.numQuestions}
+                                        onChange={(e) => setArConfig(prev => ({
+                                            ...prev,
+                                            numQuestions: Math.max(3, Math.min(12, parseInt(e.target.value || '8', 10))),
+                                        }))}
+                                        className="input mt-1"
+                                    />
+                                </label>
+                                <label className="text-base font-semibold text-gray-200">
+                                    Difficulty
+                                    <select
+                                        value={arConfig.difficulty}
+                                        onChange={(e) => setArConfig(prev => ({ ...prev, difficulty: e.target.value as Difficulty }))}
+                                        className="input mt-1"
+                                    >
+                                        {difficultyOptions.map(level => (
+                                            <option key={level} value={level}>{level}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                            <ul className="text-base text-left w-full space-y-2 text-gray-200 mb-8">
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> A-R based exam practice</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Conceptual truth/explanation logic</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Detailed reason per option</li>
+                            </ul>
+                            <button onClick={startAssertionReason} disabled={arLoading} className="btn-primary w-full flex items-center justify-center gap-2 text-xl py-4">
+                                {arLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Info className="w-4 h-4" />}
+                                {arLoading ? 'Generating...' : 'Start Assertion-Reason'}
                             </button>
                         </div>
                     </div>
@@ -671,6 +793,154 @@ export default function PDFPage() {
                     ) : (
                         <button onClick={nextQuizQuestion} className="btn-primary flex-1 flex items-center justify-center gap-2">
                             {currentQuizIdx < quizQuestions.length - 1
+                                ? <><ChevronRight className="w-4 h-4" /> Next Question</>
+                                : <><Trophy className="w-4 h-4" /> See Results</>
+                            }
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ── RENDER: Assertion-Reason ──────────────────────────────────────────────
+    if (phase === 'assertion-reason') {
+        const currentQ = arQuestions[currentArIdx];
+        const currentA = arAnswers[currentArIdx];
+        const score = getARScore();
+
+        const arOptions = {
+            A: 'Both Assertion and Reason are true, and Reason correctly explains Assertion.',
+            B: 'Both Assertion and Reason are true, but Reason does not correctly explain Assertion.',
+            C: 'Assertion is true, but Reason is false.',
+            D: 'Assertion is false, but Reason is true.',
+        };
+
+        if (!currentQ) return null;
+
+        if (arComplete) {
+            const percentage = Math.round((score.correct / arQuestions.length) * 100);
+            return (
+                <div className={`${styles.pdfFontBoost} space-y-6 w-full min-h-[calc(100vh-140px)]`}>
+                    <div className="card text-center py-8">
+                        <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold mb-2">Assertion-Reason Complete!</h2>
+                        <div className="text-5xl font-bold text-primary-600 mb-2">{score.correct}/{arQuestions.length}</div>
+                        <p className="text-gray-600 mb-2">{percentage}% correct</p>
+                        <div className="flex gap-3 justify-center">
+                            <button onClick={startAssertionReason} className="btn-primary flex items-center gap-2">
+                                <RotateCcw className="w-4 h-4" /> Retake
+                            </button>
+                            <button onClick={() => setPhase('mode-select')} className="btn-outline flex items-center gap-2">
+                                <ChevronRight className="w-4 h-4" /> Back to Modes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className={`${styles.pdfFontBoost} space-y-5 w-full min-h-[calc(100vh-140px)]`}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-3xl font-bold flex items-center gap-2 text-white">
+                            <Info className="w-7 h-7 text-indigo-400" /> Assertion-Reason
+                        </h2>
+                        <p className="text-base text-gray-400">{docInfo?.name} · {arConfig.difficulty} · {arQuestions.length} questions</p>
+                    </div>
+                    <button onClick={() => setPhase('mode-select')} className="btn-outline btn-sm">Exit</button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                            className="bg-indigo-600 h-2 rounded-full transition-all"
+                            style={{ width: `${((currentArIdx + 1) / arQuestions.length) * 100}%` }}
+                        />
+                    </div>
+                    <span className="text-base font-semibold text-gray-300">{currentArIdx + 1}/{arQuestions.length}</span>
+                    <span className="text-base font-semibold text-green-500">✓ {score.correct}</span>
+                </div>
+
+                <div className="card min-h-[70vh] border-2 border-indigo-400/70">
+                    <p className="text-sm font-semibold text-gray-400 uppercase mb-2">Question {currentArIdx + 1}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div className="p-4 rounded-lg border border-indigo-300 bg-indigo-50">
+                            <p className="text-xs font-semibold uppercase text-indigo-700 mb-1">Assertion</p>
+                            <p className="text-base font-medium text-gray-900">{currentQ.assertion}</p>
+                        </div>
+                        <div className="p-4 rounded-lg border border-purple-300 bg-purple-50">
+                            <p className="text-xs font-semibold uppercase text-purple-700 mb-1">Reason</p>
+                            <p className="text-base font-medium text-gray-900">{currentQ.reason}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {(Object.entries(arOptions) as [string, string][]).map(([key, val]) => {
+                            const isSelected = currentA.selected === key;
+                            const isCorrect = key === currentQ.correctAnswer;
+                            const statusClass = !currentA.submitted
+                                ? (isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300')
+                                : (isCorrect ? 'border-green-500 bg-green-50' : isSelected ? 'border-red-500 bg-red-50' : 'border-gray-200');
+
+                            return (
+                                <div key={key} className={`${styles.flipCard} ${currentA.submitted ? styles.flipped : ''}`} onClick={() => selectAROption(key)}>
+                                    <div className={styles.flipInner}>
+                                        <div className={`${styles.flipFace} ${styles.flipFront} ${statusClass}`}>
+                                            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0
+                                                ${!currentA.submitted && isSelected ? 'bg-primary-600 text-white' :
+                                                  currentA.submitted && isCorrect ? 'bg-green-600 text-white' :
+                                                  currentA.submitted && isSelected ? 'bg-red-600 text-white' :
+                                                  'bg-gray-100 text-gray-600'}`}>
+                                                {key}
+                                            </span>
+                                            <span className="text-base pt-0.5 font-medium">{val}</span>
+                                        </div>
+                                        <div className={`${styles.flipFace} ${styles.flipBack} ${statusClass}`}>
+                                            <div className="flex items-center gap-2">
+                                                {isCorrect ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
+                                                <span className="font-semibold text-base">{isCorrect ? 'Correct Option' : 'Not Correct'}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-700 mt-1 font-medium">{key}. {val}</p>
+                                            <p className="text-sm text-gray-700 mt-1">{getAROptionReason(currentQ, key)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {currentA.submitted && (
+                        <div className={`mt-4 p-4 rounded-lg border ${
+                            currentA.selected === currentQ.correctAnswer
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-orange-50 border-orange-200'
+                        }`}>
+                            <div className="flex items-center gap-2 mb-1">
+                                {currentA.selected === currentQ.correctAnswer
+                                    ? <><CheckCircle className="w-4 h-4 text-green-600" /><span className="font-semibold text-green-700 text-sm">Correct!</span></>
+                                    : <><XCircle className="w-4 h-4 text-red-600" /><span className="font-semibold text-red-700 text-sm">Incorrect</span></>
+                                }
+                            </div>
+                            <p className="text-sm text-gray-700">{currentQ.feedback}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-3">
+                    {!currentA.submitted ? (
+                        <button
+                            onClick={submitARAnswer}
+                            disabled={!currentA.selected}
+                            className="btn-primary flex-1 flex items-center justify-center gap-2"
+                        >
+                            <Send className="w-4 h-4" /> Submit Answer
+                        </button>
+                    ) : (
+                        <button onClick={nextARQuestion} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                            {currentArIdx < arQuestions.length - 1
                                 ? <><ChevronRight className="w-4 h-4" /> Next Question</>
                                 : <><Trophy className="w-4 h-4" /> See Results</>
                             }
