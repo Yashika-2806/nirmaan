@@ -676,8 +676,8 @@ Rules:
      * Generates a multiple-choice quiz from PDF text.
      * Uses GEMINI_KEY_5 (Skills/General)
      */
-    async generatePDFQuiz(pdfText, numQuestions = 10) {
-        console.log(`[GeminiService] Generating PDF quiz (${numQuestions} questions)...`);
+    async generatePDFQuiz(pdfText, numQuestions = 10, difficulty = 'mixed') {
+        console.log(`[GeminiService] Generating PDF quiz (${numQuestions} questions, difficulty: ${difficulty})...`);
         const model = this.getModel('skills');
         if (!model) return { error: 'AI unavailable' };
 
@@ -693,20 +693,33 @@ Rules:
 - Every question MUST be answerable from the document
 - Each question must have exactly 4 options labeled A, B, C, D
 - Only one option is correct
-- Vary difficulty: some factual recall, some inference
+- Required difficulty level: ${difficulty}
+- If difficulty is "mixed", include an intentional blend of easy/medium/hard
+- If difficulty is "easy" or "medium" or "hard", keep all questions aligned to that level
 - Include a short AI feedback message explaining WHY the correct answer is right
+- Add a "difficulty" field per question using one of: "easy", "medium", "hard"
+- Add an "optionReasons" object with concise reasons for each option:
+    - why the correct option is correct
+    - why each wrong option is incorrect
 
 Return ONLY valid JSON array (no markdown, no backticks):
 [
   {
     "id": 1,
     "question": "Question text here?",
+        "difficulty": "medium",
     "options": {
       "A": "Option A text",
       "B": "Option B text",
       "C": "Option C text",
       "D": "Option D text"
     },
+        "optionReasons": {
+            "A": "Reason for option A",
+            "B": "Reason for option B",
+            "C": "Reason for option C",
+            "D": "Reason for option D"
+        },
     "correctAnswer": "A",
     "feedback": "Short explanation of why this is the correct answer, referencing the document."
   }
@@ -731,10 +744,23 @@ Return ONLY valid JSON array (no markdown, no backticks):
      * Each question has a mark value and an expected answer.
      * Uses GEMINI_KEY_5 (Skills/General)
      */
-    async generateMarkedQuestions(pdfText, numQuestions = 6) {
-        console.log(`[GeminiService] Generating marked exam questions...`);
+    async generateMarkedQuestions(pdfText, numQuestions = 6, markDistribution = {}, difficulty = 'mixed') {
+        console.log(`[GeminiService] Generating marked exam questions (${numQuestions}, difficulty: ${difficulty})...`);
         const model = this.getModel('skills');
         if (!model) return { error: 'AI unavailable' };
+
+        const normalizedDistribution = {
+            2: Number(markDistribution?.['2'] || markDistribution?.[2] || 0),
+            3: Number(markDistribution?.['3'] || markDistribution?.[3] || 0),
+            5: Number(markDistribution?.['5'] || markDistribution?.[5] || 0),
+            8: Number(markDistribution?.['8'] || markDistribution?.[8] || 0),
+            10: Number(markDistribution?.['10'] || markDistribution?.[10] || 0),
+        };
+
+        const requestedTotal = Object.values(normalizedDistribution).reduce((sum, n) => sum + (Number.isFinite(n) ? n : 0), 0);
+        const distributionInstruction = requestedTotal > 0
+            ? `Use this exact mark distribution as closely as possible (sum should be ${numQuestions}): ${JSON.stringify(normalizedDistribution)}.`
+            : 'Use a balanced spread of marks (2, 3, 5, 8, 10) suitable for the chosen difficulty.';
 
         try {
             const prompt = `You are an experienced examiner creating a structured exam paper from the following document.
@@ -746,11 +772,20 @@ Create exactly ${numQuestions} exam questions based strictly on the document con
 
 Rules:
 - Questions must vary in marks: use values like 2, 3, 5, 8, or 10 marks
+- Required difficulty level: ${difficulty}
+- If difficulty is "mixed", include a blend of easy/medium/hard
+- If difficulty is "easy" or "medium" or "hard", keep all questions aligned to that level
+- ${distributionInstruction}
 - Short questions (2-3 marks): factual recall, definitions, short explanations
 - Medium questions (5 marks): analysis, comparisons, application
 - Long questions (8-10 marks): detailed explanations, in-depth analysis, discussion
 - Each question must have a model answer showing what a student should write
 - The model answer should be proportional to the marks
+- Include "focusPoints" as 3-6 concise HINTS about what to cover
+- IMPORTANT: focusPoints must be non-revealing guidance, not direct answers
+- Do NOT include exact final facts, exact values, exact definitions, or copy-ready answer lines in focusPoints
+- Each focus point should start with guidance verbs like: "Define", "Explain", "Mention", "Contrast", "Relate", "Give one example of"
+- Keep focusPoints short and coaching-style
 
 Return ONLY valid JSON array (no markdown, no backticks):
 [
@@ -758,7 +793,9 @@ Return ONLY valid JSON array (no markdown, no backticks):
     "id": 1,
     "question": "Full question text here?",
     "marks": 5,
+        "difficulty": "medium",
     "topic": "Topic/concept being tested",
+        "focusPoints": ["Define the core concept in your own words", "Mention the key mechanism involved", "Give one example from the document context"],
     "expectedAnswer": "A detailed model answer showing exactly what a student needs to write to get full marks. Include key points that must be mentioned."
   }
 ]`;

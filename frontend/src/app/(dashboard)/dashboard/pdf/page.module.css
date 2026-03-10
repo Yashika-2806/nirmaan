@@ -2,3 +2,43 @@
   /* Raise baseline text size by roughly 5pt for this page only. */
   font-size: calc(1rem + 5pt);
 }
+
+.flipCard {
+  perspective: 1000px;
+  min-height: 126px;
+  cursor: pointer;
+}
+
+.flipInner {
+  position: relative;
+  width: 100%;
+  min-height: 126px;
+  transition: transform 0.55s ease;
+  transform-style: preserve-3d;
+}
+
+.flipped .flipInner {
+  transform: rotateY(180deg);
+}
+
+.flipFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-width: 2px;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.flipFront {
+  z-index: 2;
+}
+
+.flipBack {
+  transform: rotateY(180deg);
+  flex-direction: column;
+  justify-content: flex-start;
+}

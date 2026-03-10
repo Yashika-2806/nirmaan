@@ -10,7 +10,9 @@ export interface PDFUploadResult {
 export interface QuizQuestion {
     id: number;
     question: string;
+    difficulty?: 'easy' | 'medium' | 'hard';
     options: { A: string; B: string; C: string; D: string };
+    optionReasons?: Partial<Record<'A' | 'B' | 'C' | 'D', string>>;
     correctAnswer: 'A' | 'B' | 'C' | 'D';
     feedback: string;
 }
@@ -19,7 +21,9 @@ export interface MarkedQuestion {
     id: number;
     question: string;
     marks: number;
+    difficulty?: 'easy' | 'medium' | 'hard';
     topic: string;
+    focusPoints?: string[];
     expectedAnswer: string;
 }
 
@@ -42,11 +46,30 @@ export const pdfService = {
         return res.data.data;
     },
 
-    generateQuiz: (sessionId: string, numQuestions = 10): Promise<{ questions: QuizQuestion[] }> =>
-        api.post('/pdf/quiz', { sessionId, numQuestions }).then(r => r.data.data),
+    generateQuiz: (
+        sessionId: string,
+        options: { numQuestions?: number; difficulty?: 'easy' | 'medium' | 'hard' | 'mixed' } = {}
+    ): Promise<{ questions: QuizQuestion[] }> =>
+        api.post('/pdf/quiz', {
+            sessionId,
+            numQuestions: options.numQuestions ?? 10,
+            difficulty: options.difficulty ?? 'mixed',
+        }).then(r => r.data.data),
 
-    generateMarkedQuestions: (sessionId: string, numQuestions = 6): Promise<{ questions: MarkedQuestion[] }> =>
-        api.post('/pdf/marked-questions', { sessionId, numQuestions }).then(r => r.data.data),
+    generateMarkedQuestions: (
+        sessionId: string,
+        options: {
+            numQuestions?: number;
+            difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+            markDistribution?: { '2': number; '3': number; '5': number; '8': number; '10': number };
+        } = {}
+    ): Promise<{ questions: MarkedQuestion[] }> =>
+        api.post('/pdf/marked-questions', {
+            sessionId,
+            numQuestions: options.numQuestions ?? 6,
+            difficulty: options.difficulty ?? 'mixed',
+            markDistribution: options.markDistribution ?? { '2': 0, '3': 0, '5': 0, '8': 0, '10': 0 },
+        }).then(r => r.data.data),
 
     gradeAnswer: (data: {
         question: string;

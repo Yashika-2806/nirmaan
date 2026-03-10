@@ -99,13 +99,23 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
 // ─── POST /api/pdf/quiz ───────────────────────────────────────────────────────
 router.post('/quiz', aiLimiter, async (req, res) => {
     try {
-        const { sessionId, numQuestions = 10 } = req.body;
+        const { sessionId, numQuestions = 10, difficulty = 'mixed' } = req.body;
         if (!sessionId) return ApiResponse.badRequest(res, 'sessionId is required');
+
+        const allowedDifficulty = ['easy', 'medium', 'hard', 'mixed'];
+        if (!allowedDifficulty.includes(String(difficulty).toLowerCase())) {
+            return ApiResponse.badRequest(res, 'difficulty must be one of: easy, medium, hard, mixed');
+        }
 
         const session = await PDFSession.findOne({ _id: sessionId, userId: req.user.userId });
         if (!session) return ApiResponse.notFound(res, 'PDF session not found');
 
-        const result = await geminiService.generatePDFQuiz(session.extractedText, Math.min(numQuestions, 15));
+        const safeNumQuestions = Math.max(1, Math.min(parseInt(numQuestions, 10) || 10, 15));
+        const result = await geminiService.generatePDFQuiz(
+            session.extractedText,
+            safeNumQuestions,
+            String(difficulty).toLowerCase()
+        );
         if (result.error) return ApiResponse.internalError(res, result.error);
 
         return ApiResponse.success(res, { questions: result.questions }, 'Quiz generated successfully');
@@ -119,13 +129,40 @@ router.post('/quiz', aiLimiter, async (req, res) => {
 // ─── POST /api/pdf/marked-questions ──────────────────────────────────────────
 router.post('/marked-questions', aiLimiter, async (req, res) => {
     try {
-        const { sessionId, numQuestions = 6 } = req.body;
+        const { sessionId, numQuestions = 6, difficulty = 'mixed', markDistribution = {} } = req.body;
         if (!sessionId) return ApiResponse.badRequest(res, 'sessionId is required');
+
+        const allowedDifficulty = ['easy', 'medium', 'hard', 'mixed'];
+        if (!allowedDifficulty.includes(String(difficulty).toLowerCase())) {
+            return ApiResponse.badRequest(res, 'difficulty must be one of: easy, medium, hard, mixed');
+        }
+
+        const safeNumQuestions = Math.max(1, Math.min(parseInt(numQuestions, 10) || 6, 10));
+
+        const parsedDistribution = {
+            2: Math.max(0, parseInt(markDistribution?.['2'], 10) || 0),
+            3: Math.max(0, parseInt(markDistribution?.['3'], 10) || 0),
+            5: Math.max(0, parseInt(markDistribution?.['5'], 10) || 0),
+            8: Math.max(0, parseInt(markDistribution?.['8'], 10) || 0),
+            10: Math.max(0, parseInt(markDistribution?.['10'], 10) || 0),
+        };
+        const distributionTotal = Object.values(parsedDistribution).reduce((sum, n) => sum + n, 0);
+        if (distributionTotal > 0 && distributionTotal !== safeNumQuestions) {
+            return ApiResponse.badRequest(
+                res,
+                `markDistribution total (${distributionTotal}) must equal numQuestions (${safeNumQuestions})`
+            );
+        }
 
         const session = await PDFSession.findOne({ _id: sessionId, userId: req.user.userId });
         if (!session) return ApiResponse.notFound(res, 'PDF session not found');
 
-        const result = await geminiService.generateMarkedQuestions(session.extractedText, Math.min(numQuestions, 10));
+        const result = await geminiService.generateMarkedQuestions(
+            session.extractedText,
+            safeNumQuestions,
+            parsedDistribution,
+            String(difficulty).toLowerCase()
+        );
         if (result.error) return ApiResponse.internalError(res, result.error);
 
         return ApiResponse.success(res, { questions: result.questions }, 'Marked questions generated successfully');

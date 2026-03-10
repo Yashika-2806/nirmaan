@@ -2,9 +2,9 @@
 
 import { useState, useRef } from 'react';
 import {
-    FileText, Upload, Brain, BookOpen, CheckCircle, XCircle,
+    FileText, Upload, Brain, CheckCircle, XCircle,
     Loader2, ChevronRight, RotateCcw, Star, AlertCircle,
-    PenLine, Send, Trophy, Target, TrendingUp, Info
+    PenLine, Send, Trophy, Info
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { pdfService, QuizQuestion, MarkedQuestion, GradingResult } from '@/services/pdfService';
@@ -12,6 +12,7 @@ import styles from './page.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Phase = 'upload' | 'mode-select' | 'quiz' | 'marked-questions';
+type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
 
 interface QuizAnswer {
     selected: string | null;
@@ -24,6 +25,17 @@ interface StudentAnswer {
     loading: boolean;
 }
 
+interface QuizConfig {
+    numQuestions: number;
+    difficulty: Difficulty;
+}
+
+interface MarkedConfig {
+    numQuestions: number;
+    difficulty: Difficulty;
+    markDistribution: { '2': number; '3': number; '5': number; '8': number; '10': number };
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const verdictColor: Record<string, string> = {
     Excellent: 'text-green-600 bg-green-50 border-green-200',
@@ -32,6 +44,8 @@ const verdictColor: Record<string, string> = {
     Poor: 'text-orange-600 bg-orange-50 border-orange-200',
     'No Attempt': 'text-gray-500 bg-gray-50 border-gray-200',
 };
+
+const difficultyOptions: Difficulty[] = ['easy', 'medium', 'hard', 'mixed'];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function PDFPage() {
@@ -50,12 +64,18 @@ export default function PDFPage() {
     const [currentQuizIdx, setCurrentQuizIdx] = useState(0);
     const [quizLoading, setQuizLoading] = useState(false);
     const [quizComplete, setQuizComplete] = useState(false);
+    const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, difficulty: 'mixed' });
 
     // Marked questions state
     const [markedQuestions, setMarkedQuestions] = useState<MarkedQuestion[]>([]);
     const [studentAnswers, setStudentAnswers] = useState<StudentAnswer[]>([]);
     const [markedLoading, setMarkedLoading] = useState(false);
     const [markedComplete, setMarkedComplete] = useState(false);
+    const [markedConfig, setMarkedConfig] = useState<MarkedConfig>({
+        numQuestions: 6,
+        difficulty: 'mixed',
+        markDistribution: { '2': 2, '3': 1, '5': 2, '8': 1, '10': 0 },
+    });
 
     // ── Upload Handler ────────────────────────────────────────────────────────
     const handleFile = async (file: File) => {
@@ -101,7 +121,10 @@ export default function PDFPage() {
         setCurrentQuizIdx(0);
         setQuizAnswers([]);
         try {
-            const data = await pdfService.generateQuiz(sessionId, 10);
+            const data = await pdfService.generateQuiz(sessionId, {
+                numQuestions: quizConfig.numQuestions,
+                difficulty: quizConfig.difficulty,
+            });
             setQuizQuestions(data.questions);
             setQuizAnswers(data.questions.map(() => ({ selected: null, submitted: false })));
             setPhase('quiz');
@@ -143,12 +166,31 @@ export default function PDFPage() {
         return { correct: correct.length, total: answered.length };
     };
 
+    const getOptionReason = (question: QuizQuestion, optionKey: string): string => {
+        const aiReason = question.optionReasons?.[optionKey as 'A' | 'B' | 'C' | 'D'];
+        if (aiReason && aiReason.trim()) return aiReason;
+        if (optionKey === question.correctAnswer) {
+            return 'This option matches the key idea from the source text for this question.';
+        }
+        return `This option conflicts with the document context. Re-check why option ${question.correctAnswer} is supported by the text.`;
+    };
+
     // ── Marked Questions Handlers ─────────────────────────────────────────────
     const startMarkedQuestions = async () => {
+        const distributionTotal = Object.values(markedConfig.markDistribution).reduce((sum, n) => sum + n, 0);
+        if (distributionTotal !== markedConfig.numQuestions) {
+            toast.error(`Mark distribution must total ${markedConfig.numQuestions} questions`);
+            return;
+        }
+
         setMarkedLoading(true);
         setMarkedComplete(false);
         try {
-            const data = await pdfService.generateMarkedQuestions(sessionId, 6);
+            const data = await pdfService.generateMarkedQuestions(sessionId, {
+                numQuestions: markedConfig.numQuestions,
+                difficulty: markedConfig.difficulty,
+                markDistribution: markedConfig.markDistribution,
+            });
             setMarkedQuestions(data.questions);
             setStudentAnswers(data.questions.map(() => ({ text: '', result: null, loading: false })));
             setPhase('marked-questions');
@@ -190,6 +232,36 @@ export default function PDFPage() {
         return { earned: totalEarned, max: totalMax, graded: graded.length, total: markedQuestions.length };
     };
 
+    const getFocusPoints = (q: MarkedQuestion): string[] => {
+        // Show only hint-style guidance; never expose model-answer content in focus hints.
+        const aiHints = (q.focusPoints || [])
+            .map(point => point.trim())
+            .filter(Boolean)
+            .map(point => {
+                const startsWithVerb = /^(define|explain|mention|contrast|relate|give|outline|state|describe)\b/i.test(point);
+                return startsWithVerb ? point : `Explain ${point.toLowerCase()}`;
+            })
+            .slice(0, 6);
+
+        if (aiHints.length > 0) return aiHints;
+
+        const hints = [
+            'Define the concept clearly in your own words',
+            `Explain the main idea related to ${q.topic || 'this topic'}`,
+            'Mention one practical example or application from the document context',
+        ];
+
+        if (q.marks >= 5) {
+            hints.push('Add a brief comparison, cause-effect, or process flow');
+        }
+
+        if (q.marks >= 8) {
+            hints.push('Include deeper reasoning, trade-offs, or implications to justify full marks');
+        }
+
+        return hints;
+    };
+
     const reset = () => {
         setPhase('upload');
         setSessionId('');
@@ -208,7 +280,7 @@ export default function PDFPage() {
     // ── RENDER: Upload ────────────────────────────────────────────────────────
     if (phase === 'upload') {
         return (
-            <div className={`${styles.pdfFontBoost} space-y-6`}>
+            <div className={`${styles.pdfFontBoost} space-y-6 min-h-[calc(100vh-140px)] flex flex-col`}>
                 <div>
                     <h1 className="text-3xl font-bold flex items-center gap-3">
                         <FileText className="w-8 h-8 text-primary-600" />
@@ -231,6 +303,8 @@ export default function PDFPage() {
                             type="file"
                             accept="application/pdf"
                             className="hidden"
+                            title="Choose PDF file"
+                            aria-label="Choose PDF file"
                             onChange={handleFileInput}
                         />
                         {isUploading ? (
@@ -299,24 +373,53 @@ export default function PDFPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full flex-1 auto-rows-fr min-h-[calc(100vh-300px)]">
                     {/* MCQ Quiz card */}
-                    <div className="card hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-purple-300"
-                        onClick={startQuiz}>
-                        <div className="flex flex-col items-center text-center p-4">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                                <Brain className="w-8 h-8 text-purple-600" />
+                    <div className="card hover:shadow-xl transition-shadow border-2 border-cyan-400/70 hover:border-cyan-300 h-full">
+                        <div className="flex flex-col items-center text-center p-10 h-full justify-between">
+                            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-5">
+                                <Brain className="w-10 h-10 text-purple-600" />
                             </div>
-                            <h2 className="text-xl font-bold mb-2">MCQ Quiz</h2>
-                            <p className="text-gray-600 text-sm mb-4">
-                                10 multiple-choice questions generated from your PDF. Get instant feedback on each answer.
+                            <h2 className="text-3xl font-bold mb-2 text-white">MCQ Quiz</h2>
+                            <p className="text-gray-300 text-lg mb-6 max-w-xl">
+                                Generate custom MCQs from your PDF with difficulty control and flip-card answer reveals.
                             </p>
-                            <ul className="text-sm text-left w-full space-y-1 text-gray-600 mb-6">
-                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> 10 questions, 4 options each</li>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 w-full mb-5 text-left">
+                                <label className="text-base font-semibold text-gray-200">
+                                    Number of questions
+                                    <input
+                                        type="number"
+                                        min={3}
+                                        max={15}
+                                        title="Quiz number of questions"
+                                        aria-label="Quiz number of questions"
+                                        value={quizConfig.numQuestions}
+                                        onChange={(e) => setQuizConfig(prev => ({
+                                            ...prev,
+                                            numQuestions: Math.max(3, Math.min(15, parseInt(e.target.value || '10', 10))),
+                                        }))}
+                                        className="input mt-1"
+                                    />
+                                </label>
+                                <label className="text-base font-semibold text-gray-200">
+                                    Difficulty
+                                    <select
+                                        value={quizConfig.difficulty}
+                                        onChange={(e) => setQuizConfig(prev => ({ ...prev, difficulty: e.target.value as Difficulty }))}
+                                        className="input mt-1"
+                                    >
+                                        {difficultyOptions.map(level => (
+                                            <option key={level} value={level}>{level}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                            <ul className="text-base text-left w-full space-y-2 text-gray-200 mb-8">
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Custom count from 3 to 15</li>
                                 <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Instant correct/wrong feedback</li>
-                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> AI explanation for each answer</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Flip cards + AI explanation per question</li>
                             </ul>
-                            <button disabled={quizLoading} className="btn-primary w-full flex items-center justify-center gap-2">
+                            <button onClick={startQuiz} disabled={quizLoading} className="btn-primary w-full flex items-center justify-center gap-2 text-xl py-4">
                                 {quizLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
                                 {quizLoading ? 'Generating...' : 'Start MCQ Quiz'}
                             </button>
@@ -324,22 +427,80 @@ export default function PDFPage() {
                     </div>
 
                     {/* Marked Questions card */}
-                    <div className="card hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-300"
-                        onClick={startMarkedQuestions}>
-                        <div className="flex flex-col items-center text-center p-4">
-                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                                <PenLine className="w-8 h-8 text-blue-600" />
+                    <div className="card hover:shadow-xl transition-shadow border-2 border-cyan-400/70 hover:border-cyan-300 h-full">
+                        <div className="flex flex-col items-center text-center p-10 h-full justify-between">
+                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-5">
+                                <PenLine className="w-10 h-10 text-blue-600" />
                             </div>
-                            <h2 className="text-xl font-bold mb-2">Exam Mode</h2>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Structured exam questions with marks. Write your answer and get AI-powered grading.
+                            <h2 className="text-3xl font-bold mb-2 text-white">Exam Mode</h2>
+                            <p className="text-gray-300 text-lg mb-6 max-w-xl">
+                                Build your own exam set by selecting count, difficulty, and mark distribution.
                             </p>
-                            <ul className="text-sm text-left w-full space-y-1 text-gray-600 mb-6">
-                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> 6 questions with 2–10 marks each</li>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 w-full mb-4 text-left">
+                                <label className="text-base font-semibold text-gray-200">
+                                    Number of questions
+                                    <input
+                                        type="number"
+                                        min={3}
+                                        max={10}
+                                        title="Exam number of questions"
+                                        aria-label="Exam number of questions"
+                                        value={markedConfig.numQuestions}
+                                        onChange={(e) => setMarkedConfig(prev => ({
+                                            ...prev,
+                                            numQuestions: Math.max(3, Math.min(10, parseInt(e.target.value || '6', 10))),
+                                        }))}
+                                        className="input mt-1"
+                                    />
+                                </label>
+                                <label className="text-base font-semibold text-gray-200">
+                                    Difficulty
+                                    <select
+                                        value={markedConfig.difficulty}
+                                        onChange={(e) => setMarkedConfig(prev => ({ ...prev, difficulty: e.target.value as Difficulty }))}
+                                        className="input mt-1"
+                                    >
+                                        {difficultyOptions.map(level => (
+                                            <option key={level} value={level}>{level}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="w-full mb-5 text-left">
+                                <p className="text-base font-semibold text-gray-200 mb-2">Mark Distribution</p>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {(['2', '3', '5', '8', '10'] as const).map(mark => (
+                                        <label key={mark} className="text-sm text-gray-200">
+                                            {mark}m
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={10}
+                                                title={`${mark}-mark question count`}
+                                                aria-label={`${mark}-mark question count`}
+                                                value={markedConfig.markDistribution[mark]}
+                                                onChange={(e) => {
+                                                    const value = Math.max(0, Math.min(10, parseInt(e.target.value || '0', 10)));
+                                                    setMarkedConfig(prev => ({
+                                                        ...prev,
+                                                        markDistribution: { ...prev.markDistribution, [mark]: value },
+                                                    }));
+                                                }}
+                                                className="input mt-1"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-gray-300 mt-1">
+                                    Total selected: {Object.values(markedConfig.markDistribution).reduce((sum, n) => sum + n, 0)} / {markedConfig.numQuestions}
+                                </p>
+                            </div>
+                            <ul className="text-base text-left w-full space-y-2 text-gray-200 mb-8">
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Fully customizable paper pattern</li>
                                 <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Write long-form answers</li>
-                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> AI grades & gives detailed feedback</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Focus points shown for every answer question</li>
                             </ul>
-                            <button disabled={markedLoading} className="btn-primary w-full flex items-center justify-center gap-2">
+                            <button onClick={startMarkedQuestions} disabled={markedLoading} className="btn-primary w-full flex items-center justify-center gap-2 text-xl py-4">
                                 {markedLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
                                 {markedLoading ? 'Generating...' : 'Start Exam Mode'}
                             </button>
@@ -359,7 +520,7 @@ export default function PDFPage() {
         if (quizComplete) {
             const percentage = Math.round((score.correct / quizQuestions.length) * 100);
             return (
-                <div className={`${styles.pdfFontBoost} space-y-6 max-w-2xl mx-auto`}>
+                <div className={`${styles.pdfFontBoost} space-y-6 w-full min-h-[calc(100vh-140px)]`}>
                     <div className="card text-center py-8">
                         <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Quiz Complete!</h2>
@@ -413,14 +574,14 @@ export default function PDFPage() {
         if (!currentQ) return null;
 
         return (
-            <div className={`${styles.pdfFontBoost} space-y-4 max-w-2xl mx-auto`}>
+            <div className={`${styles.pdfFontBoost} space-y-5 w-full min-h-[calc(100vh-140px)]`}>
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <Brain className="w-5 h-5 text-purple-600" /> MCQ Quiz
+                        <h2 className="text-3xl font-bold flex items-center gap-2">
+                            <Brain className="w-7 h-7 text-purple-600" /> MCQ Quiz
                         </h2>
-                        <p className="text-sm text-gray-500">{docInfo?.name}</p>
+                        <p className="text-base text-gray-400">{docInfo?.name} · {quizConfig.difficulty} · {quizQuestions.length} questions</p>
                     </div>
                     <button onClick={() => setPhase('mode-select')} className="btn-outline btn-sm">Exit</button>
                 </div>
@@ -433,43 +594,47 @@ export default function PDFPage() {
                             style={{ width: `${((currentQuizIdx + 1) / quizQuestions.length) * 100}%` }}
                         />
                     </div>
-                    <span className="text-sm font-medium text-gray-600">{currentQuizIdx + 1}/{quizQuestions.length}</span>
-                    <span className="text-sm font-medium text-green-600">✓ {score.correct}</span>
+                    <span className="text-base font-semibold text-gray-300">{currentQuizIdx + 1}/{quizQuestions.length}</span>
+                    <span className="text-base font-semibold text-green-500">✓ {score.correct}</span>
                 </div>
 
                 {/* Question card */}
-                <div className="card">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Question {currentQuizIdx + 1}</p>
-                    <p className="text-lg font-semibold mb-5">{currentQ.question}</p>
+                <div className="card min-h-[70vh] border-2 border-cyan-400/70">
+                    <p className="text-sm font-semibold text-gray-400 uppercase mb-2">Question {currentQuizIdx + 1}</p>
+                    <p className="text-2xl font-semibold mb-6 text-white">{currentQ.question}</p>
 
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                         {(Object.entries(currentQ.options) as [string, string][]).map(([key, val]) => {
                             const isSelected = currentA.selected === key;
                             const isCorrect = key === currentQ.correctAnswer;
-                            let cls = 'flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ';
-
-                            if (!currentA.submitted) {
-                                cls += isSelected
-                                    ? 'border-primary-500 bg-primary-50'
-                                    : 'border-gray-200 hover:border-gray-300';
-                            } else {
-                                if (isCorrect) cls += 'border-green-500 bg-green-50';
-                                else if (isSelected) cls += 'border-red-500 bg-red-50';
-                                else cls += 'border-gray-200';
-                            }
+                            const statusClass = !currentA.submitted
+                                ? (isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300')
+                                : (isCorrect ? 'border-green-500 bg-green-50' : isSelected ? 'border-red-500 bg-red-50' : 'border-gray-200');
 
                             return (
-                                <div key={key} className={cls} onClick={() => selectQuizOption(key)}>
-                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0
-                                        ${!currentA.submitted && isSelected ? 'bg-primary-600 text-white' :
-                                          currentA.submitted && isCorrect ? 'bg-green-600 text-white' :
-                                          currentA.submitted && isSelected ? 'bg-red-600 text-white' :
-                                          'bg-gray-100 text-gray-600'}`}>
-                                        {key}
-                                    </span>
-                                    <span className="text-sm pt-0.5">{val}</span>
-                                    {currentA.submitted && isCorrect && <CheckCircle className="w-5 h-5 text-green-600 ml-auto shrink-0" />}
-                                    {currentA.submitted && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-600 ml-auto shrink-0" />}
+                                <div key={key} className={`${styles.flipCard} ${currentA.submitted ? styles.flipped : ''}`} onClick={() => selectQuizOption(key)}>
+                                    <div className={styles.flipInner}>
+                                        <div className={`${styles.flipFace} ${styles.flipFront} ${statusClass}`}>
+                                            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0
+                                                ${!currentA.submitted && isSelected ? 'bg-primary-600 text-white' :
+                                                  currentA.submitted && isCorrect ? 'bg-green-600 text-white' :
+                                                  currentA.submitted && isSelected ? 'bg-red-600 text-white' :
+                                                  'bg-gray-100 text-gray-600'}`}>
+                                                {key}
+                                            </span>
+                                            <span className="text-base pt-0.5 font-medium">{val}</span>
+                                        </div>
+                                        <div className={`${styles.flipFace} ${styles.flipBack} ${statusClass}`}>
+                                            <div className="flex items-center gap-2">
+                                                {isCorrect ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
+                                                <span className="font-semibold text-base">{isCorrect ? 'Correct Option' : 'Not Correct'}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-700 mt-1 font-medium">{key}. {val}</p>
+                                            <p className="text-sm text-gray-700 mt-1">
+                                                {getOptionReason(currentQ, key)}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -579,7 +744,7 @@ export default function PDFPage() {
                                         </span>
                                         <div>
                                             <p className="font-semibold">{q.question}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">{q.topic}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{q.topic} {q.difficulty ? `· ${q.difficulty}` : ''}</p>
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0 ml-4">
@@ -592,6 +757,16 @@ export default function PDFPage() {
                                             </p>
                                         )}
                                     </div>
+                                </div>
+
+                                {/* Focus points */}
+                                <div className="mb-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                                    <p className="text-xs font-semibold text-indigo-700 uppercase mb-1">Focus Hints (What to Cover)</p>
+                                    <ul className="space-y-1">
+                                        {getFocusPoints(q).map((point, i) => (
+                                            <li key={i} className="text-sm text-indigo-900">• {point}</li>
+                                        ))}
+                                    </ul>
                                 </div>
 
                                 {/* Answer textarea */}
