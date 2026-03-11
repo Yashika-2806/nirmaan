@@ -3,13 +3,45 @@
 import { useAuthStore } from '@/store/auth';
 import { TrendingUp, Code, FileText, MessageSquare, Target, Sparkles, Rocket, Brain, Trophy, ArrowRight, Zap, BookOpen, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-    const { user } = useAuthStore();
+    const { user, isAuthenticated } = useAuthStore();
+    const router = useRouter();
+
+    // If not authenticated, show the public dashboard with login CTA
+    if (!isAuthenticated) {
+        return (
+            <div className="space-y-8">
+                {/* Hero Section - Public view */}
+                <div className="relative overflow-hidden rounded-2xl bg-[#111111] border border-[#00D9FF]/20 p-8">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl"></div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Sparkles className="w-5 h-5 text-[#00D9FF]" />
+                            <span className="text-sm font-medium text-[#00D9FF] uppercase tracking-wider">Career OS</span>
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-3">
+                            <span className="text-white">Transform Your </span>
+                            <span className="text-[#00D9FF]">Career Journey</span> 🚀
+                        </h1>
+                        <p className="text-gray-400 text-lg mb-6">Explore our AI-powered tools designed to help you master DSA, ace interviews, build amazing resumes, and accelerate your career growth.</p>
+                        <Link
+                            href="/login"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#00D9FF]/10 hover:bg-[#00D9FF]/20 border border-[#00D9FF]/50 hover:border-[#00D9FF] text-[#00D9FF] rounded-lg font-semibold transition-all"
+                        >
+                            Sign In to Get Started
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
-            {/* Hero Section */}
+            {/* Hero Section - Authenticated view */}
             <div className="relative overflow-hidden rounded-2xl bg-[#111111] border border-[#00D9FF]/20 p-8">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl"></div>
                 <div className="relative z-10">
@@ -165,22 +197,35 @@ function StatCard({ icon, label, value, subtext = "+0%" }: any) {
 }
 
 function ActionCard({ href, icon, title, description }: any) {
+    const router = useRouter();
+    const { isAuthenticated } = useAuthStore();
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (!isAuthenticated) {
+            e.preventDefault();
+            router.push('/login');
+            return;
+        }
+        router.push(href);
+    };
+
     return (
-        <Link href={href}>
-            <div className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-6 hover:border-[#00D9FF]/50 hover:bg-[#111111] transition-all duration-300 cursor-pointer h-full">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#00D9FF]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative z-10">
-                    <div className="w-14 h-14 rounded-xl bg-[#00D9FF]/10 flex items-center justify-center mb-4 group-hover:bg-[#00D9FF]/20 transition-colors">
-                        {icon}
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2 text-white">{title}</h3>
-                    <p className="text-sm text-gray-400 mb-4">{description}</p>
-                    <div className="flex items-center gap-2 text-[#00D9FF] text-sm font-medium">
-                        <span>Get started</span>
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
+        <div 
+            onClick={handleClick}
+            className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-6 hover:border-[#00D9FF]/50 hover:bg-[#111111] transition-all duration-300 cursor-pointer h-full"
+        >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#00D9FF]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+                <div className="w-14 h-14 rounded-xl bg-[#00D9FF]/10 flex items-center justify-center mb-4 group-hover:bg-[#00D9FF]/20 transition-colors">
+                    {icon}
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-white">{title}</h3>
+                <p className="text-sm text-gray-400 mb-4">{description}</p>
+                <div className="flex items-center gap-2 text-[#00D9FF] text-sm font-medium">
+                    <span>Get started</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
             </div>
-        </Link>
+        </div>
     );
 }

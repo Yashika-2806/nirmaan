@@ -5,6 +5,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
+  html {
+    font-size: 17px;
+  }
+
+  @media (min-width: 1200px) {
+    html {
+      font-size: 18px;
+    }
+  }
+
   * {
     @apply border-gray-800;
   }

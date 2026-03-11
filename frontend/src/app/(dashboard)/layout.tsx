@@ -15,7 +15,8 @@ import {
     Users,
     Bot,
     LogOut,
-    Sparkles
+    Sparkles,
+    ArrowRight
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -27,15 +28,7 @@ export default function DashboardLayout({
     const pathname = usePathname();
     const { user, isAuthenticated, logout } = useAuthStore();
 
-    useEffect(() => {
-        if (!isAuthenticated) {
-            router.push('/login');
-        }
-    }, [isAuthenticated, router]);
-
-    if (!isAuthenticated) {
-        return null;
-    }
+    // Removed auth check redirect - dashboard is now publicly accessible
 
     const handleLogout = async () => {
         await logout();
@@ -74,22 +67,43 @@ export default function DashboardLayout({
                 </nav>
 
                 <div className="p-4 border-t border-gray-800 bg-[#0a0a0a]">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 flex items-center justify-center text-[#00D9FF] font-bold shadow-lg shadow-[#00D9FF]/5">
-                            {user?.name?.charAt(0).toUpperCase()}
+                    {isAuthenticated ? (
+                        <>
+                            <div className="flex items-center gap-3 mb-4 px-2">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 flex items-center justify-center text-[#00D9FF] font-bold shadow-lg shadow-[#00D9FF]/5">
+                                    {user?.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-white truncate text-sm">{user?.name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{user?.subscription?.tier || 'Free'} Plan</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-800 text-gray-400 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5 transition-all text-sm font-medium"
+                            >
+                                <LogOut size={16} />
+                                Sign Out
+                            </button>
+                        </>
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-sm text-gray-400 text-center">Sign in to unlock all features and track your progress</p>
+                            <Link
+                                href="/login"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#00D9FF]/10 border border-[#00D9FF]/50 text-[#00D9FF] hover:bg-[#00D9FF]/20 hover:border-[#00D9FF] transition-all text-sm font-medium"
+                            >
+                                Sign In
+                                <ArrowRight size={16} />
+                            </Link>
+                            <Link
+                                href="/register"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 transition-all text-sm font-medium"
+                            >
+                                Create Account
+                            </Link>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-medium text-white truncate text-sm">{user?.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{user?.subscription?.tier || 'Free'} Plan</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-800 text-gray-400 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5 transition-all text-sm font-medium"
-                    >
-                        <LogOut size={16} />
-                        Sign Out
-                    </button>
+                    )}
                 </div>
             </aside>
 

@@ -730,8 +730,8 @@ export default function PDFPage() {
                             const isSelected = currentA.selected === key;
                             const isCorrect = key === currentQ.correctAnswer;
                             const statusClass = !currentA.submitted
-                                ? (isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300')
-                                : (isCorrect ? 'border-green-500 bg-green-50' : isSelected ? 'border-red-500 bg-red-50' : 'border-gray-200');
+                                ? (isSelected ? 'border-primary-500 bg-primary-50 text-gray-900' : 'border-gray-200 hover:border-gray-300 text-white')
+                                : (isCorrect ? 'border-green-500 bg-green-50 text-gray-900' : isSelected ? 'border-red-500 bg-red-50 text-gray-900' : 'border-gray-200 text-white');
 
                             return (
                                 <div key={key} className={`${styles.flipCard} ${currentA.submitted ? styles.flipped : ''}`} onClick={() => selectQuizOption(key)}>
@@ -739,20 +739,20 @@ export default function PDFPage() {
                                         <div className={`${styles.flipFace} ${styles.flipFront} ${statusClass}`}>
                                             <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0
                                                 ${!currentA.submitted && isSelected ? 'bg-primary-600 text-white' :
-                                                  currentA.submitted && isCorrect ? 'bg-green-600 text-white' :
-                                                  currentA.submitted && isSelected ? 'bg-red-600 text-white' :
-                                                  'bg-gray-100 text-gray-600'}`}>
+                                                currentA.submitted && isCorrect ? 'bg-green-600 text-white' :
+                                                currentA.submitted && isSelected ? 'bg-red-600 text-white' :
+                                                'bg-gray-100 text-gray-600'}`}>
                                                 {key}
                                             </span>
-                                            <span className="text-base pt-0.5 font-medium">{val}</span>
+                                            <span className="text-lg pt-0.5 font-semibold leading-snug">{val}</span>
                                         </div>
                                         <div className={`${styles.flipFace} ${styles.flipBack} ${statusClass}`}>
                                             <div className="flex items-center gap-2">
                                                 {isCorrect ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
                                                 <span className="font-semibold text-base">{isCorrect ? 'Correct Option' : 'Not Correct'}</span>
                                             </div>
-                                            <p className="text-sm text-gray-700 mt-1 font-medium">{key}. {val}</p>
-                                            <p className="text-sm text-gray-700 mt-1">
+                                            <p className="text-base text-gray-700 mt-1 font-semibold">{key}. {val}</p>
+                                            <p className="text-base text-gray-700 mt-1 leading-snug">
                                                 {getOptionReason(currentQ, key)}
                                             </p>
                                         </div>
@@ -882,8 +882,8 @@ export default function PDFPage() {
                             const isSelected = currentA.selected === key;
                             const isCorrect = key === currentQ.correctAnswer;
                             const statusClass = !currentA.submitted
-                                ? (isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300')
-                                : (isCorrect ? 'border-green-500 bg-green-50' : isSelected ? 'border-red-500 bg-red-50' : 'border-gray-200');
+                                ? (isSelected ? 'border-primary-500 bg-primary-50 text-gray-900' : 'border-gray-200 hover:border-gray-300 text-white')
+                                : (isCorrect ? 'border-green-500 bg-green-50 text-gray-900' : isSelected ? 'border-red-500 bg-red-50 text-gray-900' : 'border-gray-200 text-white');
 
                             return (
                                 <div key={key} className={`${styles.flipCard} ${currentA.submitted ? styles.flipped : ''}`} onClick={() => selectAROption(key)}>
@@ -896,15 +896,15 @@ export default function PDFPage() {
                                                   'bg-gray-100 text-gray-600'}`}>
                                                 {key}
                                             </span>
-                                            <span className="text-base pt-0.5 font-medium">{val}</span>
+                                            <span className="text-lg pt-0.5 font-semibold leading-snug">{val}</span>
                                         </div>
                                         <div className={`${styles.flipFace} ${styles.flipBack} ${statusClass}`}>
                                             <div className="flex items-center gap-2">
                                                 {isCorrect ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
                                                 <span className="font-semibold text-base">{isCorrect ? 'Correct Option' : 'Not Correct'}</span>
                                             </div>
-                                            <p className="text-sm text-gray-700 mt-1 font-medium">{key}. {val}</p>
-                                            <p className="text-sm text-gray-700 mt-1">{getAROptionReason(currentQ, key)}</p>
+                                            <p className="text-base text-gray-700 mt-1 font-semibold">{key}. {val}</p>
+                                            <p className="text-base text-gray-700 mt-1 leading-snug">{getAROptionReason(currentQ, key)}</p>
                                         </div>
                                     </div>
                                 </div>
