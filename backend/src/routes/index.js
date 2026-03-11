@@ -10,6 +10,8 @@ const aiRoutes = require('./ai-routes');
 const resumeRoutes = require('../modules/resume/routes');
 const interviewRoutes = require('../modules/interview/routes');
 const roadmapRoutes = require('../modules/roadmap/routes');
+const skillMarketplaceRoutes = require('../modules/skill-marketplace/routes');
+const gamificationRoutes = require('../modules/gamification/routes');
 const pdfRoutes = require('./pdf-routes');
 const researchRoutes = require('./research-routes');
 
@@ -30,6 +32,8 @@ router.use('/ai', aiRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/interview', interviewRoutes);
 router.use('/roadmap', roadmapRoutes);
+router.use('/skill-marketplace', skillMarketplaceRoutes);
+router.use('/gamification', gamificationRoutes);
 router.use('/pdf', pdfRoutes);
 router.use('/research', researchRoutes);
 

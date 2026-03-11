@@ -1267,6 +1267,111 @@ Provide the same citations in BibTeX format for LaTeX users.
     }
 
     /**
+     * Detects technical skills from combined profile sources.
+     * Returns { skills: string[] } or { error }.
+     */
+    async detectSkillsForMarketplace(rawText) {
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are a technical profile analyzer.
+
+Analyze the input and extract the candidate's most relevant technical skills.
+
+INPUT DATA:
+${String(rawText || '').substring(0, 28000)}
+
+Rules:
+- Focus on concrete technical skills only (languages, frameworks, tools, core concepts).
+- Prefer skills with explicit evidence in the input.
+- Remove duplicates.
+- Return at most 25 skills.
+
+Return ONLY valid JSON (no markdown):
+{
+  "skills": ["Skill 1", "Skill 2", "Skill 3"]
+}`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const parsed = JSON.parse(text);
+
+            const skills = Array.isArray(parsed.skills)
+                ? [...new Set(parsed.skills.map(s => String(s).trim()).filter(Boolean))].slice(0, 25)
+                : [];
+
+            return { skills };
+        } catch (error) {
+            console.error('Gemini AI API Error (Detect Skills):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+        /**
+         * Generates a tutor-style AI mentor response with direct teaching and guided follow-up.
+         */
+        async generateAIMentorResponse({ learnSkill, currentLevel = 'beginner', goal = '', userQuestion = '' }) {
+        const model = this.getModel('skills');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+                        const prompt = `You are an AI tutor having a 1-to-1 study conversation with a student.
+
+Learner wants to study: ${learnSkill}
+Current level: ${currentLevel}
+Goal: ${goal || 'Become interview-ready'}
+Student question: ${userQuestion || 'Explain this skill from the beginning and help me get started.'}
+
+Create a practical tutor response that helps the student understand the topic right now.
+Your answer must:
+- explain the concept in simple language,
+- answer the student's question directly,
+- include likely questions the student may ask next,
+- include follow-up questions that the AI should ask the student,
+- include one short practice task.
+
+Return ONLY valid JSON (no markdown):
+{
+  "mentorType": "ai",
+    "directAnswer": "2-5 sentence direct explanation for the student",
+    "conceptBreakdown": ["Short learning point 1", "Short learning point 2"],
+    "likelyUserQuestions": ["Question the student may ask", "Question the student may ask"],
+    "aiFollowUpQuestions": ["Question the AI should ask the student", "Question the AI should ask the student"],
+    "practiceTask": "One small exercise or prompt",
+    "encouragement": "One short encouraging line"
+}`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
+            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            const parsed = JSON.parse(text);
+
+            return {
+                mentorType: 'ai',
+                directAnswer: String(parsed.directAnswer || '').trim(),
+                conceptBreakdown: Array.isArray(parsed.conceptBreakdown) ? parsed.conceptBreakdown : [],
+                likelyUserQuestions: Array.isArray(parsed.likelyUserQuestions) ? parsed.likelyUserQuestions : [],
+                aiFollowUpQuestions: Array.isArray(parsed.aiFollowUpQuestions) ? parsed.aiFollowUpQuestions : [],
+                practiceTask: String(parsed.practiceTask || '').trim(),
+                encouragement: String(parsed.encouragement || '').trim(),
+            };
+        } catch (error) {
+            console.error('Gemini AI API Error (AI Mentor Plan):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    async generateAIMentorPlan(args) {
+        return this.generateAIMentorResponse(args);
+    }
+
+    /**
      * Check if an interview answer appears to be copied from the internet.
      * Returns { isPlagiarized, confidence, reason }
      */
