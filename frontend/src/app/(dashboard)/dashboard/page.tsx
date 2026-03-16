@@ -218,68 +218,82 @@ export default function DashboardPage() {
 
             {/* Career Progress Dashboard */}
             <div>
-                <div className="flex items-center gap-2 mb-6">
-                    <Crown className="w-5 h-5 text-[#00D9FF]" />
-                    <h2 className="text-2xl font-bold text-white">Career Progress Dashboard</h2>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                        <Crown className="w-5 h-5 text-[#00D9FF]" />
+                        <h2 className="text-2xl font-bold text-white">Career Progress Dashboard</h2>
+                    </div>
+                    <div className="px-3 py-1 rounded-full border border-[#00D9FF]/40 bg-[#00D9FF]/10 text-xs font-semibold text-[#00D9FF] tracking-wide">
+                        SEASON ALPHA
+                    </div>
                 </div>
 
                 {isGamificationLoading && !gamificationProfile ? (
                     <div className="rounded-xl bg-[#111111] border border-gray-800 p-6 text-gray-400">Loading progress dashboard...</div>
                 ) : (
                     <div className="space-y-6">
-                        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-                            <div className="rounded-xl bg-[#111111] border border-gray-800 p-5">
-                                <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Career Level</p>
-                                <p className="text-3xl font-bold text-white">L{gamificationProfile?.level || 1}</p>
-                                <p className="text-sm text-[#00D9FF] mt-1">{gamificationProfile?.levelTitle || 'Beginner'}</p>
-                            </div>
+                        <div className="rounded-2xl border border-[#00D9FF]/30 bg-gradient-to-br from-[#00D9FF]/10 via-[#0b0f19] to-[#111111] p-1">
+                            <div className="rounded-2xl bg-[#0b0f16] border border-gray-900 p-5 md:p-6">
+                                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                    <div className="rounded-xl bg-[#111111] border border-[#00D9FF]/30 p-5 shadow-[0_0_30px_-20px_#00D9FF]">
+                                        <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">Career Level</p>
+                                        <p className="text-3xl font-extrabold text-white">L{gamificationProfile?.level || 1}</p>
+                                        <p className="text-sm text-[#00D9FF] mt-1 font-semibold">{gamificationProfile?.levelTitle || 'Beginner'}</p>
+                                    </div>
 
-                            <div className="rounded-xl bg-[#111111] border border-gray-800 p-5">
-                                <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Current Streak</p>
-                                <p className="text-3xl font-bold text-white flex items-center gap-2">
-                                    <Flame className="w-6 h-6 text-orange-400" />
-                                    {gamificationProfile?.streakCurrent || 0}
-                                </p>
-                                <p className="text-sm text-gray-400 mt-1">Longest: {gamificationProfile?.streakLongest || 0} days</p>
-                            </div>
+                                    <div className="rounded-xl bg-[#111111] border border-orange-500/30 p-5 shadow-[0_0_30px_-20px_#fb923c]">
+                                        <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">Current Streak</p>
+                                        <p className="text-3xl font-extrabold text-white flex items-center gap-2">
+                                            <Flame className="w-6 h-6 text-orange-400 animate-pulse" />
+                                            {gamificationProfile?.streakCurrent || 0}
+                                        </p>
+                                        <p className="text-sm text-gray-400 mt-1">Longest: {gamificationProfile?.streakLongest || 0} days</p>
+                                    </div>
 
-                            <div className="rounded-xl bg-[#111111] border border-gray-800 p-5">
-                                <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Career Credits</p>
-                                <p className="text-3xl font-bold text-white flex items-center gap-2">
-                                    <Coins className="w-6 h-6 text-yellow-400" />
-                                    {gamificationProfile?.credits?.balance || 0}
-                                </p>
-                                <p className="text-sm text-gray-400 mt-1">Lifetime earned: {gamificationProfile?.credits?.lifetimeEarned || 0}</p>
-                            </div>
+                                    <div className="rounded-xl bg-[#111111] border border-yellow-500/30 p-5 shadow-[0_0_30px_-20px_#facc15]">
+                                        <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">Career Credits</p>
+                                        <p className="text-3xl font-extrabold text-white flex items-center gap-2">
+                                            <Coins className="w-6 h-6 text-yellow-400" />
+                                            {gamificationProfile?.credits?.balance || 0}
+                                        </p>
+                                        <p className="text-sm text-gray-400 mt-1">Lifetime earned: {gamificationProfile?.credits?.lifetimeEarned || 0}</p>
+                                    </div>
 
-                            <div className="rounded-xl bg-[#111111] border border-gray-800 p-5">
-                                <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Badges Earned</p>
-                                <p className="text-3xl font-bold text-white flex items-center gap-2">
-                                    <Medal className="w-6 h-6 text-emerald-400" />
-                                    {gamificationProfile?.badgesEarnedCount || 0}
-                                </p>
-                                <p className="text-sm text-gray-400 mt-1">Readiness score: {gamificationProfile?.readinessScore || 0}/100</p>
+                                    <div className="rounded-xl bg-[#111111] border border-emerald-500/30 p-5 shadow-[0_0_30px_-20px_#34d399]">
+                                        <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">Badges Earned</p>
+                                        <p className="text-3xl font-extrabold text-white flex items-center gap-2">
+                                            <Medal className="w-6 h-6 text-emerald-400" />
+                                            {gamificationProfile?.badgesEarnedCount || 0}
+                                        </p>
+                                        <p className="text-sm text-gray-400 mt-1">Readiness: {gamificationProfile?.readinessScore || 0}/100</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="rounded-xl bg-[#111111] border border-gray-800 p-6">
-                            <div className="flex items-center justify-between mb-2">
+                        <div className="rounded-xl bg-[#111111] border border-gray-800 p-6 relative overflow-hidden">
+                            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#00D9FF]/10 blur-3xl"></div>
+                            <div className="relative z-10 flex items-center justify-between mb-2">
                                 <h3 className="text-lg font-semibold text-white">XP Progress</h3>
-                                <p className="text-sm text-gray-400">{gamificationProfile?.xpInCurrentLevel || 0}/{gamificationProfile?.xpForNextLevel || 100} XP</p>
+                                <p className="text-sm text-gray-300 font-semibold">{gamificationProfile?.xpInCurrentLevel || 0}/{gamificationProfile?.xpForNextLevel || 100} XP</p>
                             </div>
-                            <div className="w-full h-3 rounded-full bg-gray-800 overflow-hidden">
+                            <div className="w-full h-4 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
                                 <progress
-                                    className="w-full h-3 rounded-full overflow-hidden [appearance:none] [&::-webkit-progress-bar]:bg-gray-800 [&::-webkit-progress-value]:bg-[#00D9FF] [&::-moz-progress-bar]:bg-[#00D9FF]"
+                                    className="w-full h-4 rounded-full overflow-hidden [appearance:none] [&::-webkit-progress-bar]:bg-gray-800 [&::-webkit-progress-value]:bg-gradient-to-r [&::-webkit-progress-value]:from-[#00D9FF] [&::-webkit-progress-value]:to-cyan-300 [&::-moz-progress-bar]:bg-[#00D9FF]"
                                     value={gamificationProfile?.xpProgressPercentage || 0}
                                     max={100}
                                 />
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">Total XP: {gamificationProfile?.totalXp || 0}</p>
+                            <div className="flex flex-wrap justify-between mt-3 text-xs">
+                                <p className="text-gray-400">Total XP: <span className="text-white font-semibold">{gamificationProfile?.totalXp || 0}</span></p>
+                                <p className="text-[#00D9FF] font-semibold">Next level in {Math.max(0, (gamificationProfile?.xpForNextLevel || 100) - (gamificationProfile?.xpInCurrentLevel || 0))} XP</p>
+                            </div>
                         </div>
 
                         <div className="grid lg:grid-cols-2 gap-6">
                             <div className="rounded-xl bg-[#111111] border border-gray-800 p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Weekly Quest Tracker</h3>
+                                <h3 className="text-lg font-semibold text-white mb-1">Weekly Quest Tracker</h3>
+                                <p className="text-xs text-gray-500 mb-4">Complete all missions to claim reward pack.</p>
                                 {!gamificationProfile?.currentQuest ? (
                                     <p className="text-sm text-gray-500">No active quest this week.</p>
                                 ) : (
@@ -287,10 +301,10 @@ export default function DashboardPage() {
                                         {gamificationProfile.currentQuest.tasks.map((task) => {
                                             const percentage = Math.min(100, Math.round((task.current / task.target) * 100));
                                             return (
-                                                <div key={task.key}>
-                                                    <div className="flex justify-between text-sm mb-1">
-                                                        <span className="text-gray-300">{task.label}</span>
-                                                        <span className="text-gray-400">{task.current}/{task.target}</span>
+                                                <div key={task.key} className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+                                                    <div className="flex justify-between text-sm mb-2">
+                                                        <span className="text-gray-200 font-medium">{task.label}</span>
+                                                        <span className="text-[#00D9FF] font-semibold">{task.current}/{task.target}</span>
                                                     </div>
                                                     <div className="w-full h-2 rounded-full bg-gray-800 overflow-hidden">
                                                         <progress
@@ -303,18 +317,18 @@ export default function DashboardPage() {
                                             );
                                         })}
 
-                                        <div className="pt-3 border-t border-gray-800">
-                                            <p className="text-sm text-gray-300">
-                                                Reward: +{gamificationProfile.currentQuest.reward.xp} XP, +{gamificationProfile.currentQuest.reward.credits} credits
+                                        <div className="pt-3 border-t border-gray-800 rounded-lg bg-[#0f172a]/40 px-3 py-3">
+                                            <p className="text-sm text-gray-200">
+                                                Reward Pack: <span className="text-[#00D9FF] font-semibold">+{gamificationProfile.currentQuest.reward.xp} XP</span> and <span className="text-yellow-300 font-semibold">+{gamificationProfile.currentQuest.reward.credits} credits</span>
                                             </p>
-                                            <p className="text-xs text-gray-500 mt-1">Status: {gamificationProfile.currentQuest.status}</p>
+                                            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">Status: {gamificationProfile.currentQuest.status}</p>
                                             {gamificationProfile.currentQuest.status === 'completed' && (
                                                 <button
                                                     onClick={handleClaimQuestReward}
                                                     disabled={isClaimingQuestReward}
-                                                    className="mt-3 btn-primary"
+                                                    className="mt-3 btn-primary w-full"
                                                 >
-                                                    {isClaimingQuestReward ? 'Claiming...' : 'Claim Reward'}
+                                                    {isClaimingQuestReward ? 'Claiming Reward...' : 'Claim Epic Reward'}
                                                 </button>
                                             )}
                                         </div>
@@ -325,14 +339,14 @@ export default function DashboardPage() {
                             <div className="rounded-xl bg-[#111111] border border-gray-800 p-6">
                                 <h3 className="text-lg font-semibold text-white mb-4">Earned Badges</h3>
                                 {!gamificationProfile?.badges?.length ? (
-                                    <p className="text-sm text-gray-500">No badges yet. Complete quests and activities to unlock your first badge.</p>
+                                    <p className="text-sm text-gray-500">No badges yet. Complete quests and activities to unlock your first legendary badge.</p>
                                 ) : (
                                     <div className="grid sm:grid-cols-2 gap-3">
-                                        {gamificationProfile.badges.slice(0, 6).map((badge) => (
-                                            <div key={badge._id} className="rounded-lg border border-gray-800 p-3 bg-gray-900/30">
+                                        {gamificationProfile.badges.slice(0, 6).map((badge, index) => (
+                                            <div key={badge._id} className={`rounded-lg border p-3 ${index % 3 === 0 ? 'border-[#00D9FF]/40 bg-[#00D9FF]/10' : index % 3 === 1 ? 'border-yellow-400/40 bg-yellow-400/10' : 'border-emerald-400/40 bg-emerald-400/10'}`}>
                                                 <p className="text-sm font-semibold text-white">{badge.title}</p>
-                                                <p className="text-xs text-gray-400 mt-1">{badge.description}</p>
-                                                <p className="text-[11px] text-gray-500 mt-2">{badge.milestone}</p>
+                                                <p className="text-xs text-gray-300 mt-1">{badge.description}</p>
+                                                <p className="text-[11px] text-gray-400 mt-2">{badge.milestone}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -365,6 +379,19 @@ export default function DashboardPage() {
                                     </select>
                                 </div>
                             </div>
+
+                            {(leaderboard?.entries || []).length > 0 && (
+                                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                                    {(leaderboard?.entries || []).slice(0, 3).map((entry) => (
+                                        <div key={`top-${entry.userId}-${entry.rank}`} className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+                                            <p className="text-xs text-gray-500 uppercase tracking-wider">#{entry.rank}</p>
+                                            <p className="text-sm text-white font-semibold mt-1">{entry.name}</p>
+                                            <p className="text-xs text-gray-500 mt-1">{entry.institution || 'No institution'}</p>
+                                            <p className="text-sm text-[#00D9FF] font-bold mt-2">Score: {entry.score}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">

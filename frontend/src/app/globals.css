@@ -37,7 +37,7 @@
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a0a];
+    @apply px-5 py-3 rounded-lg text-base font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a0a];
   }
 
   .btn-primary {
@@ -53,7 +53,7 @@
   }
 
   .input {
-    @apply w-full px-4 py-2 bg-gray-900/50 border border-gray-800 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+    @apply w-full px-4 py-3 bg-gray-900/50 border border-gray-800 rounded-lg text-base text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
   }
 
   .card {
@@ -87,7 +87,11 @@
   }
 
   .btn-sm {
-    @apply text-sm px-3 py-1.5;
+    @apply text-sm px-4 py-2;
+  }
+
+  .btn-lg {
+    @apply text-lg px-6 py-3.5;
   }
 
   .animate-gradient {

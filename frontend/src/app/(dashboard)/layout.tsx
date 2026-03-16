@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Link from 'next/link';
@@ -35,82 +34,97 @@ export default function DashboardLayout({
         router.push('/login');
     };
 
+    const navItems = [
+        { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Home' },
+        { href: '/dashboard/dsa', icon: <Code size={18} />, label: 'DSA Practice' },
+        { href: '/dashboard/resume', icon: <FileText size={18} />, label: 'Resume Builder' },
+        { href: '/dashboard/interview', icon: <MessageSquare size={18} />, label: 'Interview Prep' },
+        { href: '/dashboard/roadmap', icon: <Map size={18} />, label: 'Roadmap' },
+        { href: '/research', icon: <BookOpen size={18} />, label: 'Research' },
+        { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
+        { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
+        { href: '/dashboard/career-twin', icon: <Bot size={18} />, label: 'AI Twin' },
+    ];
+
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-[#00D9FF]/30">
-            {/* Sidebar */}
-            <aside className="fixed left-0 top-0 h-full w-64 bg-[#0a0a0a] border-r border-gray-800 flex flex-col z-50">
-                <div className="p-6 border-b border-gray-800">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-[#00D9FF]/10 flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-[#00D9FF]" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-white tracking-wide">HYKROX</h1>
-                            <p className="text-[10px] text-[#00D9FF] uppercase tracking-wider font-semibold">Creative Design</p>
+            {/* Top Header Navigation */}
+            <header className="sticky top-0 z-50 border-b border-gray-800/80 bg-[#0a0a0a]/95 backdrop-blur-md">
+                <div className="px-4 md:px-6 py-3 border-b border-gray-900">
+                    <div className="flex items-center justify-between gap-4">
+                        <Link href="/dashboard" className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-lg bg-[#00D9FF]/10 border border-[#00D9FF]/30 flex items-center justify-center">
+                                <Sparkles className="w-5 h-5 text-[#00D9FF]" />
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-bold text-white tracking-wide">HYKROX</h1>
+                                <p className="text-[10px] text-[#00D9FF] uppercase tracking-wider font-semibold">Creative Design</p>
+                            </div>
+                        </Link>
+
+                        <div className="flex items-center gap-2 md:gap-3">
+                            {isAuthenticated ? (
+                                <>
+                                    <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-lg border border-gray-800 bg-gray-900/40">
+                                        <div className="w-7 h-7 rounded-full bg-[#00D9FF]/15 border border-[#00D9FF]/40 flex items-center justify-center text-[#00D9FF] text-xs font-semibold">
+                                            {user?.name?.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="text-sm text-white font-semibold">{user?.name}</p>
+                                            <p className="text-xs text-gray-500">{user?.subscription?.tier || 'Free'} Plan</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-4 py-2.5 rounded-lg border border-gray-800 text-gray-300 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5 transition-all text-base font-semibold inline-flex items-center gap-2"
+                                    >
+                                        <LogOut size={16} />
+                                        Sign Out
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <Link
+                                        href="/login"
+                                        className="px-4 py-2.5 rounded-lg bg-[#00D9FF]/10 border border-[#00D9FF]/50 text-[#00D9FF] hover:bg-[#00D9FF]/20 transition-all text-base font-semibold inline-flex items-center gap-2"
+                                    >
+                                        Sign In
+                                        <ArrowRight size={16} />
+                                    </Link>
+                                    <Link
+                                        href="/register"
+                                        className="px-4 py-2.5 rounded-lg border border-gray-800 text-gray-300 hover:text-white hover:border-gray-700 transition-all text-base font-semibold"
+                                    >
+                                        Sign Up
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-4 mt-2">Menu</div>
-                    <NavLink href="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" active={pathname === '/dashboard'} />
-                    <NavLink href="/dashboard/dsa" icon={<Code size={18} />} label="DSA Practice" active={pathname === '/dashboard/dsa'} />
-                    <NavLink href="/dashboard/resume" icon={<FileText size={18} />} label="Resume Builder" active={pathname === '/dashboard/resume'} />
-                    <NavLink href="/dashboard/interview" icon={<MessageSquare size={18} />} label="Interview Prep" active={pathname === '/dashboard/interview'} />
-
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-4 mt-6">Tools</div>
-                    <NavLink href="/dashboard/roadmap" icon={<Map size={18} />} label="Roadmap" active={pathname === '/dashboard/roadmap'} />
-                    <NavLink href="/research" icon={<BookOpen size={18} />} label="Research" active={pathname === '/research'} />
-                    <NavLink href="/dashboard/pdf" icon={<FileUp size={18} />} label="PDF Learning" active={pathname === '/dashboard/pdf'} />
-                    <NavLink href="/dashboard/skill-marketplace" icon={<Users size={18} />} label="Community" active={pathname === '/dashboard/skill-marketplace'} />
-                    <NavLink href="/dashboard/career-twin" icon={<Bot size={18} />} label="AI Twin" active={pathname === '/dashboard/career-twin'} />
-                </nav>
-
-                <div className="p-4 border-t border-gray-800 bg-[#0a0a0a]">
-                    {isAuthenticated ? (
-                        <>
-                            <div className="flex items-center gap-3 mb-4 px-2">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 flex items-center justify-center text-[#00D9FF] font-bold shadow-lg shadow-[#00D9FF]/5">
-                                    {user?.name?.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-white truncate text-sm">{user?.name}</p>
-                                    <p className="text-xs text-gray-500 truncate">{user?.subscription?.tier || 'Free'} Plan</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-800 text-gray-400 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5 transition-all text-sm font-medium"
-                            >
-                                <LogOut size={16} />
-                                Sign Out
-                            </button>
-                        </>
-                    ) : (
-                        <div className="space-y-3">
-                            <p className="text-sm text-gray-400 text-center">Sign in to unlock all features and track your progress</p>
-                            <Link
-                                href="/login"
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#00D9FF]/10 border border-[#00D9FF]/50 text-[#00D9FF] hover:bg-[#00D9FF]/20 hover:border-[#00D9FF] transition-all text-sm font-medium"
-                            >
-                                Sign In
-                                <ArrowRight size={16} />
-                            </Link>
-                            <Link
-                                href="/register"
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 transition-all text-sm font-medium"
-                            >
-                                Create Account
-                            </Link>
-                        </div>
-                    )}
+                <div className="px-4 md:px-6 py-3">
+                    <nav className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {navItems.map((item) => {
+                            const active = pathname === item.href;
+                            return (
+                                <TopNavItem
+                                    key={item.href}
+                                    href={item.href}
+                                    icon={item.icon}
+                                    label={item.label}
+                                    active={active}
+                                />
+                            );
+                        })}
+                    </nav>
                 </div>
-            </aside>
+            </header>
 
             {/* Main Content */}
-            <main className="ml-64 p-8 relative min-h-screen">
+            <main className="p-4 md:p-8 relative min-h-[calc(100vh-110px)]">
                 {/* Background ambient glow */}
-                <div className="fixed top-0 left-64 right-0 h-96 bg-[#00D9FF]/5 blur-[120px] pointer-events-none rounded-full translate-y-[-50%]"></div>
+                <div className="fixed top-0 left-0 right-0 h-96 bg-[#00D9FF]/5 blur-[120px] pointer-events-none rounded-full translate-y-[-50%]"></div>
 
                 <div className="relative z-10 w-full mx-auto">
                     {children}
@@ -120,14 +134,14 @@ export default function DashboardLayout({
     );
 }
 
-function NavLink({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
+function TopNavItem({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
     return (
         <Link
             href={href}
             className={`
-                group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
+                group shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg text-base font-semibold transition-all duration-200
                 ${active
-                    ? 'bg-[#00D9FF]/10 text-[#00D9FF] border border-[#00D9FF]/20 shadow-[0_0_15px_-5px_#00D9FF]'
+                    ? 'bg-[#00D9FF]/12 text-[#00D9FF] border border-[#00D9FF]/30 shadow-[0_0_18px_-8px_#00D9FF]'
                     : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                 }
             `}
@@ -136,9 +150,6 @@ function NavLink({ href, icon, label, active }: { href: string; icon: React.Reac
                 {icon}
             </span>
             <span>{label}</span>
-            {active && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00D9FF] shadow-[0_0_5px_#00D9FF]"></div>
-            )}
         </Link>
     );
 }
