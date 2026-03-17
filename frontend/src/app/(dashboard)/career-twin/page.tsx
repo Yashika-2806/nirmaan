@@ -28,7 +28,7 @@ export default function CareerTwinPage() {
     const handleCreateTwin = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.post('/api/career-twin/create');
+            const response = await axios.post('/career-twin/create');
             setTwin(response.data.data.twin);
             setHasCreated(true);
             toast.success('Digital twin created!');
@@ -47,7 +47,7 @@ export default function CareerTwinPage() {
 
         setIsLoading(true);
         try {
-            const response = await axios.post('/api/career-twin/simulate', {
+            const response = await axios.post('/career-twin/simulate', {
                 scenario
             });
             setSimulation(response.data.data.simulation);

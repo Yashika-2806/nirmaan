@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, ChangeEvent, DragEvent } from 'react';
 import {
     FileText, Upload, Brain, CheckCircle, XCircle,
     Loader2, ChevronRight, RotateCcw, Star, AlertCircle,
@@ -83,7 +83,6 @@ export default function PDFPage() {
     const [markedQuestions, setMarkedQuestions] = useState<MarkedQuestion[]>([]);
     const [studentAnswers, setStudentAnswers] = useState<StudentAnswer[]>([]);
     const [markedLoading, setMarkedLoading] = useState(false);
-    const [markedComplete, setMarkedComplete] = useState(false);
     const [markedConfig, setMarkedConfig] = useState<MarkedConfig>({
         numQuestions: 6,
         difficulty: 'mixed',
@@ -115,12 +114,12 @@ export default function PDFPage() {
         }
     };
 
-    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) handleFile(file);
     };
 
-    const handleDrop = (e: React.DragEvent) => {
+    const handleDrop = (e: DragEvent) => {
         e.preventDefault();
         setDragOver(false);
         const file = e.dataTransfer.files?.[0];
@@ -174,9 +173,17 @@ export default function PDFPage() {
     };
 
     const getQuizScore = () => {
-        const answered = quizAnswers.filter(a => a.submitted);
-        const correct = answered.filter((a, i) => a.selected === quizQuestions[i]?.correctAnswer);
-        return { correct: correct.length, total: answered.length };
+        return quizAnswers.reduce(
+            (acc, answer, idx) => {
+                if (!answer.submitted) return acc;
+                acc.total += 1;
+                if (answer.selected === quizQuestions[idx]?.correctAnswer) {
+                    acc.correct += 1;
+                }
+                return acc;
+            },
+            { correct: 0, total: 0 }
+        );
     };
 
     const getOptionReason = (question: QuizQuestion, optionKey: string): string => {
@@ -236,9 +243,17 @@ export default function PDFPage() {
     };
 
     const getARScore = () => {
-        const answered = arAnswers.filter(a => a.submitted);
-        const correct = answered.filter((a, i) => a.selected === arQuestions[i]?.correctAnswer);
-        return { correct: correct.length, total: answered.length };
+        return arAnswers.reduce(
+            (acc, answer, idx) => {
+                if (!answer.submitted) return acc;
+                acc.total += 1;
+                if (answer.selected === arQuestions[idx]?.correctAnswer) {
+                    acc.correct += 1;
+                }
+                return acc;
+            },
+            { correct: 0, total: 0 }
+        );
     };
 
     // ── Marked Questions Handlers ─────────────────────────────────────────────
@@ -250,7 +265,6 @@ export default function PDFPage() {
         }
 
         setMarkedLoading(true);
-        setMarkedComplete(false);
         try {
             const data = await pdfService.generateMarkedQuestions(sessionId, {
                 numQuestions: markedConfig.numQuestions,
@@ -292,10 +306,16 @@ export default function PDFPage() {
     };
 
     const getTotalMarkedScore = () => {
-        const graded = studentAnswers.filter(a => a.result !== null);
-        const totalEarned = graded.reduce((sum, a) => sum + (a.result?.score || 0), 0);
-        const totalMax = graded.reduce((sum, _, i) => sum + markedQuestions[i]?.marks || 0, 0);
-        return { earned: totalEarned, max: totalMax, graded: graded.length, total: markedQuestions.length };
+        return studentAnswers.reduce(
+            (acc, answer, idx) => {
+                if (!answer.result) return acc;
+                acc.earned += answer.result.score;
+                acc.max += markedQuestions[idx]?.marks || 0;
+                acc.graded += 1;
+                return acc;
+            },
+            { earned: 0, max: 0, graded: 0, total: markedQuestions.length }
+        );
     };
 
     const getFocusPoints = (q: MarkedQuestion): string[] => {
@@ -341,7 +361,6 @@ export default function PDFPage() {
         setArComplete(false);
         setCurrentArIdx(0);
         setQuizComplete(false);
-        setMarkedComplete(false);
         setCurrentQuizIdx(0);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -710,12 +729,12 @@ export default function PDFPage() {
 
                 {/* Progress */}
                 <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-primary-600 h-2 rounded-full transition-all"
-                            style={{ width: `${((currentQuizIdx + 1) / quizQuestions.length) * 100}%` }}
-                        />
-                    </div>
+                    <progress
+                        className="flex-1 h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-primary-600 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-primary-600"
+                        max={quizQuestions.length}
+                        value={currentQuizIdx + 1}
+                        aria-label="Quiz progress"
+                    />
                     <span className="text-base font-semibold text-gray-300">{currentQuizIdx + 1}/{quizQuestions.length}</span>
                     <span className="text-base font-semibold text-green-500">✓ {score.correct}</span>
                 </div>
@@ -853,12 +872,12 @@ export default function PDFPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-indigo-600 h-2 rounded-full transition-all"
-                            style={{ width: `${((currentArIdx + 1) / arQuestions.length) * 100}%` }}
-                        />
-                    </div>
+                    <progress
+                        className="flex-1 h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-indigo-600 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-indigo-600"
+                        max={arQuestions.length}
+                        value={currentArIdx + 1}
+                        aria-label="Assertion-reason progress"
+                    />
                     <span className="text-base font-semibold text-gray-300">{currentArIdx + 1}/{arQuestions.length}</span>
                     <span className="text-base font-semibold text-green-500">✓ {score.correct}</span>
                 </div>

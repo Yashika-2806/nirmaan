@@ -1412,6 +1412,150 @@ Return ONLY valid JSON, no markdown:
             return { isPlagiarized: false, confidence: 'low', reason: 'Check failed' };
         }
     }
+
+    safeParseJSONObject(text) {
+        const raw = String(text || '').trim();
+        const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        try {
+            return JSON.parse(cleaned);
+        } catch (_) {
+            const start = cleaned.indexOf('{');
+            const end = cleaned.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                return JSON.parse(cleaned.slice(start, end + 1));
+            }
+            throw new Error('Unable to parse JSON object from model output');
+        }
+    }
+
+    /**
+     * Generate Career GPS gap analysis + roadmap in one AI call sequence.
+     */
+    async generateCareerGPSPlan({ skillGapPrompt, roadmapPrompt }) {
+        const model = this.getModel('roadmap');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const gapResult = await model.generateContent(skillGapPrompt);
+            const gapResponse = await gapResult.response;
+            const gapJson = this.safeParseJSONObject(gapResponse.text());
+
+            const roadmapResult = await model.generateContent(roadmapPrompt);
+            const roadmapResponse = await roadmapResult.response;
+            const roadmapJson = this.safeParseJSONObject(roadmapResponse.text());
+
+            return {
+                requiredSkillProfile: Array.isArray(gapJson.requiredSkillProfile) ? gapJson.requiredSkillProfile : [],
+                gapAnalysis: Array.isArray(gapJson.gapAnalysis) ? gapJson.gapAnalysis : [],
+                recommendations: Array.isArray(gapJson.recommendations) ? gapJson.recommendations : [],
+                timelineStages: Array.isArray(roadmapJson.timelineStages) ? roadmapJson.timelineStages : [],
+                tasks: Array.isArray(roadmapJson.tasks) ? roadmapJson.tasks : [],
+            };
+        } catch (error) {
+            console.error('Gemini AI API Error (Career GPS Plan):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    /**
+     * Generate daily Career GPS missions.
+     */
+    async generateCareerGPSMissions({ missionPrompt }) {
+        const model = this.getModel('roadmap');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const result = await model.generateContent(missionPrompt);
+            const response = await result.response;
+            const parsed = this.safeParseJSONObject(response.text());
+
+            return {
+                missions: Array.isArray(parsed.missions) ? parsed.missions : [],
+            };
+        } catch (error) {
+            console.error('Gemini AI API Error (Career GPS Missions):', error);
+            return { error: 'AI Service Error: ' + error.message };
+        }
+    }
+
+    async generateCareerTwinProfile({ name = 'Student', role = 'learner' } = {}) {
+        const model = this.getModel('general');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are an expert career coach creating a concise digital twin profile.
+
+User name: ${name}
+User role: ${role}
+
+Return ONLY valid JSON:
+{
+  "personality": "...",
+  "workStyle": "...",
+  "strengths": ["...", "...", "..."],
+  "growthAreas": ["...", "...", "..."]
+}
+
+Rules:
+- Keep it realistic for an early-career learner
+- Each array must have 3 short actionable items`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const parsed = this.safeParseJSONObject(response.text());
+
+            return {
+                personality: String(parsed.personality || 'Analytical and growth-oriented'),
+                workStyle: String(parsed.workStyle || 'Hands-on learner with iterative improvement'),
+                strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : ['Problem solving', 'Curiosity', 'Consistency'],
+                growthAreas: Array.isArray(parsed.growthAreas) ? parsed.growthAreas.slice(0, 5) : ['Communication', 'Project depth', 'Interview confidence'],
+            };
+        } catch (error) {
+            console.error('Gemini AI API Error (Career Twin Profile):', error);
+            return {
+                personality: 'Analytical and growth-oriented',
+                workStyle: 'Hands-on learner with iterative improvement',
+                strengths: ['Problem solving', 'Curiosity', 'Consistency'],
+                growthAreas: ['Communication', 'Project depth', 'Interview confidence'],
+            };
+        }
+    }
+
+    async simulateCareerTwinScenario({ scenario, name = 'Student' }) {
+        const model = this.getModel('general');
+        if (!model) return { error: 'AI unavailable' };
+
+        try {
+            const prompt = `You are simulating a career decision for ${name}.
+
+Scenario: ${scenario}
+
+Return ONLY valid JSON:
+{
+  "scenario": "...",
+  "outcome": "4-7 sentence realistic prediction with risks and upside",
+  "recommendation": "3-5 sentence practical action plan"
+}`;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const parsed = this.safeParseJSONObject(response.text());
+
+            return {
+                scenario: String(parsed.scenario || scenario),
+                outcome: String(parsed.outcome || 'Outcome could improve with focused skill building and consistent execution.'),
+                recommendation: String(parsed.recommendation || 'Break the goal into weekly milestones, track progress, and iterate based on feedback.'),
+            };
+        } catch (error) {
+            console.error('Gemini AI API Error (Career Twin Simulation):', error);
+            return {
+                scenario,
+                outcome: 'This scenario can work, but results depend on consistency, project quality, and interview practice.',
+                recommendation: 'Set a 4-week execution plan, complete measurable tasks weekly, and review outcomes every Sunday.',
+            };
+        }
+    }
 }
 
 module.exports = new GeminiService();
