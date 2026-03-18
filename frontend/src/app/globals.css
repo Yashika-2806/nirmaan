@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @layer base {
   html {
     font-size: 17px;
@@ -20,8 +18,8 @@
   }
 
   body {
-    @apply bg-[#0a0a0a] text-gray-100 antialiased;
-    font-family: 'Inter', sans-serif;
+    @apply bg-[#070c1a] text-gray-100 antialiased;
+    font-family: var(--font-body), sans-serif;
     min-height: 100vh;
   }
 
@@ -32,6 +30,7 @@
   h5,
   h6 {
     @apply font-semibold text-white;
+    font-family: var(--font-display), sans-serif;
   }
 }
 

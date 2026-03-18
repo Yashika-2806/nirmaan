@@ -14,6 +14,7 @@ const careerGPSRoutes = require('../modules/career-gps/routes');
 const careerTwinRoutes = require('./career-twin-routes');
 const skillMarketplaceRoutes = require('../modules/skill-marketplace/routes');
 const gamificationRoutes = require('../modules/gamification/routes');
+const growthAnalyticsRoutes = require('../modules/growth-analytics/routes');
 const pdfRoutes = require('./pdf-routes');
 const researchRoutes = require('./research-routes');
 
@@ -38,6 +39,7 @@ router.use('/career-gps', careerGPSRoutes);
 router.use('/career-twin', careerTwinRoutes);
 router.use('/skill-marketplace', skillMarketplaceRoutes);
 router.use('/gamification', gamificationRoutes);
+router.use('/analytics', growthAnalyticsRoutes);
 router.use('/pdf', pdfRoutes);
 router.use('/research', researchRoutes);
 

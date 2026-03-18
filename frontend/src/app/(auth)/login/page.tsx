@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 import toast from 'react-hot-toast';
 import { LogIn } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login, isLoading } = useAuthStore();
+    const source = searchParams.get('src') || 'direct';
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -17,12 +20,15 @@ export default function LoginPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        trackEvent('login_submitted', { source });
 
         try {
             await login(formData.email, formData.password);
+            trackEvent('login_success', { source });
             toast.success('Login successful!');
             router.push('/dashboard');
         } catch (error: any) {
+            trackEvent('login_failed', { source });
             const res = (error as any)?.response?.data;
             if (res?.errors && Array.isArray(res.errors) && res.errors.length > 0) {
                 toast.error(res.errors[0].message || res.message || 'Login failed');
@@ -83,7 +89,7 @@ export default function LoginPage() {
                     </form>
 
                     <p className="mt-6 text-center text-gray-600">
-                        Don't have an account?{' '}
+                        Don&#39;t have an account?{' '}
                         <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">
                             Sign up
                         </Link>

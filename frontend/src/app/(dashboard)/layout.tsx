@@ -14,6 +14,7 @@ import {
     FileUp,
     Users,
     Bot,
+    BarChart3,
     LogOut,
     Sparkles,
     ArrowRight
@@ -46,6 +47,9 @@ export default function DashboardLayout({
         { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
         { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
         { href: '/dashboard/career-twin', icon: <Bot size={18} />, label: 'AI Twin' },
+        ...((user?.role || '').toLowerCase() === 'admin'
+            ? [{ href: '/dashboard/funnel', icon: <BarChart3 size={18} />, label: 'Growth Funnel' }]
+            : []),
     ];
 
     return (
@@ -59,8 +63,8 @@ export default function DashboardLayout({
                                 <Sparkles className="w-5 h-5 text-[#00D9FF]" />
                             </div>
                             <div>
-                                <h1 className="text-lg font-bold text-white tracking-wide">HYKROX</h1>
-                                <p className="text-[10px] text-[#00D9FF] uppercase tracking-wider font-semibold">Creative Design</p>
+                                <h1 className="text-lg font-bold text-white tracking-wide">Nirmaan</h1>
+                                <p className="text-[10px] text-[#00D9FF] uppercase tracking-wider font-semibold">Placement Acceleration</p>
                             </div>
                         </Link>
 

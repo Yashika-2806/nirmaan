@@ -1,15 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
-import { Code, FileText, MessageSquare, Target, Sparkles, Brain, Trophy, ArrowRight, Zap, BookOpen, Users, Flame, Medal, Crown, Coins } from 'lucide-react';
+import {
+    ArrowRight,
+    BookOpen,
+    Brain,
+    Code,
+    Coins,
+    Crown,
+    FileText,
+    Flame,
+    Medal,
+    MessageSquare,
+    Sparkles,
+    Target,
+    TrendingUp,
+    Trophy,
+    Users,
+    Zap,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { GamificationProfile, LeaderboardResponse, gamificationService } from '@/services/gamificationService';
+import { trackEvent } from '@/lib/analytics';
+import { OnboardingData, OnboardingGate } from '@/components/growth/OnboardingGate';
+import { PaywallModal } from '@/components/growth/PaywallModal';
+import { TimedNudgeCard } from '@/components/growth/TimedNudgeCard';
+
+type SprintTask = {
+    id: string;
+    title: string;
+    minutes: number;
+    xp: number;
+    key: 'resume' | 'dsa' | 'interview' | 'applications';
+    done: boolean;
+};
 
 export default function DashboardPage() {
-    const { user, isAuthenticated } = useAuthStore();
+    const { user, isAuthenticated, updateProfile } = useAuthStore();
     const router = useRouter();
     const [gamificationProfile, setGamificationProfile] = useState<GamificationProfile | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
@@ -17,8 +47,44 @@ export default function DashboardPage() {
     const [leaderboardMetric, setLeaderboardMetric] = useState<'xp' | 'dsa' | 'skill'>('xp');
     const [isGamificationLoading, setIsGamificationLoading] = useState(false);
     const [isClaimingQuestReward, setIsClaimingQuestReward] = useState(false);
+    const [showOnboardingGate, setShowOnboardingGate] = useState(false);
+    const [paywallOpen, setPaywallOpen] = useState(false);
+    const [paywallFeatureName, setPaywallFeatureName] = useState('AI Mentor Check-In');
+    const [paywallSource, setPaywallSource] = useState('dashboard');
 
-    const loadGamificationData = async () => {
+    const isPaidUser = (user?.subscription?.tier || '').toLowerCase() !== 'free';
+
+    const sprintTasks: SprintTask[] = [
+        {
+            id: 'resume-upgrade',
+            title: 'Upgrade 2 project bullets with impact metrics',
+            minutes: 15,
+            xp: 30,
+            key: 'resume',
+            done: (gamificationProfile?.stats?.resume_improved || 0) > 0,
+        },
+        {
+            id: 'dsa-run',
+            title: 'Solve 2 medium DSA questions',
+            minutes: 20,
+            xp: 40,
+            key: 'dsa',
+            done: (gamificationProfile?.stats?.dsa_problem_solved || 0) >= 2,
+        },
+        {
+            id: 'interview-rep',
+            title: 'Practice one HR answer in Interview Gym',
+            minutes: 10,
+            xp: 20,
+            key: 'interview',
+            done: (gamificationProfile?.stats?.mock_interview_completed || 0) > 0,
+        },
+    ];
+
+    const completedSprintTasks = sprintTasks.filter((task) => task.done).length;
+    const sprintProgress = Math.round((completedSprintTasks / sprintTasks.length) * 100);
+
+    const loadGamificationData = useCallback(async () => {
         if (!user?._id) {
             return;
         }
@@ -41,11 +107,26 @@ export default function DashboardPage() {
         } finally {
             setIsGamificationLoading(false);
         }
-    };
+    }, [leaderboardMetric, leaderboardScope, user?._id]);
 
     useEffect(() => {
         loadGamificationData();
-    }, [user?._id, leaderboardScope, leaderboardMetric]);
+    }, [loadGamificationData]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            return;
+        }
+
+        trackEvent('dashboard_viewed', {
+            userId: user._id,
+            subscriptionTier: user?.subscription?.tier || 'free',
+        });
+
+        const onboardingKey = `nirmaan:onboarding:${user._id}`;
+        const hasOnboarded = window.localStorage.getItem(onboardingKey);
+        setShowOnboardingGate(!hasOnboarded);
+    }, [isAuthenticated, user?._id, user?.subscription?.tier]);
 
     const handleClaimQuestReward = async () => {
         if (!gamificationProfile?.currentQuest?._id) return;
@@ -62,30 +143,88 @@ export default function DashboardPage() {
         }
     };
 
+    const openPaywall = (featureName: string, source: string) => {
+        setPaywallFeatureName(featureName);
+        setPaywallSource(source);
+        setPaywallOpen(true);
+        trackEvent('paywall_opened', {
+            source,
+            featureName,
+        });
+    };
+
+    const handleOnboardingComplete = async (data: OnboardingData) => {
+        if (user?._id) {
+            const onboardingKey = `nirmaan:onboarding:${user._id}`;
+            window.localStorage.setItem(onboardingKey, JSON.stringify(data));
+        }
+
+        try {
+            await updateProfile({
+                preferences: {
+                    onboarding: {
+                        year: data.year,
+                        targetRole: data.targetRole,
+                        prepLevel: data.prepLevel,
+                        completedAt: new Date().toISOString(),
+                    },
+                },
+            });
+            trackEvent('onboarding_persisted_backend', {
+                userId: user?._id || 'anonymous',
+            });
+        } catch {
+            trackEvent('onboarding_persist_failed', {
+                userId: user?._id || 'anonymous',
+            });
+            toast.error('Plan saved locally. Sync will retry later.');
+        }
+
+        setShowOnboardingGate(false);
+        toast.success('Your sprint plan is ready.');
+    };
+
     // If not authenticated, show the public dashboard with login CTA
     if (!isAuthenticated) {
         return (
             <div className="space-y-8">
-                {/* Hero Section - Public view */}
-                <div className="relative overflow-hidden rounded-2xl bg-[#111111] border border-[#00D9FF]/20 p-8">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl"></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="w-5 h-5 text-[#00D9FF]" />
-                            <span className="text-sm font-medium text-[#00D9FF] uppercase tracking-wider">Career OS</span>
+                <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-8">
+                    <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+                    <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+                    <div className="relative z-10 max-w-3xl">
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200/30 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-100">
+                            <Sparkles className="h-4 w-4" />
+                            Placement Acceleration Platform
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                            <span className="text-white">Transform Your </span>
-                            <span className="text-[#00D9FF]">Career Journey</span> 🚀
+                        <h1 className="text-4xl font-bold leading-tight md:text-5xl">
+                            Crack placements with a daily sprint, not random prep.
                         </h1>
-                        <p className="text-gray-400 text-lg mb-6">Explore our AI-powered tools designed to help you master DSA, ace interviews, build amazing resumes, and accelerate your career growth.</p>
+                        <p className="mt-4 text-lg text-slate-300">
+                            Sign in to unlock your readiness score, daily task plan, and AI mentor check-ins.
+                        </p>
                         <Link
-                            href="/login"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#00D9FF]/10 hover:bg-[#00D9FF]/20 border border-[#00D9FF]/50 hover:border-[#00D9FF] text-[#00D9FF] rounded-lg font-semibold transition-all"
+                            href="/login?src=dashboard_public"
+                            onClick={() => trackEvent('cta_clicked', { source: 'dashboard_public_hero', cta: 'sign_in_start_sprint' })}
+                            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-6 py-3 font-semibold text-slate-900 transition hover:bg-cyan-200"
                         >
-                            Sign In to Get Started
-                            <ArrowRight className="w-4 h-4" />
+                            Sign In to Start Today&#39;s Sprint
+                            <ArrowRight className="h-4 w-4" />
                         </Link>
+                    </div>
+                </section>
+
+                <div className="grid gap-5 md:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
+                        <p className="text-sm text-slate-300">Daily Focus</p>
+                        <p className="mt-2 text-2xl font-bold text-white">Resume + DSA + Interview</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
+                        <p className="text-sm text-slate-300">Outcomes</p>
+                        <p className="mt-2 text-2xl font-bold text-white">Higher shortlist odds</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
+                        <p className="text-sm text-slate-300">Consistency Layer</p>
+                        <p className="mt-2 text-2xl font-bold text-white">Streak + progress loop</p>
                     </div>
                 </div>
             </div>
@@ -94,38 +233,188 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8">
-            {/* Hero Section - Authenticated view */}
-            <div className="relative overflow-hidden rounded-2xl bg-[#111111] border border-[#00D9FF]/20 p-8">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="w-5 h-5 text-[#00D9FF]" />
-                        <span className="text-sm font-medium text-[#00D9FF] uppercase tracking-wider">Career OS</span>
+            <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-8">
+                <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+                <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+                <div className="relative z-10 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+                    <div>
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200/30 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-100">
+                            <Sparkles className="h-4 w-4" />
+                            Placement Sprint Control Center
+                        </div>
+                        <h1 className="text-4xl font-bold leading-tight md:text-5xl">
+                            Welcome back, {user?.name}. Let&#39;s move your shortlist odds today.
+                        </h1>
+                        <p className="mt-4 text-lg text-slate-300">
+                            Most students lose momentum by day 5. Your edge is daily execution. Finish today&#39;s sprint before 11:30 PM.
+                        </p>
+                        <div className="mt-6 flex flex-wrap gap-3">
+                            <Link
+                                href="/dashboard/interview"
+                                onClick={() => trackEvent('cta_clicked', { source: 'dashboard_hero', cta: 'start_todays_sprint' })}
+                                className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-semibold text-slate-900 transition hover:bg-cyan-200"
+                            >
+                                Start Today&#39;s Sprint
+                                <ArrowRight className="h-4 w-4" />
+                            </Link>
+                            <Link
+                                href="/dashboard/resume"
+                                onClick={() => trackEvent('cta_clicked', { source: 'dashboard_hero', cta: 'boost_resume_score' })}
+                                className="rounded-xl border border-white/20 bg-white/5 px-5 py-3 font-semibold transition hover:bg-white/10"
+                            >
+                                Boost Resume Score
+                            </Link>
+                        </div>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                        <span className="text-white">Welcome back, </span>
-                        <span className="text-[#00D9FF]">{user?.name}!</span> 👋
-                    </h1>
-                    <p className="text-gray-400 text-lg">Here's your career progress overview</p>
-                </div>
-            </div>
 
-            {/* Stats Grid */}
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Readiness Snapshot</p>
+                        <p className="mt-2 text-4xl font-bold text-cyan-100">{gamificationProfile?.readinessScore || 0}/100</p>
+                        <p className="mt-2 text-sm text-slate-300">On this pace, you can hit interview-ready range in 4-6 weeks.</p>
+                        <div className="mt-4 h-3 rounded-full bg-slate-800">
+                            <progress
+                                title="Readiness score progress"
+                                className="h-3 w-full rounded-full [appearance:none] [&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-gradient-to-r [&::-webkit-progress-value]:from-cyan-300 [&::-webkit-progress-value]:to-emerald-300 [&::-moz-progress-bar]:bg-cyan-300"
+                                value={gamificationProfile?.readinessScore || 0}
+                                max={100}
+                            />
+                        </div>
+                        <p className="mt-4 text-xs text-cyan-100">Pro insight: Resume uplift is your highest ROI action today.</p>
+                    </div>
+                </div>
+            </section>
+
+            <TimedNudgeCard
+                userId={user?._id}
+                createdAt={user?.createdAt}
+                isPaidUser={isPaidUser}
+            />
+
+            <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                <div className="rounded-2xl border border-white/10 bg-[#111a33] p-6">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-2xl font-bold text-white">Today&#39;s Placement Sprint</h2>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-300/15 px-3 py-1 text-sm font-semibold text-amber-200">
+                            <Flame className="h-4 w-4" />
+                            {gamificationProfile?.streakCurrent || 0} day streak
+                        </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-300">
+                        Complete all tasks to lock your streak and claim a bonus XP burst.
+                    </p>
+
+                    <div className="mt-4">
+                        <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">Sprint Completion</label>
+                        <progress
+                            title="Sprint completion"
+                            className="h-3 w-full rounded-full [appearance:none] [&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-gradient-to-r [&::-webkit-progress-value]:from-emerald-300 [&::-webkit-progress-value]:to-cyan-300 [&::-moz-progress-bar]:bg-emerald-300"
+                            value={sprintProgress}
+                            max={100}
+                        />
+                        <p className="mt-2 text-sm text-emerald-200">
+                            {completedSprintTasks}/{sprintTasks.length} tasks completed
+                        </p>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                        {sprintTasks.map((task) => (
+                            <button
+                                key={task.id}
+                                onClick={() => {
+                                    trackEvent('sprint_task_clicked', {
+                                        source: 'dashboard_sprint_panel',
+                                        taskKey: task.key,
+                                        completed: task.done,
+                                    });
+                                    if (task.key === 'resume') {
+                                        router.push('/dashboard/resume');
+                                        return;
+                                    }
+                                    if (task.key === 'dsa') {
+                                        router.push('/dashboard/dsa');
+                                        return;
+                                    }
+                                    if (task.key === 'interview') {
+                                        router.push('/dashboard/interview');
+                                        return;
+                                    }
+                                    router.push('/dashboard');
+                                }}
+                                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4 text-left transition hover:border-cyan-300/40 hover:bg-white/10"
+                            >
+                                <div>
+                                    <p className="font-semibold text-white">{task.title}</p>
+                                    <p className="mt-1 text-xs text-slate-300">
+                                        {task.minutes} min focus block and +{task.xp} XP
+                                    </p>
+                                </div>
+                                <span
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        task.done ? 'bg-emerald-300/20 text-emerald-200' : 'bg-slate-700 text-slate-200'
+                                    }`}
+                                >
+                                    {task.done ? 'Done' : 'Pending'}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4 text-sm text-cyan-100">
+                        AI Mentor: You are strongest in DSA this week. Resume bullet optimization is your highest conversion action now.
+                    </div>
+                </div>
+
+                <div className="space-y-5">
+                    <div className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-5">
+                        <p className="text-xs uppercase tracking-[0.2em] text-amber-100">Upgrade Trigger</p>
+                        <h3 className="mt-2 text-xl font-semibold text-white">You are at {gamificationProfile?.readinessScore || 0}/100 readiness.</h3>
+                        <p className="mt-2 text-sm text-amber-50/95">
+                            Pro unlocks company-specific prep plans, deeper mock analysis, and daily mentor optimization.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (isPaidUser) {
+                                    trackEvent('cta_clicked', { source: 'upgrade_trigger_card', cta: 'open_ai_mentor' });
+                                    router.push('/dashboard/career-twin');
+                                    return;
+                                }
+                                openPaywall('AI Mentor Check-In', 'upgrade_trigger_card');
+                            }}
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2.5 font-semibold text-slate-900 transition hover:bg-amber-200"
+                        >
+                            Unlock Pro-Level Guidance
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
+                        <h3 className="text-lg font-semibold text-white">Weekly Momentum</h3>
+                        <div className="mt-4 grid gap-3">
+                            <MomentumItem icon={<Crown className="h-4 w-4 text-cyan-200" />} label="Career Level" value={`L${gamificationProfile?.level || 1}`} />
+                            <MomentumItem icon={<Coins className="h-4 w-4 text-yellow-300" />} label="Credits" value={`${gamificationProfile?.credits?.balance || 0}`} />
+                            <MomentumItem icon={<Medal className="h-4 w-4 text-emerald-300" />} label="Badges" value={`${gamificationProfile?.badgesEarnedCount || 0}`} />
+                            <MomentumItem icon={<TrendingUp className="h-4 w-4 text-cyan-300" />} label="XP" value={`${gamificationProfile?.totalXp || 0}`} />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     icon={<Code className="w-6 h-6 text-[#00D9FF]" />}
                     label="DSA Problems Solved"
-                    value="0"
+                    value={`${gamificationProfile?.stats?.dsa_problem_solved || 0}`}
                 />
                 <StatCard
                     icon={<MessageSquare className="w-6 h-6 text-[#00D9FF]" />}
                     label="Interview Sessions"
-                    value="0"
+                    value={`${gamificationProfile?.stats?.mock_interview_completed || 0}`}
                 />
                 <StatCard
                     icon={<FileText className="w-6 h-6 text-[#00D9FF]" />}
                     label="Resume Versions"
-                    value="0"
+                    value={`${gamificationProfile?.stats?.resume_improved || 0}`}
                 />
                 <StatCard
                     icon={<Target className="w-6 h-6 text-[#00D9FF]" />}
@@ -135,96 +424,96 @@ export default function DashboardPage() {
                 />
             </div>
 
-            {/* Quick Actions & Features Grid */}
             <div>
                 <div className="flex items-center gap-2 mb-6">
                     <Zap className="w-5 h-5 text-[#00D9FF]" />
-                    <h2 className="text-2xl font-bold text-white">Quick Actions</h2>
+                    <h2 className="text-2xl font-bold text-white">Action Hubs</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Practice DSA */}
                     <ActionCard
                         href="/dashboard/dsa"
                         icon={<Code className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Practice DSA"
-                        description="Solve problems with AI guidance"
+                        title="DSA Momentum"
+                        description="Build coding consistency with guided sets"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Mock Interview */}
                     <ActionCard
                         href="/dashboard/interview"
                         icon={<MessageSquare className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Mock Interview"
-                        description="Prepare for your next interview"
+                        title="Interview Gym"
+                        description="Sharpen technical and HR confidence"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Build Resume */}
                     <ActionCard
                         href="/dashboard/resume"
                         icon={<FileText className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Build Resume"
-                        description="Create ATS-optimized resume"
+                        title="Resume Lift Studio"
+                        description="Lift ATS score with impact-based bullets"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Career Roadmap */}
                     <ActionCard
                         href="/dashboard/roadmap"
                         icon={<Target className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Career Roadmap"
-                        description="Personalized learning path"
+                        title="OfferPath Roadmap"
+                        description="Personalized weekly placement plan"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Research Assistant */}
                     <ActionCard
                         href="/research"
                         icon={<Brain className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Research Assistant"
-                        description="AI-powered research help"
+                        title="Research Copilot"
+                        description="Research smarter for projects and interviews"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* PDF Learning */}
                     <ActionCard
                         href="/dashboard/pdf"
                         icon={<BookOpen className="w-8 h-8 text-[#00D9FF]" />}
-                        title="PDF Learning"
-                        description="Extract insights from PDFs"
+                        title="PDF Smart Notes"
+                        description="Turn documents into revision-ready insights"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Skill Marketplace */}
                     <ActionCard
                         href="/dashboard/skill-marketplace"
                         icon={<Users className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Skill Marketplace"
-                        description="Exchange skills with peers"
+                        title="Skill Exchange"
+                        description="Trade strengths and climb the peer board"
+                        analyticsSource="action_hub"
                     />
 
-                    {/* Career Twin */}
                     <ActionCard
                         href="/dashboard/career-twin"
                         icon={<Sparkles className="w-8 h-8 text-[#00D9FF]" />}
-                        title="Career Twin"
-                        description="AI career companion"
+                        title="AI Mentor Check-In"
+                        description="Daily guidance tuned to your progress"
+                        analyticsSource="action_hub"
+                        premiumLocked={!isPaidUser}
+                        onPremiumLocked={() => openPaywall('AI Mentor Check-In', 'action_hub_ai_mentor')}
                     />
 
-                    {/* View All */}
                     <ActionCard
                         href="/dashboard"
                         icon={<Trophy className="w-8 h-8 text-[#00D9FF]" />}
-                        title="View All"
-                        description="Explore more features"
+                        title="Growth Dashboard"
+                        description="Track momentum, rank, and readiness"
+                        analyticsSource="action_hub"
                     />
                 </div>
             </div>
 
-            {/* Career Progress Dashboard */}
             <div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
                         <Crown className="w-5 h-5 text-[#00D9FF]" />
-                        <h2 className="text-2xl font-bold text-white">Career Progress Dashboard</h2>
+                        <h2 className="text-2xl font-bold text-white">Performance and Leaderboard</h2>
                     </div>
                     <div className="px-3 py-1 rounded-full border border-[#00D9FF]/40 bg-[#00D9FF]/10 text-xs font-semibold text-[#00D9FF] tracking-wide">
-                        SEASON ALPHA
+                        SEASON LIVE
                     </div>
                 </div>
 
@@ -326,7 +615,7 @@ export default function DashboardPage() {
                                                 <button
                                                     onClick={handleClaimQuestReward}
                                                     disabled={isClaimingQuestReward}
-                                                    className="mt-3 btn-primary w-full"
+                                                    className="mt-3 w-full rounded-lg bg-cyan-300 px-4 py-2.5 font-semibold text-slate-900 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {isClaimingQuestReward ? 'Claiming Reward...' : 'Claim Epic Reward'}
                                                 </button>
@@ -424,11 +713,25 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            <OnboardingGate
+                open={showOnboardingGate}
+                userId={user?._id}
+                userName={user?.name}
+                onComplete={handleOnboardingComplete}
+            />
+
+            <PaywallModal
+                open={paywallOpen}
+                onClose={() => setPaywallOpen(false)}
+                featureName={paywallFeatureName}
+                source={paywallSource}
+            />
         </div>
     );
 }
 
-function StatCard({ icon, label, value, subtext = "+0%" }: any) {
+function StatCard({ icon, label, value, subtext = '+0%' }: { icon: React.ReactNode; label: string; value: string; subtext?: string }) {
     return (
         <div className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-6 hover:border-[#00D9FF]/50 transition-all duration-300">
             <div className="flex items-start justify-between mb-4">
@@ -443,16 +746,57 @@ function StatCard({ icon, label, value, subtext = "+0%" }: any) {
     );
 }
 
-function ActionCard({ href, icon, title, description }: any) {
+function MomentumItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+                {icon}
+                <span>{label}</span>
+            </div>
+            <span className="text-sm font-semibold text-white">{value}</span>
+        </div>
+    );
+}
+
+function ActionCard({
+    href,
+    icon,
+    title,
+    description,
+    analyticsSource,
+    premiumLocked = false,
+    onPremiumLocked,
+}: {
+    href: string;
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    analyticsSource: string;
+    premiumLocked?: boolean;
+    onPremiumLocked?: () => void;
+}) {
     const router = useRouter();
     const { isAuthenticated } = useAuthStore();
 
-    const handleClick = (e: React.MouseEvent) => {
+    const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        trackEvent('action_hub_clicked', {
+            source: analyticsSource,
+            hub: title,
+            destination: href,
+            premiumLocked,
+        });
+
         if (!isAuthenticated) {
             e.preventDefault();
-            router.push('/login');
+            router.push('/login?src=action_hub');
             return;
         }
+
+        if (premiumLocked) {
+            onPremiumLocked?.();
+            return;
+        }
+
         router.push(href);
     };
 

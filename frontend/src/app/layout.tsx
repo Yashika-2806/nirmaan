@@ -1,13 +1,21 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 
-const inter = Inter({ subsets: ['latin'] });
+const plusJakarta = Plus_Jakarta_Sans({
+    subsets: ['latin'],
+    variable: '--font-body',
+});
+
+const spaceGrotesk = Space_Grotesk({
+    subsets: ['latin'],
+    variable: '--font-display',
+});
 
 export const metadata: Metadata = {
-    title: 'Career OS - AI-Powered Career Operating System',
-    description: 'Transform your career with AI-powered tools for DSA, interviews, resumes, and more',
+    title: 'Nirmaan - Placement Acceleration Platform',
+    description: 'Daily placement sprints, AI mentor guidance, and interview prep for faster shortlist outcomes.',
 };
 
 export default function RootLayout({
@@ -17,7 +25,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
-            <body className={inter.className}>
+            <body className={`${plusJakarta.variable} ${spaceGrotesk.variable}`}>
                 {children}
                 <Toaster position="top-right" />
             </body>

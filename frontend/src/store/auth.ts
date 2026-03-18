@@ -12,6 +12,35 @@ interface User {
         validUntil?: Date;
     };
     profile?: any;
+    preferences?: {
+        weeklyGoal?: number;
+        onboarding?: {
+            year?: string;
+            targetRole?: string;
+            prepLevel?: string;
+            completedAt?: string;
+        };
+    };
+    createdAt?: string;
+}
+
+interface ProfileUpdatePayload {
+    name?: string;
+    profile?: Record<string, unknown>;
+    preferences?: {
+        learningStyle?: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
+        weeklyGoal?: number;
+        notifications?: {
+            email?: boolean;
+            push?: boolean;
+        };
+        onboarding?: {
+            year: string;
+            targetRole: string;
+            prepLevel: string;
+            completedAt: string;
+        };
+    };
 }
 
 interface AuthState {
@@ -25,6 +54,7 @@ interface AuthState {
     register: (data: { email: string; password: string; name: string }) => Promise<void>;
     logout: () => Promise<void>;
     fetchUser: () => Promise<void>;
+    updateProfile: (data: ProfileUpdatePayload) => Promise<void>;
     setTokens: (accessToken: string, refreshToken: string) => void;
 }
 
@@ -96,6 +126,18 @@ export const useAuthStore = create<AuthState>()(
                     set({ user: response.data.data.user, isAuthenticated: true });
                 } catch (error) {
                     get().logout();
+                }
+            },
+
+            updateProfile: async (data) => {
+                set({ isLoading: true });
+                try {
+                    const response = await api.put('/auth/profile', data);
+                    set({ user: response.data.data.user });
+                } catch (error: any) {
+                    throw error;
+                } finally {
+                    set({ isLoading: false });
                 }
             },
         }),

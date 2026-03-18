@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 import toast from 'react-hot-toast';
 import { UserPlus } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 export default function RegisterPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { register, isLoading } = useAuthStore();
+    const source = searchParams.get('src') || 'direct';
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -19,6 +22,7 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        trackEvent('register_submitted', { source });
 
         if (formData.name.trim().length < 2) {
             toast.error('Name must be at least 2 characters');
@@ -39,9 +43,11 @@ export default function RegisterPage() {
                 email: formData.email,
                 password: formData.password,
             });
+            trackEvent('register_success', { source });
             toast.success('Registration successful!');
             router.push('/dashboard');
         } catch (error: any) {
+            trackEvent('register_failed', { source });
             const res = (error as any)?.response?.data;
             if (res?.errors && Array.isArray(res.errors) && res.errors.length > 0) {
                 toast.error(res.errors[0].message || res.message || 'Registration failed');

@@ -63,6 +63,12 @@ const userSchema = new mongoose.Schema({
             email: { type: Boolean, default: true },
             push: { type: Boolean, default: false },
         },
+        onboarding: {
+            year: String,
+            targetRole: String,
+            prepLevel: String,
+            completedAt: Date,
+        },
     },
     refreshToken: String,
     isActive: {

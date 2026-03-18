@@ -45,6 +45,12 @@ const updateProfileSchema = Joi.object({
             email: Joi.boolean(),
             push: Joi.boolean(),
         }),
+        onboarding: Joi.object({
+            year: Joi.string().valid('1st Year', '2nd Year', '3rd Year', 'Final Year', 'Recent Graduate'),
+            targetRole: Joi.string().valid('Software Engineer', 'Data Analyst', 'Product Role', 'Consulting/Business', 'Not Sure Yet'),
+            prepLevel: Joi.string().valid('Just Starting', 'Inconsistent', 'Some Momentum', 'Interview Ready'),
+            completedAt: Joi.date(),
+        }),
     }),
 });
 
