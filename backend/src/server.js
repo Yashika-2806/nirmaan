@@ -7,6 +7,7 @@ const logger = require('./core/utils/logger');
 const { errorHandler } = require('./core/middleware/error');
 const { apiLimiter } = require('./core/middleware/rate-limit');
 const routes = require('./routes');
+const { startCareerTwinScheduler } = require('./modules/career-twin/scheduler');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.listen(PORT, () => {
     logger.info(`🚀 Career OS API running on port ${PORT}`);
     logger.info(`📝 Environment: ${config.nodeEnv}`);
     logger.info(`🌐 Frontend URL: ${config.frontendUrl}`);
+    startCareerTwinScheduler();
 });
 
 // Handle unhandled promise rejections

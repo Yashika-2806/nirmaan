@@ -48,7 +48,10 @@ export default function DashboardLayout({
         { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
         { href: '/dashboard/career-twin', icon: <Bot size={18} />, label: 'AI Twin' },
         ...((user?.role || '').toLowerCase() === 'admin'
-            ? [{ href: '/dashboard/funnel', icon: <BarChart3 size={18} />, label: 'Growth Funnel' }]
+            ? [
+                { href: '/dashboard/career-twin/analytics', icon: <BarChart3 size={18} />, label: 'Twin Analytics' },
+                { href: '/dashboard/funnel', icon: <BarChart3 size={18} />, label: 'Growth Funnel' },
+            ]
             : []),
     ];
 
