@@ -28,6 +28,13 @@ const careerGPSController = {
             if (error.message.includes('Forbidden')) {
                 return ApiResponse.forbidden(res, error.message);
             }
+            if (error.message.includes('set a career goal') || error.message.includes('Career roadmap not found')) {
+                return ApiResponse.success(
+                    res,
+                    { roadmap: null, progress: null },
+                    'Set your career goal to generate roadmap'
+                );
+            }
             next(error);
         }
     },
@@ -50,6 +57,13 @@ const careerGPSController = {
             if (error.message.includes('Forbidden')) {
                 return ApiResponse.forbidden(res, error.message);
             }
+            if (error.message.includes('set a career goal') || error.message.includes('Career roadmap not found')) {
+                return ApiResponse.success(
+                    res,
+                    { readinessScore: 0, probability: null },
+                    'Set your career goal to compute probability'
+                );
+            }
             next(error);
         }
     },
@@ -62,6 +76,9 @@ const careerGPSController = {
         } catch (error) {
             if (error.message.includes('Forbidden')) {
                 return ApiResponse.forbidden(res, error.message);
+            }
+            if (error.message.includes('set a career goal') || error.message.includes('Career roadmap not found')) {
+                return ApiResponse.success(res, null, 'Set your career goal to generate missions');
             }
             next(error);
         }

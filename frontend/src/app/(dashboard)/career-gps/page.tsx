@@ -43,17 +43,27 @@ export default function CareerGPSPage() {
 
         setIsLoading(true);
         try {
-            const [roadmapData, probabilityData, missionsData] = await Promise.all([
-                careerGpsService.getRoadmap(user._id),
+            const roadmapData = await careerGpsService.getRoadmap(user._id);
+
+            if (!roadmapData?.roadmap) {
+                setRoadmap(null);
+                setProgress(null);
+                setProbability(null);
+                setMissions(null);
+                return;
+            }
+
+            setRoadmap(roadmapData.roadmap);
+            setProgress(roadmapData.progress);
+            setGoal(roadmapData.roadmap.targetRole);
+
+            const [probabilityData, missionsData] = await Promise.all([
                 careerGpsService.getProbability(user._id),
                 careerGpsService.getMissions(user._id),
             ]);
 
-            setRoadmap(roadmapData.roadmap);
-            setProgress(roadmapData.progress);
-            setProbability(probabilityData.probability);
-            setMissions(missionsData);
-            setGoal(roadmapData.roadmap.targetRole);
+            setProbability(probabilityData?.probability || null);
+            setMissions(missionsData || null);
         } catch (error: any) {
             const message = error?.response?.data?.message || '';
             if (!message.includes('Set a goal') && !message.includes('set a career goal')) {

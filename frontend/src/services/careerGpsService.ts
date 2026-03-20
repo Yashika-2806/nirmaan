@@ -106,8 +106,8 @@ export const careerGpsService = {
 
     getRoadmap: (userId: string) =>
         api.get(`/career-gps/roadmap/${userId}`).then((r) => r.data.data as {
-            roadmap: CareerRoadmapData;
-            progress: CareerProgressData;
+            roadmap: CareerRoadmapData | null;
+            progress: CareerProgressData | null;
         }),
 
     updateProgress: (data: {
@@ -121,9 +121,9 @@ export const careerGpsService = {
     getProbability: (userId: string) =>
         api.get(`/career-gps/probability/${userId}`).then((r) => r.data.data as {
             readinessScore: number;
-            probability: CareerProbabilityData;
+            probability: CareerProbabilityData | null;
         }),
 
     getMissions: (userId: string) =>
-        api.get(`/career-gps/missions/${userId}`).then((r) => r.data.data as CareerMissionData),
+        api.get(`/career-gps/missions/${userId}`).then((r) => r.data.data as CareerMissionData | null),
 };
