@@ -28,10 +28,10 @@ export default function RoadmapPage() {
 
         setIsLoading(true);
         try {
-            const response = await axios.post('/api/roadmap/generate', {
-                goal,
+            const response = await axios.post('/roadmap/generate', {
                 currentRole,
-                duration: parseInt(duration)
+                targetGoal: goal,
+                timelineMonths: parseInt(duration, 10)
             });
             setRoadmap(response.data.data.milestones);
             setHasGenerated(true);
@@ -145,6 +145,7 @@ export default function RoadmapPage() {
                                 </label>
                                 <select
                                     className="input"
+                                    title="Timeline in months"
                                     value={duration}
                                     onChange={(e) => setDuration(e.target.value)}
                                 >
@@ -268,9 +269,11 @@ export default function RoadmapPage() {
                                     <span className="font-bold">{progress}%</span>
                                 </div>
                                 <div className="w-full bg-gray-200 rounded-full h-3">
-                                    <div
-                                        className="bg-gradient-primary h-3 rounded-full transition-all"
-                                        style={{ width: `${progress}%` }}
+                                    <progress
+                                        className="w-full h-3 rounded-full overflow-hidden [appearance:none] [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-value]:bg-gradient-primary [&::-moz-progress-bar]:bg-gradient-primary"
+                                        value={progress}
+                                        max={100}
+                                        aria-label="Roadmap completion"
                                     />
                                 </div>
                                 <p className="text-xs text-gray-500 text-center">

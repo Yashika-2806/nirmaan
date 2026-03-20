@@ -68,7 +68,16 @@ class SkillMarketplaceService {
     async getOrCreateProfile(userId) {
         let profile = await SkillProfile.findOne({ userId });
         if (!profile) {
-            profile = await SkillProfile.create({ userId });
+            try {
+                profile = await SkillProfile.create({ userId });
+            } catch (error) {
+                // Concurrent requests may both try to create the same unique user profile.
+                if (error?.code === 11000) {
+                    profile = await SkillProfile.findOne({ userId });
+                } else {
+                    throw error;
+                }
+            }
         }
         return profile;
     }

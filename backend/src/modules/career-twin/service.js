@@ -65,26 +65,35 @@ class CareerTwinOrchestratorService {
         const resumeText = JSON.stringify(resume?.content || {});
         const parsed = await profileAgent.parseResume({ resumeText, preferences: {} });
 
-        profile = await CareerTwinProfile.create({
-            userId,
-            activeResumeId: resume?._id,
-            summary: {
-                headline: parsed.headline,
-                preferredRoles: parsed.preferredRoles,
-                preferredLocations: parsed.preferredLocations,
-                workMode: parsed.workMode,
-                strengths: parsed.strengths,
-            },
-            projects: parsed.projects,
-            experiences: parsed.experiences,
-            skills: parsed.skills,
-            skillsGraph: parsed.skillsGraph,
-            parsedFrom: {
-                sourceType: resume ? 'existing_resume' : 'manual',
-                filename: '',
-                parsedAt: new Date(),
-            },
-        });
+        try {
+            profile = await CareerTwinProfile.create({
+                userId,
+                activeResumeId: resume?._id,
+                summary: {
+                    headline: parsed.headline,
+                    preferredRoles: parsed.preferredRoles,
+                    preferredLocations: parsed.preferredLocations,
+                    workMode: parsed.workMode,
+                    strengths: parsed.strengths,
+                },
+                projects: parsed.projects,
+                experiences: parsed.experiences,
+                skills: parsed.skills,
+                skillsGraph: parsed.skillsGraph,
+                parsedFrom: {
+                    sourceType: resume ? 'existing_resume' : 'manual',
+                    filename: '',
+                    parsedAt: new Date(),
+                },
+            });
+        } catch (error) {
+            // Concurrent requests may both try to create the same unique user profile.
+            if (error?.code === 11000) {
+                profile = await CareerTwinProfile.findOne({ userId });
+            } else {
+                throw error;
+            }
+        }
 
         return profile;
     }

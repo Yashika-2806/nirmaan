@@ -3,7 +3,7 @@ const ApiResponse = require('../utils/response');
 
 const validate = (schema) => {
     return (req, res, next) => {
-        const { error } = schema.validate(req.body, {
+        const { error, value } = schema.validate(req.body, {
             abortEarly: false,
             stripUnknown: true,
         });
@@ -16,6 +16,9 @@ const validate = (schema) => {
 
             return ApiResponse.badRequest(res, 'Validation failed', errors);
         }
+
+        // Persist sanitized/coerced payload so downstream handlers use validated data.
+        req.body = value;
 
         next();
     };

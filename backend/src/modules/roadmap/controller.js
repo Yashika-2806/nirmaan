@@ -4,12 +4,20 @@ const ApiResponse = require('../../core/utils/response');
 const roadmapController = {
     async generateRoadmap(req, res, next) {
         try {
-            const { currentRole, targetGoal, timelineMonths, currentSkills, experienceNotes } = req.body;
+            const {
+                currentRole,
+                targetGoal,
+                goal,
+                timelineMonths,
+                duration,
+                currentSkills,
+                experienceNotes,
+            } = req.body;
             const roadmap = await roadmapService.generateRoadmap({
                 userId: req.user.userId,
                 currentRole,
-                targetGoal,
-                timelineMonths: parseInt(timelineMonths),
+                targetGoal: targetGoal || goal,
+                timelineMonths: parseInt(timelineMonths || duration),
                 currentSkills: currentSkills || [],
                 experienceNotes: experienceNotes || '',
             });

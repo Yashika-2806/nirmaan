@@ -1,5 +1,7 @@
 const geminiService = require('../../core/ai/gemini-service');
 const cache = require('../gamification/cache');
+const { AppError } = require('../../core/middleware/error');
+const { ERROR_CODES } = require('../../config/constants');
 
 const { CareerGoal } = require('./career-goal-model');
 const CareerRoadmap = require('./career-roadmap-model');
@@ -221,7 +223,7 @@ class CareerGPSService {
             : await CareerGoal.findOne({ userId, status: 'active' }).sort({ updatedAt: -1 }).lean();
 
         if (!activeGoal) {
-            throw new Error('Please set a career goal first');
+            throw new AppError('Please set a career goal first', 400, ERROR_CODES.VALIDATION_ERROR);
         }
 
         const cacheKey = `career-gps:roadmap:${userId}:${activeGoal.targetRole}`;
@@ -446,7 +448,7 @@ class CareerGPSService {
 
     async updateProgress(userId, payload) {
         const roadmap = await CareerRoadmap.findOne({ _id: payload.roadmapId, userId, status: 'active' });
-        if (!roadmap) throw new Error('Active career roadmap not found');
+        if (!roadmap) throw new AppError('Active career roadmap not found', 404, ERROR_CODES.NOT_FOUND);
 
         const incrementBy = clamp(Number(payload.incrementBy || 1), 1, 50);
         let eventTitle = '';
@@ -454,7 +456,7 @@ class CareerGPSService {
 
         if (payload.taskId) {
             const task = roadmap.tasks.id(payload.taskId);
-            if (!task) throw new Error('Roadmap task not found');
+            if (!task) throw new AppError('Roadmap task not found', 404, ERROR_CODES.NOT_FOUND);
 
             task.currentCount = clamp(task.currentCount + incrementBy, 0, task.targetCount);
 
@@ -468,10 +470,10 @@ class CareerGPSService {
 
         if (payload.missionId) {
             const mission = await CareerMission.findOne({ userId, missionDate: { $lte: new Date() } }).sort({ missionDate: -1 });
-            if (!mission) throw new Error('No mission found for update');
+            if (!mission) throw new AppError('No mission found for update', 404, ERROR_CODES.NOT_FOUND);
 
             const missionItem = mission.items.id(payload.missionId);
-            if (!missionItem) throw new Error('Mission item not found');
+            if (!missionItem) throw new AppError('Mission item not found', 404, ERROR_CODES.NOT_FOUND);
 
             missionItem.currentCount = clamp(missionItem.currentCount + incrementBy, 0, missionItem.targetCount);
             if (!missionItem.completed && (payload.markCompleted || missionItem.currentCount >= missionItem.targetCount)) {
@@ -617,7 +619,7 @@ class CareerGPSService {
     async getProbability(userId) {
         const roadmap = await CareerRoadmap.findOne({ userId, status: 'active' }).sort({ updatedAt: -1 });
         if (!roadmap) {
-            throw new Error('Career roadmap not found. Set a goal first.');
+            throw new AppError('Career roadmap not found. Set a goal first.', 404, ERROR_CODES.NOT_FOUND);
         }
 
         const progress = await CareerProgress.findOne({ userId }).lean();
@@ -633,7 +635,7 @@ class CareerGPSService {
     async getMissions(userId) {
         const roadmap = await CareerRoadmap.findOne({ userId, status: 'active' }).sort({ updatedAt: -1 });
         if (!roadmap) {
-            throw new Error('Career roadmap not found. Set a goal first.');
+            throw new AppError('Career roadmap not found. Set a goal first.', 404, ERROR_CODES.NOT_FOUND);
         }
 
         return this.ensureDailyMissions(userId, roadmap);
