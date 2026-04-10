@@ -29,6 +29,7 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false 
 type Phase = 'setup' | 'session' | 'results';
 type Language = 'cpp' | 'java' | 'python' | 'javascript';
 type OutputTab = 'output' | 'errors' | 'tests';
+type RunVerdict = 'Idle' | 'Running' | 'Accepted' | 'Wrong Answer' | 'Runtime Error' | 'Compilation Error' | 'Execution Error';
 
 type Judge0Status = {
     id: number;
@@ -63,6 +64,7 @@ interface Session {
 
 interface LocalRunResult {
     status: 'idle' | 'running' | 'success' | 'error';
+    verdict: RunVerdict;
     stdout: string;
     stderr: string;
     memory: string;
@@ -129,6 +131,112 @@ const SAMPLE_CASES = [
     { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '--', passed: false },
     { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
 ];
+
+const CASE_MARKER = '__NIRMAAN_CASE__';
+
+function buildJudgeHarnessSource(sourceCode: string, language: Language) {
+    if (language === 'python') {
+        return `${sourceCode}
+
+def __nirmaan_runner__():
+    tests = [([2,7,11,15], 9), ([3,2,4], 6), ([3,3], 6)]
+    for i, (nums, target) in enumerate(tests, start=1):
+        try:
+            if 'two_sum' in globals():
+                ans = two_sum(nums[:], target)
+            elif 'twoSum' in globals():
+                ans = twoSum(nums[:], target)
+            else:
+                raise Exception('Function two_sum/twoSum not found')
+            print(f'${CASE_MARKER}{i}={ans}')
+        except Exception as e:
+            print(f'${CASE_MARKER}{i}=ERROR:{e}')
+
+__nirmaan_runner__()
+`;
+    }
+
+    if (language === 'javascript') {
+        return `${sourceCode}
+
+(function __nirmaan_runner__(){
+  const tests = [
+    { nums: [2,7,11,15], target: 9 },
+    { nums: [3,2,4], target: 6 },
+    { nums: [3,3], target: 6 },
+  ];
+
+  tests.forEach((t, idx) => {
+    try {
+      const fn = typeof twoSum === 'function' ? twoSum : (typeof two_sum === 'function' ? two_sum : null);
+      if (!fn) throw new Error('Function twoSum/two_sum not found');
+      const ans = fn([...t.nums], t.target);
+      console.log('${CASE_MARKER}' + (idx + 1) + '=' + JSON.stringify(ans));
+    } catch (e) {
+      console.log('${CASE_MARKER}' + (idx + 1) + '=ERROR:' + (e && e.message ? e.message : String(e)));
+    }
+  });
+})();
+`;
+    }
+
+    if (language === 'java') {
+        return `${sourceCode}
+
+class Main {
+    private static String arr(int[] v) {
+        if (v == null || v.length < 2) return "[]";
+        return "[" + v[0] + "," + v[1] + "]";
+    }
+
+    public static void main(String[] args) {
+        Solution s = new Solution();
+        int[][] nums = new int[][] { {2,7,11,15}, {3,2,4}, {3,3} };
+        int[] targets = new int[] { 9, 6, 6 };
+        for (int i = 0; i < nums.length; i++) {
+            try {
+                int[] ans = s.twoSum(nums[i], targets[i]);
+                System.out.println("${CASE_MARKER}" + (i + 1) + "=" + arr(ans));
+            } catch (Exception e) {
+                System.out.println("${CASE_MARKER}" + (i + 1) + "=ERROR:" + e.getMessage());
+            }
+        }
+    }
+}
+`;
+    }
+
+    if (language === 'cpp') {
+        // If user already provides main, execute as-is and fall back to stdout parsing.
+        if (/\bint\s+main\s*\(/.test(sourceCode)) {
+            return sourceCode;
+        }
+
+        return `${sourceCode}
+
+int main() {
+    vector<vector<int>> nums = {{2,7,11,15}, {3,2,4}, {3,3}};
+    vector<int> targets = {9, 6, 6};
+    for (int i = 0; i < 3; i++) {
+        try {
+            auto arr = nums[i];
+            auto ans = twoSum(arr, targets[i]);
+            if (ans.size() >= 2) {
+                cout << "${CASE_MARKER}" << (i + 1) << "=[" << ans[0] << "," << ans[1] << "]" << endl;
+            } else {
+                cout << "${CASE_MARKER}" << (i + 1) << "=[]" << endl;
+            }
+        } catch (const exception& e) {
+            cout << "${CASE_MARKER}" << (i + 1) << "=ERROR:" << e.what() << endl;
+        }
+    }
+    return 0;
+}
+`;
+    }
+
+    return sourceCode;
+}
 
 const makeMockSession = (company: string, role: string, round: string, experienceLevel: string): Session => ({
     _id: `local-${Date.now()}`,
@@ -207,6 +315,7 @@ export default function InterviewAiLabPage() {
 
     const [runResult, setRunResult] = useState<LocalRunResult>({
         status: 'idle',
+        verdict: 'Idle',
         stdout: 'Run your code to see output here.',
         stderr: '',
         memory: '--',
@@ -254,6 +363,7 @@ export default function InterviewAiLabPage() {
         setCodeByQuestion({ 0: CODE_TEMPLATES[language] });
         setRunResult({
             status: 'idle',
+            verdict: 'Idle',
             stdout: 'Run your code to see output here.',
             stderr: '',
             memory: '--',
@@ -275,7 +385,7 @@ export default function InterviewAiLabPage() {
 
         setRunning(true);
         setActiveTab('output');
-        setRunResult((prev) => ({ ...prev, status: 'running', stdout: 'Submitting to Judge0...', stderr: '' }));
+        setRunResult((prev) => ({ ...prev, status: 'running', verdict: 'Running', stdout: 'Submitting to Judge0...', stderr: '' }));
 
         try {
             const result = await executeWithJudge0(currentCode, language);
@@ -288,6 +398,7 @@ export default function InterviewAiLabPage() {
             if (compileOutput) {
                 setRunResult({
                     status: 'error',
+                    verdict: 'Compilation Error',
                     stdout: '',
                     stderr: compileOutput,
                     memory: '--',
@@ -302,6 +413,7 @@ export default function InterviewAiLabPage() {
             if (runtimeError || /runtime|error|exception/i.test(statusDescription)) {
                 setRunResult({
                     status: 'error',
+                    verdict: 'Runtime Error',
                     stdout: stdout,
                     stderr: runtimeError || judgeMessage || statusDescription || 'Runtime error',
                     memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
@@ -318,29 +430,97 @@ export default function InterviewAiLabPage() {
             }
 
             const actualOutput = stdout.replace(/\r\n/g, '\n').trim();
+            const actualLines = actualOutput ? actualOutput.split('\n').map((line) => line.trim()).filter(Boolean) : [];
             const expectedOutputs = ['[0,1]', '[1,2]', '[0,1]'];
+
+            const outputsMatch = (got: string, expected: string) => {
+                const normalize = (value: string) => value.replace(/\s+/g, '');
+                const gotNorm = normalize(got);
+                const expectedNorm = normalize(expected);
+
+                if (gotNorm === expectedNorm) return true;
+
+                const pairMatcher = /^\[(-?\d+),(-?\d+)\]$/;
+                const gotPair = gotNorm.match(pairMatcher);
+                const expectedPair = expectedNorm.match(pairMatcher);
+
+                if (gotPair && expectedPair) {
+                    const gotSorted = [Number(gotPair[1]), Number(gotPair[2])].sort((a, b) => a - b).join(',');
+                    const expectedSorted = [Number(expectedPair[1]), Number(expectedPair[2])].sort((a, b) => a - b).join(',');
+                    return gotSorted === expectedSorted;
+                }
+
+                return false;
+            };
+
+            const harnessCode = buildJudgeHarnessSource(currentCode, language);
+            // Re-run with harnessed code to evaluate all sample cases deterministically.
+            const harnessResult = await executeWithJudge0(harnessCode, language);
+
+            const harnessCompileOutput = harnessResult.compile_output?.trim();
+            const harnessRuntimeError = harnessResult.stderr?.trim();
+            if (harnessCompileOutput || harnessRuntimeError) {
+                setRunResult({
+                    status: 'error',
+                    verdict: harnessCompileOutput ? 'Compilation Error' : 'Runtime Error',
+                    stdout: '',
+                    stderr: harnessCompileOutput || harnessRuntimeError || 'Harness execution failed',
+                    memory: harnessResult.memory ? `${Number(harnessResult.memory).toFixed(1)} MB` : '--',
+                    time: harnessResult.time || '--',
+                    testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
+                });
+                setActiveTab('errors');
+                toast.error('Code compiled, but test harness failed to execute.');
+                return;
+            }
+
+            const harnessStdout = (harnessResult.stdout || '').replace(/\r\n/g, '\n');
+            const markerLines = harnessStdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.startsWith(CASE_MARKER));
+
+            const mappedOutputs: Record<number, string> = {};
+            markerLines.forEach((line) => {
+                const match = line.match(/^__NIRMAAN_CASE__(\d+)=(.*)$/);
+                if (match) {
+                    mappedOutputs[Number(match[1])] = (match[2] || '').trim();
+                }
+            });
+
+            const fallbackLines = actualLines;
+
             const testCases = expectedOutputs.map((expected, index) => {
-                const passed = index === 0 ? actualOutput === expected : false;
+                const caseId = index + 1;
+                const raw = mappedOutputs[caseId] ?? fallbackLines[index] ?? '--';
+                const got = raw.startsWith('ERROR:') ? raw : raw;
+                const evaluated = got !== '--';
                 return {
-                    id: index + 1,
+                    id: caseId,
                     input: index === 0 ? 'nums=[2,7,11,15], target=9' : index === 1 ? 'nums=[3,2,4], target=6' : 'nums=[3,3], target=6',
                     expected,
-                    got: index === 0 ? actualOutput || '--' : '--',
-                    passed,
+                    got,
+                    passed: evaluated && !got.startsWith('ERROR:') ? outputsMatch(got, expected) : false,
                 };
             });
-            const allPassed = testCases.every((testCase) => testCase.passed);
+
+            const evaluatedCount = Math.min(actualLines.length, expectedOutputs.length);
+            const passedCount = testCases.slice(0, evaluatedCount).filter((testCase) => testCase.passed).length;
+            const allEvaluatedPassed = evaluatedCount > 0 && passedCount === evaluatedCount;
 
             setRunResult({
-                status: allPassed ? 'success' : 'error',
-                stdout: allPassed ? actualOutput || 'Accepted.' : '',
-                stderr: allPassed ? '' : `Output mismatch. Judge0 executed successfully, but sample output did not match expected result.`,
+                status: allEvaluatedPassed ? 'success' : 'error',
+                verdict: allEvaluatedPassed ? 'Accepted' : 'Wrong Answer',
+                stdout: allEvaluatedPassed ? (actualOutput || `Execution successful. Matched ${passedCount} sample output(s).`) : '',
+                stderr: allEvaluatedPassed
+                    ? ''
+                    : `Output mismatch. Matched ${passedCount}/${Math.max(1, evaluatedCount)} emitted output line(s).`,
                 memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
                 time: result.time || '--',
                 testCases,
             });
 
-            if (allPassed) {
+            if (allEvaluatedPassed) {
                 toast.success('Execution passed sample tests');
             } else {
                 setActiveTab('tests');
@@ -349,6 +529,7 @@ export default function InterviewAiLabPage() {
         } catch (error: any) {
             setRunResult({
                 status: 'error',
+                verdict: 'Execution Error',
                 stdout: '',
                 stderr: error?.message || 'Judge0 execution failed',
                 memory: '--',
@@ -400,6 +581,7 @@ export default function InterviewAiLabPage() {
         setRunResult((prev) => ({
             ...prev,
             status: 'idle',
+            verdict: 'Idle',
             stdout: 'Editor reset to starter template.',
             stderr: '',
             testCases: prev.testCases.map((t) => ({ ...t, got: '--', passed: false })),
@@ -409,7 +591,7 @@ export default function InterviewAiLabPage() {
 
     const goToQuestion = (index: number) => {
         setCurrentIndex(index);
-        setRunResult((prev) => ({ ...prev, status: 'idle', stdout: 'Run your code to see output here.', stderr: '' }));
+        setRunResult((prev) => ({ ...prev, status: 'idle', verdict: 'Idle', stdout: 'Run your code to see output here.', stderr: '' }));
     };
 
     const handleEndInterview = async () => {
@@ -743,7 +925,24 @@ export default function InterviewAiLabPage() {
 
                                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-0.5 text-xs text-slate-400">
                                     <p>Shortcut: Ctrl+Enter to Run</p>
-                                    <p>Status: <span className={runResult.status === 'success' ? 'text-emerald-300' : runResult.status === 'error' ? 'text-rose-300' : 'text-slate-300'}>{runResult.status.toUpperCase()}</span></p>
+                                    <p>
+                                        Verdict:{' '}
+                                        <span
+                                            className={`rounded-md border px-2 py-0.5 font-semibold ${
+                                                runResult.verdict === 'Accepted'
+                                                    ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+                                                    : runResult.verdict === 'Wrong Answer'
+                                                        ? 'border-amber-400/40 bg-amber-500/15 text-amber-200'
+                                                        : runResult.verdict === 'Runtime Error' || runResult.verdict === 'Compilation Error' || runResult.verdict === 'Execution Error'
+                                                            ? 'border-rose-400/40 bg-rose-500/15 text-rose-200'
+                                                            : runResult.verdict === 'Running'
+                                                                ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200'
+                                                                : 'border-slate-600 bg-slate-800 text-slate-200'
+                                            }`}
+                                        >
+                                            {runResult.verdict}
+                                        </span>
+                                    </p>
                                 </div>
                             </div>
 
