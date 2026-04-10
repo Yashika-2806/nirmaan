@@ -23,13 +23,17 @@ import {
     Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { interviewService } from '@/services/interviewService';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 type Phase = 'setup' | 'session' | 'results';
 type Language = 'cpp' | 'java' | 'python' | 'javascript';
 type OutputTab = 'output' | 'errors' | 'tests';
+
+type Judge0Status = {
+    id: number;
+    description: string;
+};
 
 interface EvaluatedQuestion {
     id: string;
@@ -113,6 +117,19 @@ const CODE_TEMPLATES: Record<Language, string> = {
     javascript: `function twoSum(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const need = target - nums[i];\n    if (seen.has(need)) return [seen.get(need), i];\n    seen.set(nums[i], i);\n  }\n  return [];\n}\n\nconsole.log(twoSum([2, 7, 11, 15], 9));\n`,
 };
 
+const JUDGE0_LANGUAGE_IDS: Record<Language, number> = {
+    cpp: 54,
+    java: 62,
+    python: 71,
+    javascript: 63,
+};
+
+const SAMPLE_CASES = [
+    { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '--', passed: false },
+    { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '--', passed: false },
+    { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
+];
+
 const makeMockSession = (company: string, role: string, round: string, experienceLevel: string): Session => ({
     _id: `local-${Date.now()}`,
     company,
@@ -126,45 +143,34 @@ const makeMockSession = (company: string, role: string, round: string, experienc
 
 const fmtTime = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
-function evaluateLocalCodeQuality(code: string, language: Language): { score: number; reasons: string[] } {
-    const normalized = code.trim();
-    const reasons: string[] = [];
-    let score = 0;
+async function executeWithJudge0(sourceCode: string, language: Language) {
+    const response = await fetch('/api/executor/judge0', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            sourceCode,
+            languageId: JUDGE0_LANGUAGE_IDS[language],
+            stdin: '',
+        }),
+    });
 
-    if (normalized.length >= 120) score += 20;
-    else reasons.push('Solution is too short.');
+    const data = await response.json();
 
-    if (/for\s*\(|while\s*\(|for\s+\w+\s+in\s+/i.test(normalized)) score += 20;
-    else reasons.push('No clear iteration logic found.');
-
-    if (/map|hash|dict|unordered_map|HashMap|new Map\(|\{\}/i.test(normalized)) score += 25;
-    else reasons.push('Hash lookup pattern is missing.');
-
-    if (/return\s*\[|return\s*\{|return\s+new\s+int\[]/i.test(normalized)) score += 15;
-    else reasons.push('Expected index-pair return format not found.');
-
-    if (!/todo|fixme|dummy|placeholder/i.test(normalized)) score += 10;
-    else reasons.push('Contains placeholder markers.');
-
-    if (language === 'python' && /def\s+\w+\(/.test(normalized)) score += 5;
-    if (language === 'java' && /class\s+\w+\s*\{/.test(normalized)) score += 5;
-    if (language === 'javascript' && /function\s+\w+\s*\(/.test(normalized)) score += 5;
-    if (language === 'cpp' && /#include|std::|vector\s*</.test(normalized)) score += 5;
-
-    const redFlags = [
-        /return\s*\[\s*\]/i,
-        /return\s+new\s+int\[]\s*\{\s*\}/i,
-        /throw\s+new\s+error/i,
-        /syntaxerror/i,
-        /segmentation/i,
-    ];
-
-    if (redFlags.some((r) => r.test(normalized))) {
-        score -= 40;
-        reasons.push('Detected critical red-flag pattern in solution.');
+    if (!response.ok) {
+        throw new Error(data?.message || 'Judge0 execution failed');
     }
 
-    return { score: Math.max(0, Math.min(100, score)), reasons };
+    return data as {
+        stdout?: string;
+        stderr?: string;
+        compile_output?: string;
+        message?: string;
+        status?: Judge0Status;
+        time?: string;
+        memory?: number;
+    };
 }
 
 function difficultyTone(d?: string) {
@@ -205,11 +211,7 @@ export default function InterviewAiLabPage() {
         stderr: '',
         memory: '--',
         time: '--',
-        testCases: [
-            { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '--', passed: false },
-            { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '--', passed: false },
-            { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
-        ],
+        testCases: SAMPLE_CASES,
     });
 
     const [starting, setStarting] = useState(false);
@@ -244,27 +246,21 @@ export default function InterviewAiLabPage() {
 
     const handleStartSession = async () => {
         setStarting(true);
-        try {
-            const result = await interviewService.startSession({ company, role, round, experienceLevel, count: 5 });
-            const normalized = (result?.session || result) as Session;
-            const safeSession = normalized?.questions?.length ? normalized : makeMockSession(company, role, round, experienceLevel);
-            setSession(safeSession);
-            setPhase('session');
-            setCurrentIndex(0);
-            setElapsed(0);
-            setCodeByQuestion({ 0: CODE_TEMPLATES[language] });
-            setRunResult((prev) => ({ ...prev, status: 'idle', stdout: 'Run your code to see output here.', stderr: '' }));
-        } catch {
-            const local = makeMockSession(company, role, round, experienceLevel);
-            setSession(local);
-            setPhase('session');
-            setCurrentIndex(0);
-            setElapsed(0);
-            setCodeByQuestion({ 0: CODE_TEMPLATES[language] });
-            toast('Running in local simulation mode. Connect API later for live interview generation.');
-        } finally {
-            setStarting(false);
-        }
+        const local = makeMockSession(company, role, round, experienceLevel);
+        setSession(local);
+        setPhase('session');
+        setCurrentIndex(0);
+        setElapsed(0);
+        setCodeByQuestion({ 0: CODE_TEMPLATES[language] });
+        setRunResult({
+            status: 'idle',
+            stdout: 'Run your code to see output here.',
+            stderr: '',
+            memory: '--',
+            time: '--',
+            testCases: SAMPLE_CASES,
+        });
+        setStarting(false);
     };
 
     const updateCurrentCode = (next?: string) => {
@@ -279,82 +275,94 @@ export default function InterviewAiLabPage() {
 
         setRunning(true);
         setActiveTab('output');
-        setRunResult((prev) => ({ ...prev, status: 'running', stdout: 'Executing test suite...', stderr: '' }));
+        setRunResult((prev) => ({ ...prev, status: 'running', stdout: 'Submitting to Judge0...', stderr: '' }));
 
-        await new Promise((resolve) => setTimeout(resolve, 900));
+        try {
+            const result = await executeWithJudge0(currentCode, language);
+            const compileOutput = result.compile_output?.trim();
+            const runtimeError = result.stderr?.trim();
+            const judgeMessage = result.message?.trim();
+            const statusDescription = result.status?.description || '';
+            const stdout = result.stdout?.trim() || '';
 
-        const isStarterTemplate = currentCode.trim() === CODE_TEMPLATES[language].trim();
-        const quality = evaluateLocalCodeQuality(currentCode, language);
+            if (compileOutput) {
+                setRunResult({
+                    status: 'error',
+                    stdout: '',
+                    stderr: compileOutput,
+                    memory: '--',
+                    time: '--',
+                    testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
+                });
+                setActiveTab('errors');
+                toast.error('Compilation failed.');
+                return;
+            }
 
-        if (isStarterTemplate) {
+            if (runtimeError || /runtime|error|exception/i.test(statusDescription)) {
+                setRunResult({
+                    status: 'error',
+                    stdout: stdout,
+                    stderr: runtimeError || judgeMessage || statusDescription || 'Runtime error',
+                    memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
+                    time: result.time || '--',
+                    testCases: SAMPLE_CASES.map((testCase) => ({
+                        ...testCase,
+                        got: stdout || '',
+                        passed: false,
+                    })),
+                });
+                setActiveTab('errors');
+                toast.error('Runtime error while executing code.');
+                return;
+            }
+
+            const actualOutput = stdout.replace(/\r\n/g, '\n').trim();
+            const expectedOutputs = ['[0,1]', '[1,2]', '[0,1]'];
+            const testCases = expectedOutputs.map((expected, index) => {
+                const passed = index === 0 ? actualOutput === expected : false;
+                return {
+                    id: index + 1,
+                    input: index === 0 ? 'nums=[2,7,11,15], target=9' : index === 1 ? 'nums=[3,2,4], target=6' : 'nums=[3,3], target=6',
+                    expected,
+                    got: index === 0 ? actualOutput || '--' : '--',
+                    passed,
+                };
+            });
+            const allPassed = testCases.every((testCase) => testCase.passed);
+
+            setRunResult({
+                status: allPassed ? 'success' : 'error',
+                stdout: allPassed ? actualOutput || 'Accepted.' : '',
+                stderr: allPassed ? '' : `Output mismatch. Judge0 executed successfully, but sample output did not match expected result.`,
+                memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
+                time: result.time || '--',
+                testCases,
+            });
+
+            if (allPassed) {
+                toast.success('Execution passed sample tests');
+            } else {
+                setActiveTab('tests');
+                toast.error('Code ran, but sample output did not match.');
+            }
+        } catch (error: any) {
             setRunResult({
                 status: 'error',
                 stdout: '',
-                stderr: 'Starter template detected. Modify the code before running tests.',
+                stderr: error?.message || 'Judge0 execution failed',
                 memory: '--',
                 time: '--',
-                testCases: [
-                    { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '--', passed: false },
-                    { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '--', passed: false },
-                    { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
-                ],
+                testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
             });
             setActiveTab('errors');
-            toast.error('Update the template before running');
+            toast.error(error?.message || 'Judge0 execution failed');
+        } finally {
             setRunning(false);
-            return;
         }
-
-        const success = quality.score >= 75;
-
-        if (success) {
-            const cases = [
-                { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '[0,1]', passed: true },
-                { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '[1,2]', passed: true },
-                { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '[0,1]', passed: true },
-            ];
-
-            setRunResult({
-                status: 'success',
-                stdout: 'Accepted. All sample test cases passed (local simulation).',
-                stderr: '',
-                memory: '48.2 MB',
-                time: '42 ms',
-                testCases: cases,
-            });
-            toast.success('Execution passed sample tests');
-            return;
-        }
-
-        const failedHints = quality.reasons.length
-            ? `\nHints: ${quality.reasons.slice(0, 2).join(' ')}`
-            : '';
-
-        setRunResult({
-            status: 'error',
-            stdout: '',
-            stderr: `Failed sample tests in local simulation. Quality score: ${quality.score}/100.${failedHints}`,
-            memory: '53.8 MB',
-            time: '64 ms',
-            testCases: [
-                { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '[0,1]', passed: true },
-                { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '[]', passed: false },
-                { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
-            ],
-        });
-        setActiveTab('errors');
-        toast.error('Execution failed on sample tests');
-        setRunning(false);
     };
 
-    useEffect(() => {
-        if (!running) return;
-        if (runResult.status === 'running') return;
-        setRunning(false);
-    }, [runResult.status, running]);
-
     const handleSubmitCode = async () => {
-        if (!session || !currentQuestion) return;
         if (!currentCode.trim()) {
             toast.error('Write your solution before submitting');
             return;
@@ -362,38 +370,26 @@ export default function InterviewAiLabPage() {
 
         setSubmitting(true);
         try {
-            const answerPayload = pastedQuestions[currentIndex]
-                ? `${currentCode}\n\n[system-note] paste-detected=true`
-                : currentCode;
+            if (runResult.status !== 'success') {
+                toast.error('Run and pass sample tests before submitting.');
+                return;
+            }
 
-            const data = await interviewService.evaluateAnswer({
-                sessionId: session._id,
-                questionIndex: currentIndex,
-                answer: answerPayload,
-            });
-
-            const nextSession = (data?.session || data) as Session;
-            setSession(nextSession);
-            toast.success('Code submitted for AI evaluation');
-        } catch {
             setSession((prev) => {
                 if (!prev) return prev;
-                const cloned = structuredClone(prev);
-                const target = cloned.questions[currentIndex];
+                const nextSession = structuredClone(prev);
+                const target = nextSession.questions[currentIndex];
                 if (target) {
                     target.answer = currentCode;
-                    target.score = runResult.status === 'success' ? 86 : 61;
-                    target.verdict = runResult.status === 'success' ? 'Strong' : 'Needs refinement';
-                    target.strengths = runResult.status === 'success'
-                        ? ['Correct use of hash-based lookup', 'Good time complexity reasoning']
-                        : ['Attempt shows right direction'];
-                    target.improvements = runResult.status === 'success'
-                        ? ['Add edge case handling for empty arrays']
-                        : ['Fix failing test case and return formatting'];
+                    target.score = 92;
+                    target.verdict = 'Strong';
+                    target.strengths = ['Solution compiles cleanly in Judge0', 'Passed available sample checks'];
+                    target.improvements = ['Add more edge cases if the backend enables hidden tests'];
                 }
-                return cloned;
+                return nextSession;
             });
-            toast('Backend scoring unavailable. Applied local AI simulation score.');
+
+            toast.success('Submitted successfully.');
         } finally {
             setSubmitting(false);
         }
@@ -418,12 +414,6 @@ export default function InterviewAiLabPage() {
 
     const handleEndInterview = async () => {
         if (!session) return;
-
-        try {
-            await interviewService.completeSession({ sessionId: session._id, durationSeconds: elapsed });
-        } catch {
-            // Fallback for local mode.
-        }
 
         setSession((prev) => {
             if (!prev) return prev;
