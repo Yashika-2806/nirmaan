@@ -25,7 +25,7 @@ function getSessionId() {
 }
 
 function getApiBaseUrl() {
-    const configured = process.env.NEXT_PUBLIC_API_URL || '';
+    const configured = process.env.NEXT_PUBLIC_API_URL || '/api';
     return configured.replace(/\/$/, '');
 }
 
