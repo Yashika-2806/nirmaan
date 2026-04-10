@@ -25,6 +25,14 @@ export default function RoadmapPage() {
             toast.error('Please fill in all fields');
             return;
         }
+        if (currentRole.trim().length < 2) {
+            toast.error('Current role must be at least 2 characters');
+            return;
+        }
+        if (goal.trim().length < 2) {
+            toast.error('Career goal must be at least 2 characters');
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -37,7 +45,11 @@ export default function RoadmapPage() {
             setHasGenerated(true);
             toast.success('Roadmap generated!');
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Failed to generate roadmap');
+            const apiError = error?.response?.data;
+            const firstValidationMessage = Array.isArray(apiError?.errors)
+                ? (apiError.errors[0]?.message || apiError.errors[0])
+                : '';
+            toast.error(firstValidationMessage || apiError?.message || 'Failed to generate roadmap');
         } finally {
             setIsLoading(false);
         }

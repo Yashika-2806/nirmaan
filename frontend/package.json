@@ -10,9 +10,11 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^3.3.3",
+        "@monaco-editor/react": "^4.7.0",
         "axios": "^1.6.2",
         "clsx": "^2.0.0",
         "date-fns": "^3.0.6",
+        "framer-motion": "^12.38.0",
         "html2canvas": "^1.4.1",
         "jspdf": "^4.2.0",
         "lucide-react": "^0.303.0",
