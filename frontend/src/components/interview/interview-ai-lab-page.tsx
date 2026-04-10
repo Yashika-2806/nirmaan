@@ -126,6 +126,47 @@ const makeMockSession = (company: string, role: string, round: string, experienc
 
 const fmtTime = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
+function evaluateLocalCodeQuality(code: string, language: Language): { score: number; reasons: string[] } {
+    const normalized = code.trim();
+    const reasons: string[] = [];
+    let score = 0;
+
+    if (normalized.length >= 120) score += 20;
+    else reasons.push('Solution is too short.');
+
+    if (/for\s*\(|while\s*\(|for\s+\w+\s+in\s+/i.test(normalized)) score += 20;
+    else reasons.push('No clear iteration logic found.');
+
+    if (/map|hash|dict|unordered_map|HashMap|new Map\(|\{\}/i.test(normalized)) score += 25;
+    else reasons.push('Hash lookup pattern is missing.');
+
+    if (/return\s*\[|return\s*\{|return\s+new\s+int\[]/i.test(normalized)) score += 15;
+    else reasons.push('Expected index-pair return format not found.');
+
+    if (!/todo|fixme|dummy|placeholder/i.test(normalized)) score += 10;
+    else reasons.push('Contains placeholder markers.');
+
+    if (language === 'python' && /def\s+\w+\(/.test(normalized)) score += 5;
+    if (language === 'java' && /class\s+\w+\s*\{/.test(normalized)) score += 5;
+    if (language === 'javascript' && /function\s+\w+\s*\(/.test(normalized)) score += 5;
+    if (language === 'cpp' && /#include|std::|vector\s*</.test(normalized)) score += 5;
+
+    const redFlags = [
+        /return\s*\[\s*\]/i,
+        /return\s+new\s+int\[]\s*\{\s*\}/i,
+        /throw\s+new\s+error/i,
+        /syntaxerror/i,
+        /segmentation/i,
+    ];
+
+    if (redFlags.some((r) => r.test(normalized))) {
+        score -= 40;
+        reasons.push('Detected critical red-flag pattern in solution.');
+    }
+
+    return { score: Math.max(0, Math.min(100, score)), reasons };
+}
+
 function difficultyTone(d?: string) {
     if (d === 'easy') return 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30';
     if (d === 'medium') return 'bg-amber-500/15 text-amber-300 border-amber-400/30';
@@ -242,9 +283,29 @@ export default function InterviewAiLabPage() {
 
         await new Promise((resolve) => setTimeout(resolve, 900));
 
-        const hasSyntaxFailure = /syntaxerror|throw new error|segmentation/i.test(currentCode);
-        const hasLikelyAnswer = /map|hash|dict|unordered_map|for\s*\(|while\s*\(|return/i.test(currentCode);
-        const success = !hasSyntaxFailure && hasLikelyAnswer;
+        const isStarterTemplate = currentCode.trim() === CODE_TEMPLATES[language].trim();
+        const quality = evaluateLocalCodeQuality(currentCode, language);
+
+        if (isStarterTemplate) {
+            setRunResult({
+                status: 'error',
+                stdout: '',
+                stderr: 'Starter template detected. Modify the code before running tests.',
+                memory: '--',
+                time: '--',
+                testCases: [
+                    { id: 1, input: 'nums=[2,7,11,15], target=9', expected: '[0,1]', got: '--', passed: false },
+                    { id: 2, input: 'nums=[3,2,4], target=6', expected: '[1,2]', got: '--', passed: false },
+                    { id: 3, input: 'nums=[3,3], target=6', expected: '[0,1]', got: '--', passed: false },
+                ],
+            });
+            setActiveTab('errors');
+            toast.error('Update the template before running');
+            setRunning(false);
+            return;
+        }
+
+        const success = quality.score >= 75;
 
         if (success) {
             const cases = [
@@ -255,7 +316,7 @@ export default function InterviewAiLabPage() {
 
             setRunResult({
                 status: 'success',
-                stdout: 'Accepted. All sample test cases passed.',
+                stdout: 'Accepted. All sample test cases passed (local simulation).',
                 stderr: '',
                 memory: '48.2 MB',
                 time: '42 ms',
@@ -265,10 +326,14 @@ export default function InterviewAiLabPage() {
             return;
         }
 
+        const failedHints = quality.reasons.length
+            ? `\nHints: ${quality.reasons.slice(0, 2).join(' ')}`
+            : '';
+
         setRunResult({
             status: 'error',
             stdout: '',
-            stderr: 'RuntimeError: failed on test #2. Check index bounds and return format.',
+            stderr: `Failed sample tests in local simulation. Quality score: ${quality.score}/100.${failedHints}`,
             memory: '53.8 MB',
             time: '64 ms',
             testCases: [
