@@ -23,12 +23,13 @@ import {
     Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import AIInterviewFeedback from './ai-interview-feedback';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 type Phase = 'setup' | 'session' | 'results';
 type Language = 'cpp' | 'java' | 'python' | 'javascript';
-type OutputTab = 'output' | 'errors' | 'tests';
+type OutputTab = 'output' | 'errors' | 'tests' | 'feedback';
 type RunVerdict = 'Idle' | 'Running' | 'Accepted' | 'Wrong Answer' | 'Runtime Error' | 'Compilation Error' | 'Execution Error';
 
 type Judge0Status = {
@@ -521,6 +522,7 @@ export default function InterviewAiLabPage() {
             });
 
             if (allEvaluatedPassed) {
+                setActiveTab('feedback');
                 toast.success('Execution passed sample tests');
             } else {
                 setActiveTab('tests');
@@ -953,6 +955,7 @@ export default function InterviewAiLabPage() {
                                             { id: 'output', label: 'Output', icon: TerminalSquare },
                                             { id: 'errors', label: 'Errors', icon: AlertTriangle },
                                             { id: 'tests', label: 'Test Cases', icon: BarChart3 },
+                                            { id: 'feedback', label: 'AI Feedback', icon: Brain },
                                         ] as Array<{ id: OutputTab; label: string; icon: typeof TerminalSquare }>).map((tab) => (
                                             <button
                                                 key={tab.id}
@@ -991,6 +994,17 @@ export default function InterviewAiLabPage() {
                                                 </div>
                                             ))}
                                         </div>
+                                    )}
+                                    {activeTab === 'feedback' && (
+                                        <AIInterviewFeedback
+                                          verdict={runResult.verdict}
+                                          code={currentCode}
+                                          testCasesPassed={runResult.testCases.filter((t) => t.passed).length}
+                                          totalTestCases={runResult.testCases.length}
+                                          language={language}
+                                          time={runResult.time}
+                                          memory={runResult.memory}
+                                        />
                                     )}
                                 </div>
                             </div>
