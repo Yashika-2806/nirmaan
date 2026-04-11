@@ -38,7 +38,7 @@ This diagram shows the top-level architecture from users to frontend, API gatewa
 
 This flow visualizes how user actions move through frontend services, API proxying, backend middleware, business services, optional AI calls, persistence, and response formatting.
 
-<img src="images/End-to-End%20Data%20Pipeline%20Diagram%20-%20visual%20selection.png" alt="End-to-End Data Pipeline Diagram" width="700" />
+<img src="images/End-to-End%20Data%20Pipeline%20Diagram%20-%20visual%20selection.png" alt="End-to-End Data Pipeline Diagram" width="1500" />
 
 ## Career Orchestration Workflow
 
