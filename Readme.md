@@ -23,7 +23,6 @@ The platform is split into:
 Core capability domains include:
 
 - Career Twin
-- Career GPS
 - DSA practice and interview tooling
 - Gamification and growth analytics
 - Skill marketplace
@@ -59,7 +58,7 @@ This workflow describes the multi-agent orchestration lifecycle used for job ing
 
 ## Data Model
 
-The ER diagram captures domain-level data relationships across core user data, Career Twin, Career GPS, gamification, marketplace, and analytics.
+The ER diagram captures domain-level data relationships across core user data, Career Twin, gamification, marketplace, and analytics.
 
 <img src="images/Database%20ER-Diagram.png" alt="Database ER Diagram" width="560" />
 
