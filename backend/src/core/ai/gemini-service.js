@@ -44,19 +44,20 @@ class GeminiService {
             return null; // Will trigger fallback error handled in caller
         }
 
-        if (!this.models[feature]) {
-            try {
-                const genAI = new GoogleGenerativeAI(key);
-                // Using 'gemini-2.5-flash' as per available models for this key/region (2026)
-                this.models[feature] = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-                console.log(`[GeminiService] Model initialized for feature: ${feature} (gemini-2.5-flash)`);
-            } catch (error) {
-                console.error(`[GeminiService] Failed to initialize model for feature ${feature}:`, error);
-                return null;
-            }
-        }
+        const aiService = require('../../services/ai/aiService');
 
-        return this.models[feature];
+        // Return a facade that mimics the SDK model interface
+        // This ensures all legacy code routes through our new robust AI fallback manager
+        return {
+            generateContent: async (prompt) => {
+                const text = await aiService.generate(prompt, key);
+                return {
+                    response: {
+                        text: () => text
+                    }
+                };
+            }
+        };
     }
 
     /**

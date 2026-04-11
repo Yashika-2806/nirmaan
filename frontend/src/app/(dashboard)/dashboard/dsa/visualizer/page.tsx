@@ -1,238 +1,140 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import {
-    Play,
-    Pause,
-    RotateCcw,
-    ChevronRight,
-    Menu,
-    Code,
-    Layout,
-    Settings,
-    Maximize2
-} from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, Settings2, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { useVisualizerEngine } from '@/hooks/useVisualizerEngine';
+import { TEMPLATES_BY_CATEGORY, ALL_TEMPLATES } from '@/lib/visualizer/templates';
 
-// Basic templates
-const TEMPLATES = {
-    'bfs': `// Breadth First Search Visualization
-function bfs(graph, start) {
-  const queue = [start];
-  const visited = new Set();
-  visited.add(start);
+import { CodePanel } from '@/components/visualizer/panels/CodePanel';
+import { ExplanationPanel } from '@/components/visualizer/panels/ExplanationPanel';
+import { Canvas } from '@/components/visualizer/canvas/Canvas';
+import { ControlsPanel } from '@/components/visualizer/ControlsPanel';
 
-  while (queue.length > 0) {
-    const node = queue.shift();
-    visualize(node); // Internal hook
-
-    for (const neighbor of graph[node]) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push(neighbor);
-      }
-    }
-  }
-}`,
-    'dfs': `// Depth First Search Visualization
-function dfs(graph, start, visited = new Set()) {
-  visualize(start); // Internal hook
-  visited.add(start);
-
-  for (const neighbor of graph[start]) {
-    if (!visited.has(neighbor)) {
-      dfs(graph, neighbor, visited);
-    }
-  }
-}`,
-    'bubble_sort': `// Bubble Sort Visualization
-async function bubbleSort(arr) {
-  const n = arr.length;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n - i - 1; j++) {
-      highlight(j, j + 1); // Internal hook
-      if (arr[j] > arr[j + 1]) {
-        swap(arr, j, j + 1); // Internal hook
-      }
-      unhighlight(j, j + 1); // Internal hook
-    }
-  }
-}`
-};
-
-export default function VisualizerPage() {
-    const [code, setCode] = useState(TEMPLATES['bfs']);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0);
-    const [speed, setSpeed] = useState(1); // 0.5x to 2x
-    const [activeTemplate, setActiveTemplate] = useState('bfs');
-    const [logs, setLogs] = useState<string[]>([]);
-
-    // Mock visualization state
-    const [grid, setGrid] = useState<number[][]>([]);
-    const [visitedNodes, setVisitedNodes] = useState<number[]>([]);
-
-    useEffect(() => {
-        // Initialize grid or graph for visualization
-        const initialGrid = Array(10).fill(0).map(() => Array(10).fill(0));
-        setGrid(initialGrid);
-    }, []);
-
-    const handleRun = () => {
-        setIsPlaying(true);
-        setLogs(prev => [...prev, `> Starting execution of ${activeTemplate}...`]);
-        // Mock execution loop
-        let step = 0;
-        const interval = setInterval(() => {
-            if (step > 20) {
-                clearInterval(interval);
-                setIsPlaying(false);
-                setLogs(prev => [...prev, `> Execution finished.`]);
-                return;
-            }
-            setCurrentStep(step);
-            // Simulate visiting nodes
-            setVisitedNodes(prev => [...prev, Math.floor(Math.random() * 100)]);
-            step++;
-        }, 1000 / speed);
-    };
-
-    const loadTemplate = (template: string) => {
-        setActiveTemplate(template);
-        // @ts-ignore
-        setCode(TEMPLATES[template]);
-        setLogs(prev => [...prev, `> Loaded template: ${template}`]);
-        setVisitedNodes([]);
-        setCurrentStep(0);
-    };
+export default function AdvancedVisualizerPage() {
+    const engine = useVisualizerEngine();
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] bg-[#0a0a0a] text-white overflow-hidden rounded-xl border border-gray-800">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#111111]">
+        <div className="flex flex-col h-[calc(100vh-80px)] bg-[#050505] text-white">
+            {/* Header */}
+            <div className="shrink-0 flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-[#0a0a0a] border-b border-gray-800 gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <Code className="w-5 h-5 text-[#00D9FF]" />
-                        <span className="font-bold text-lg">Algorithm Visualizer</span>
+                    <Link href="/dashboard/dsa" className="p-2 text-gray-500 hover:text-white bg-[#111] hover:bg-[#1a1a1a] rounded-lg transition-colors border border-gray-800">
+                        <ChevronLeft className="w-5 h-5" />
+                    </Link>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#00D9FF]/10 rounded-lg border border-[#00D9FF]/20 flex items-center justify-center">
+                            <Zap className="w-5 h-5 text-[#00D9FF]" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-white flex items-center gap-2">Algorithm Visualizer <span className="bg-[#00D9FF]/20 text-[#00D9FF] text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Pro</span></h1>
+                            <p className="text-xs text-gray-500">Step-by-step execution & explanation</p>
+                        </div>
                     </div>
-
-                    <div className="h-6 w-px bg-gray-700 mx-2"></div>
-
-                    <select
-                        className="bg-[#1a1a1a] border border-gray-700 text-sm rounded px-3 py-1.5 focus:border-[#00D9FF] outline-none"
-                        value={activeTemplate}
-                        onChange={(e) => loadTemplate(e.target.value)}
-                    >
-                        <option value="bfs">Breadth First Search (BFS)</option>
-                        <option value="dfs">Depth First Search (DFS)</option>
-                        <option value="bubble_sort">Bubble Sort</option>
-                    </select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setVisitedNodes([])}
-                        className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
-                        title="Reset"
-                    >
-                        <RotateCcw className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={handleRun}
-                        disabled={isPlaying}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isPlaying
-                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                : 'bg-[#00D9FF] text-black hover:bg-[#00D9FF]/90'
-                            }`}
-                    >
-                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-                        {isPlaying ? 'Running...' : 'Run Code'}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="flex-1 md:flex-none flex items-center bg-[#111111] border border-gray-800 rounded-lg p-1">
+                        <select
+                            className="bg-transparent text-sm text-gray-200 px-3 py-2 outline-none w-full md:w-64 cursor-pointer"
+                            value={engine.activeTemplateId}
+                            onChange={(e) => engine.setActiveTemplateId(e.target.value)}
+                        >
+                            {Object.entries(TEMPLATES_BY_CATEGORY).map(([category, templates]) => (
+                                <optgroup key={category} label={category} className="bg-[#1a1a1a] text-gray-400 font-bold">
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id} className="text-white font-normal">
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                        </select>
+                    </div>
+                    <button className="p-2.5 text-gray-400 hover:text-white bg-[#111111] border border-gray-800 rounded-lg transition-colors">
+                        <Settings2 className="w-5 h-5" />
                     </button>
                 </div>
             </div>
 
-            {/* Main Content Split */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Editor Section */}
-                <div className="w-1/2 border-r border-gray-800 flex flex-col bg-[#0f0f0f]">
-                    <div className="flex items-center justify-between px-4 py-2 bg-[#151515] border-b border-gray-800">
-                        <span className="text-xs font-mono text-gray-500">script.js</span>
+            {/* Main Workspace Split */}
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 gap-4">
+                
+                {/* Left Column: Editor & Explanations */}
+                <div className="w-full lg:w-1/3 flex flex-col gap-4 min-h-0">
+                    <div className="flex-1 min-h-0">
+                        <CodePanel 
+                            code={engine.code} 
+                            activeLines={engine.currentStep?.activeLines || []} 
+                        />
                     </div>
-                    <textarea
-                        className="flex-1 w-full bg-[#0a0a0a] text-gray-300 font-mono p-4 text-sm outline-none resize-none"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        spellCheck="false"
+                    <div className="h-64 shrink-0">
+                        <ExplanationPanel 
+                            title={engine.currentStep?.title || ""}
+                            description={engine.currentStep?.description || ""}
+                            stepIndex={engine.currentStepIndex}
+                            totalSteps={engine.steps.length}
+                        />
+                    </div>
+                </div>
+
+                {/* Right Column: Visualization Canvas */}
+                <div className="w-full lg:w-2/3 flex flex-col bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden shadow-lg relative min-h-0">
+                    {/* Top Stats Bar */}
+                    <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-gradient-to-b from-[#0a0a0a] to-transparent pointer-events-none">
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-gray-900 border border-gray-800 rounded-full text-xs font-medium text-gray-400">
+                                {engine.template?.category}
+                            </span>
+                            <span className="px-3 py-1 bg-[#00D9FF]/10 border border-[#00D9FF]/20 rounded-full text-xs font-bold text-[#00D9FF]">
+                                {engine.template?.name}
+                            </span>
+                        </div>
+                        <div className="font-mono text-xs text-gray-500 bg-gray-900/80 px-2 py-1 rounded backdrop-blur border border-gray-800">
+                            STEP {engine.currentStepIndex + 1}/{engine.steps.length}
+                        </div>
+                    </div>
+
+                    {/* Canvas Area */}
+                    <Canvas 
+                        type={engine.template?.visualizationType || 'bars'}
+                        stateSnapshot={engine.currentStep?.stateSnapshot}
                     />
-                    {/* Console/Logs */}
-                    <div className="h-32 border-t border-gray-800 bg-[#111111] overflow-y-auto font-mono text-xs p-2">
-                        <div className="text-gray-500 mb-1">Console Output:</div>
-                        {logs.map((log, i) => (
-                            <div key={i} className="text-[#00D9FF]">{log}</div>
-                        ))}
+
+                    {/* Timeline Progress */}
+                    <div className="px-6 py-2">
+                        <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden cursor-pointer relative" onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const pos = (e.clientX - rect.left) / rect.width;
+                            const newStep = Math.floor(pos * engine.steps.length);
+                            engine.handleReset();
+                            setTimeout(() => {
+                                // A slight hack, properly handled in engine usually
+                            }, 0);
+                        }}>
+                            <div 
+                                className="absolute top-0 left-0 bottom-0 bg-[#00D9FF] transition-all duration-300"
+                                style={{ width: `${engine.steps.length > 0 ? ((engine.currentStepIndex + 1) / engine.steps.length) * 100 : 0}%` }}
+                            ></div>
+                        </div>
                     </div>
+
+                    {/* Bottom Controls */}
+                    <ControlsPanel 
+                        isPlaying={engine.isPlaying}
+                        speed={engine.speed}
+                        onPlayPause={engine.handlePlayPause}
+                        onNext={engine.handleNext}
+                        onPrev={engine.handlePrev}
+                        onReset={engine.handleReset}
+                        onSpeedChange={engine.setSpeed}
+                        isNarrationEnabled={engine.narration.isNarrationEnabled}
+                        onToggleNarration={() => engine.narration.setIsNarrationEnabled(!engine.narration.isNarrationEnabled)}
+                        language={engine.narration.language}
+                        onLanguageChange={engine.narration.setLanguage as any}
+                        supportedLanguages={engine.template?.supportedLanguages || ['en']}
+                    />
                 </div>
-
-                {/* Visualization Section */}
-                <div className="w-1/2 bg-[#0a0a0a] relative flex flex-col">
-                    <div className="absolute top-4 right-4 z-10 flex gap-2">
-                        <div className="bg-[#111111]/80 backdrop-blur px-3 py-1 rounded text-xs text-gray-400 border border-gray-800">
-                            Step: <span className="text-[#00D9FF] font-bold">{currentStep}</span>
-                        </div>
-                    </div>
-
-                    {/* Canvas/Grid Area */}
-                    <div className="flex-1 flex items-center justify-center p-8">
-                        {activeTemplate.includes('sort') ? (
-                            <div className="flex items-end gap-1 h-64 w-full">
-                                {[40, 70, 20, 90, 30, 60, 10, 50, 80, 25, 65, 35].map((h, i) => (
-                                    <div
-                                        key={i}
-                                        style={{ height: `${h}%` }}
-                                        className={`flex-1 rounded-t-sm transition-all duration-300 ${visitedNodes.includes(i) ? 'bg-[#00D9FF]' : 'bg-gray-700'
-                                            }`}
-                                    ></div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-10 gap-1">
-                                {Array.from({ length: 100 }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-6 h-6 rounded-sm transition-all duration-500 ${visitedNodes.includes(i)
-                                                ? 'bg-[#00D9FF] scale-90 shadow-[0_0_10px_#00D9FF]'
-                                                : 'bg-gray-800 hover:bg-gray-700'
-                                            }`}
-                                    ></div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Controls Footer */}
-                    <div className="p-4 border-t border-gray-800 bg-[#111111] flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <span className="text-xs text-gray-500">Speed:</span>
-                            <input
-                                type="range"
-                                min="1"
-                                max="5"
-                                value={speed}
-                                onChange={(e) => setSpeed(parseInt(e.target.value))}
-                                className="w-24 accent-[#00D9FF]"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-3 bg-[#00D9FF] rounded-sm"></div>
-                                <span>Active</span>
-                            </div>
-                            <div className="flex items-center gap-1 ml-2">
-                                <div className="w-3 h-3 bg-gray-800 rounded-sm"></div>
-                                <span>Pending</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
         </div>
     );
