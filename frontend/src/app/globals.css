@@ -18,9 +18,23 @@
   }
 
   body {
-    @apply bg-[#070c1a] text-gray-100 antialiased;
+    @apply text-gray-100 antialiased;
     font-family: var(--font-body), sans-serif;
     min-height: 100vh;
+    background-color: #060b18;
+    background-image:
+      radial-gradient(1200px 520px at 12% -10%, rgba(34, 211, 238, 0.18), transparent 55%),
+      radial-gradient(900px 460px at 88% 0%, rgba(249, 115, 22, 0.14), transparent 52%),
+      linear-gradient(180deg, #070f1f 0%, #060b18 52%, #060916 100%);
+  }
+
+  html[data-theme='light'] body {
+    @apply text-slate-900;
+    background-color: #f5f8ff;
+    background-image:
+      radial-gradient(1100px 480px at 10% -10%, rgba(56, 189, 248, 0.2), transparent 56%),
+      radial-gradient(840px 420px at 92% 0%, rgba(249, 115, 22, 0.14), transparent 52%),
+      linear-gradient(180deg, #f7fbff 0%, #f5f8ff 48%, #f2f6ff 100%);
   }
 
   h1,
@@ -31,6 +45,16 @@
   h6 {
     @apply font-semibold text-white;
     font-family: var(--font-display), sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  html[data-theme='light'] h1,
+  html[data-theme='light'] h2,
+  html[data-theme='light'] h3,
+  html[data-theme='light'] h4,
+  html[data-theme='light'] h5,
+  html[data-theme='light'] h6 {
+    @apply text-slate-900;
   }
 
   button,
@@ -70,6 +94,29 @@
 }
 
 @layer utilities {
+  .grid-overlay {
+    position: relative;
+  }
+
+  .grid-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent 85%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent 85%);
+  }
+
+  html[data-theme='light'] .grid-overlay::before {
+    background-image:
+      linear-gradient(rgba(14, 116, 144, 0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(14, 116, 144, 0.09) 1px, transparent 1px);
+  }
+
   .tap-fast {
     @apply transition-all duration-150 ease-out active:scale-[0.98];
     will-change: transform;

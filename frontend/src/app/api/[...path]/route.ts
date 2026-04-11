@@ -36,6 +36,15 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
 
     const headers = new Headers(req.headers);
     headers.delete('host');
+    headers.delete('connection');
+    headers.delete('accept-encoding');
+    headers.delete('x-forwarded-for');
+    headers.delete('x-forwarded-host');
+    headers.delete('x-forwarded-port');
+    headers.delete('x-forwarded-proto');
+    headers.delete('x-forwarded-server');
+    headers.delete('forwarded');
+    headers.delete('x-real-ip');
 
     const init: RequestInit = {
         method: req.method,
@@ -55,6 +64,11 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
         try {
             const response = await fetch(targetUrl, init);
             const responseHeaders = new Headers(response.headers);
+            responseHeaders.delete('content-encoding');
+            responseHeaders.delete('content-length');
+            responseHeaders.delete('transfer-encoding');
+            responseHeaders.delete('connection');
+            responseHeaders.delete('keep-alive');
             return new NextResponse(response.body, {
                 status: response.status,
                 headers: responseHeaders,

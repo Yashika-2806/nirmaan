@@ -10,7 +10,6 @@ import {
     FileText,
     MessageSquare,
     Map,
-    Navigation,
     BookOpen,
     FileUp,
     Users,
@@ -20,6 +19,8 @@ import {
     Sparkles,
     ArrowRight
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function DashboardLayout({
     children,
@@ -29,6 +30,7 @@ export default function DashboardLayout({
     const router = useRouter();
     const pathname = usePathname();
     const { user, isAuthenticated, logout } = useAuthStore();
+    const { isLight } = useTheme();
     const [showTopBar, setShowTopBar] = useState(true);
     const lastScrollYRef = useRef(0);
 
@@ -46,7 +48,6 @@ export default function DashboardLayout({
             { href: '/dashboard/resume', icon: <FileText size={18} />, label: 'Resume Builder' },
             { href: '/dashboard/interview', icon: <MessageSquare size={18} />, label: 'Interview Prep' },
             { href: '/dashboard/roadmap', icon: <Map size={18} />, label: 'Roadmap' },
-            { href: '/dashboard/career-gps', icon: <Navigation size={18} />, label: 'Career GPS' },
             { href: '/research', icon: <BookOpen size={18} />, label: 'Research' },
             { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
             { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
@@ -94,41 +95,42 @@ export default function DashboardLayout({
     }, [router, navHrefs]);
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-[#00D9FF]/30">
+        <div className={`min-h-screen font-sans selection:bg-[#00D9FF]/30 ${isLight ? 'bg-slate-100 text-slate-900' : 'bg-[#0a0a0a] text-white'}`}>
             {/* Top Header Navigation */}
-            <header className="sticky top-0 z-50 border-b border-gray-800/80 bg-[#0a0a0a]/95 backdrop-blur-md">
+            <header className={`sticky top-0 z-50 border-b backdrop-blur-md ${isLight ? 'border-slate-300/80 bg-white/95' : 'border-gray-800/80 bg-[#0a0a0a]/95'}`}>
                 <div
-                    className={`overflow-hidden border-b border-gray-900 transition-[max-height,opacity] duration-300 ${
+                    className={`overflow-hidden border-b transition-[max-height,opacity] duration-300 ${isLight ? 'border-slate-200' : 'border-gray-900'} ${
                         showTopBar ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
                     }`}
                 >
                     <div className="px-4 md:px-5 py-2.5">
                         <div className="flex items-center justify-between gap-4">
                             <Link href="/dashboard" className="flex items-center gap-2 tap-fast">
-                                <div className="w-8 h-8 rounded-lg bg-[#00D9FF]/10 border border-[#00D9FF]/30 flex items-center justify-center">
+                                <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${isLight ? 'bg-sky-100 border-sky-300' : 'bg-[#00D9FF]/10 border-[#00D9FF]/30'}`}>
                                     <Sparkles className="w-4 h-4 text-[#00D9FF]" />
                                 </div>
                                 <div>
-                                    <h1 className="text-base font-bold text-white tracking-wide">Nirmaan</h1>
+                                    <h1 className={`text-base font-bold tracking-wide ${isLight ? 'text-slate-900' : 'text-white'}`}>Nirmaan</h1>
                                     <p className="text-[10px] text-[#00D9FF] uppercase tracking-wider font-semibold">Placement Acceleration</p>
                                 </div>
                             </Link>
 
                             <div className="flex items-center gap-2 md:gap-3">
+                                <ThemeToggle />
                                 {isAuthenticated ? (
                                     <>
-                                        <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-lg border border-gray-800 bg-gray-900/40">
-                                            <div className="w-7 h-7 rounded-full bg-[#00D9FF]/15 border border-[#00D9FF]/40 flex items-center justify-center text-[#00D9FF] text-xs font-semibold">
+                                        <div className={`hidden sm:flex items-center gap-3 px-4 py-2 rounded-lg border ${isLight ? 'border-slate-300 bg-white' : 'border-gray-800 bg-gray-900/40'}`}>
+                                            <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-[#00D9FF] text-xs font-semibold ${isLight ? 'bg-sky-100 border-sky-300' : 'bg-[#00D9FF]/15 border-[#00D9FF]/40'}`}>
                                                 {user?.name?.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="leading-tight">
-                                                <p className="text-sm text-white font-semibold">{user?.name}</p>
-                                                <p className="text-xs text-gray-500">{user?.subscription?.tier || 'Free'} Plan</p>
+                                                <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{user?.name}</p>
+                                                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>{user?.subscription?.tier || 'Free'} Plan</p>
                                             </div>
                                         </div>
                                         <button
                                             onClick={handleLogout}
-                                            className="px-3.5 py-2 rounded-lg border border-gray-800 text-gray-300 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5 transition-all text-sm font-semibold inline-flex items-center gap-2 tap-fast"
+                                            className={`px-3.5 py-2 rounded-lg border transition-all text-sm font-semibold inline-flex items-center gap-2 tap-fast ${isLight ? 'border-slate-300 text-slate-700 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-sky-50' : 'border-gray-800 text-gray-300 hover:text-[#00D9FF] hover:border-[#00D9FF]/50 hover:bg-[#00D9FF]/5'}`}
                                         >
                                             <LogOut size={16} />
                                             Sign Out
@@ -145,7 +147,7 @@ export default function DashboardLayout({
                                         </Link>
                                         <Link
                                             href="/register"
-                                            className="px-3.5 py-2 rounded-lg border border-gray-800 text-gray-300 hover:text-white hover:border-gray-700 transition-all text-sm font-semibold tap-fast"
+                                            className={`px-3.5 py-2 rounded-lg border transition-all text-sm font-semibold tap-fast ${isLight ? 'border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-400' : 'border-gray-800 text-gray-300 hover:text-white hover:border-gray-700'}`}
                                         >
                                             Sign Up
                                         </Link>
@@ -167,6 +169,7 @@ export default function DashboardLayout({
                                     icon={item.icon}
                                     label={item.label}
                                     active={active}
+                                    isLight={isLight}
                                 />
                             );
                         })}
@@ -177,7 +180,7 @@ export default function DashboardLayout({
             {/* Main Content */}
             <main className="p-3 md:p-6 relative min-h-[calc(100vh-104px)]">
                 {/* Background ambient glow */}
-                <div className="fixed top-0 left-0 right-0 h-96 bg-[#00D9FF]/5 blur-[120px] pointer-events-none rounded-full translate-y-[-50%]"></div>
+                <div className={`fixed top-0 left-0 right-0 h-96 blur-[120px] pointer-events-none rounded-full translate-y-[-50%] ${isLight ? 'bg-sky-300/20' : 'bg-[#00D9FF]/5'}`}></div>
 
                 <div className="relative z-10 w-full mx-auto">
                     {children}
@@ -187,7 +190,7 @@ export default function DashboardLayout({
     );
 }
 
-function TopNavItem({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
+function TopNavItem({ href, icon, label, active, isLight }: { href: string; icon: React.ReactNode; label: string; active: boolean; isLight: boolean }) {
     return (
         <Link
             href={href}
@@ -195,11 +198,13 @@ function TopNavItem({ href, icon, label, active }: { href: string; icon: React.R
                 group shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 tap-fast
                 ${active
                     ? 'bg-[#00D9FF]/12 text-[#00D9FF] border border-[#00D9FF]/30 shadow-[0_0_18px_-8px_#00D9FF]'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                    : isLight
+                        ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                 }
             `}
         >
-            <span className={`${active ? 'text-[#00D9FF]' : 'text-gray-500 group-hover:text-white'} transition-colors`}>
+            <span className={`${active ? 'text-[#00D9FF]' : isLight ? 'text-slate-400 group-hover:text-slate-800' : 'text-gray-500 group-hover:text-white'} transition-colors`}>
                 {icon}
             </span>
             <span>{label}</span>

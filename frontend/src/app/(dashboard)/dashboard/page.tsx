@@ -73,6 +73,7 @@ export default function DashboardPage() {
     const [interviewSessions, setInterviewSessions] = useState<InterviewSessionLite[]>([]);
     const lastGamificationErrorRef = useRef<string | null>(null);
     const gamificationRetryCountRef = useRef(0);
+    const gamificationProfileRef = useRef<GamificationProfile | null>(null);
 
     const isPaidUser = (user?.subscription?.tier || '').toLowerCase() !== 'free';
 
@@ -145,7 +146,7 @@ export default function DashboardPage() {
             if (isNetworkError && gamificationRetryCountRef.current < 2) {
                 gamificationRetryCountRef.current += 1;
 
-                if (!gamificationProfile && gamificationRetryCountRef.current === 1) {
+                if (!gamificationProfileRef.current && gamificationRetryCountRef.current === 1) {
                     toast.error('Unable to reach server. Retrying...');
                 }
 
@@ -168,7 +169,11 @@ export default function DashboardPage() {
         } finally {
             setIsGamificationLoading(false);
         }
-    }, [accessToken, isAuthenticated, leaderboardMetric, leaderboardScope, user?._id, gamificationProfile]);
+    }, [accessToken, isAuthenticated, leaderboardMetric, leaderboardScope, user?._id]);
+
+    useEffect(() => {
+        gamificationProfileRef.current = gamificationProfile;
+    }, [gamificationProfile]);
 
     useEffect(() => {
         loadGamificationData();

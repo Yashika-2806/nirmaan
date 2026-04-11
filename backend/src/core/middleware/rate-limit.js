@@ -2,10 +2,20 @@ const rateLimit = require('express-rate-limit');
 const config = require('../../config/env');
 const ApiResponse = require('../utils/response');
 
+const isLocalDevRequest = (req) => {
+    if (config.nodeEnv !== 'development') {
+        return false;
+    }
+
+    const ip = req.ip || req.socket?.remoteAddress || '';
+    return ip.includes('127.0.0.1') || ip.includes('::1') || ip.includes('localhost');
+};
+
 // General API rate limiter
 const apiLimiter = rateLimit({
     windowMs: config.rateLimit.windowMs,
     max: config.rateLimit.max,
+    skip: isLocalDevRequest,
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
