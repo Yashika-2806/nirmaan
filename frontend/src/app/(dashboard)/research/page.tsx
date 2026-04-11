@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 type ResearchType = 'literature-review' | 'methodology' | 'citations';
 
@@ -31,45 +32,7 @@ const RESEARCH_TYPES: { value: ResearchType; label: string; icon: React.ReactNod
     },
 ];
 
-function renderInlineMarkdown(text: string) {
-    const segments = text.split(/(\*\*.*?\*\*)/g);
-    return segments.map((segment, index) => {
-        if (segment.startsWith('**') && segment.endsWith('**') && segment.length > 4) {
-            return <strong key={index} className="text-white">{segment.slice(2, -2)}</strong>;
-        }
-        return <span key={index}>{segment}</span>;
-    });
-}
 
-function MarkdownContent({ text }: { text: string }) {
-    // Simple markdown renderer for headings, bold, bullets
-    const lines = text.split('\n');
-    return (
-        <div className="space-y-1.5">
-            {lines.map((line, i) => {
-                if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold text-white mt-5 mb-2 first:mt-0">{line.slice(3)}</h2>;
-                if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-semibold text-[#00D9FF] mt-4 mb-1">{line.slice(4)}</h3>;
-                if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="text-base font-semibold text-white/90">{line.slice(2, -2)}</p>;
-                if (line.startsWith('- ') || line.startsWith('* ')) return (
-                    <div key={i} className="flex gap-2 text-base text-white/75">
-                        <span className="text-[#00D9FF] shrink-0 mt-0.5">•</span>
-                        <span>{renderInlineMarkdown(line.slice(2))}</span>
-                    </div>
-                );
-                if (/^\d+\.\s/.test(line)) return (
-                    <div key={i} className="flex gap-2 text-base text-white/75">
-                        <span className="text-[#00D9FF] shrink-0 font-mono text-sm mt-0.5">{line.match(/^\d+/)?.[0]}.</span>
-                        <span>{renderInlineMarkdown(line.replace(/^\d+\.\s/, ''))}</span>
-                    </div>
-                );
-                if (line.trim() === '') return <div key={i} className="h-1" />;
-                return (
-                    <p key={i} className="text-base text-white/75 leading-relaxed">{renderInlineMarkdown(line)}</p>
-                );
-            })}
-        </div>
-    );
-}
 
 export default function ResearchPage() {
     const [topic, setTopic] = useState('');
@@ -250,7 +213,7 @@ export default function ResearchPage() {
 
                             {/* Main content */}
                             <div className="rounded-xl bg-white/5 border border-white/10 p-6">
-                                <MarkdownContent text={content} />
+                                <MarkdownRenderer content={content} />
                             </div>
 
                             {/* Citations */}

@@ -7,6 +7,7 @@ import { Users, Sparkles, Calendar, MessageSquare, TrendingUp, Star, Bot, Coins,
 import toast from 'react-hot-toast';
 import { skillMarketplaceService } from '@/services/skillMarketplaceService';
 import { useAuthStore } from '@/store/auth';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface Match {
     userId: string;
@@ -954,7 +955,7 @@ export default function SkillMarketplacePage() {
                                 <div className="space-y-4">
                                     <div>
                                         <p className="font-semibold text-sm mb-2">Direct Explanation</p>
-                                        <p className="text-sm text-gray-700">{aiMentorPlan.directAnswer}</p>
+                                        <MarkdownRenderer content={aiMentorPlan.directAnswer} />
                                     </div>
                                     <div>
                                         <p className="font-semibold text-sm mb-2">Concept Breakdown</p>
@@ -976,7 +977,7 @@ export default function SkillMarketplacePage() {
                                     </div>
                                     <div>
                                         <p className="font-semibold text-sm mb-2">Practice Task</p>
-                                        <p className="text-sm text-gray-700">{aiMentorPlan.practiceTask}</p>
+                                        <MarkdownRenderer content={aiMentorPlan.practiceTask} />
                                     </div>
                                     <div className="rounded-lg bg-primary-50 p-3 text-sm text-primary-800">
                                         {aiMentorPlan.encouragement}

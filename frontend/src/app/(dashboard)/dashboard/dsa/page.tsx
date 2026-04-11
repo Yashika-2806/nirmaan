@@ -25,84 +25,13 @@ import {
 import Link from 'next/link';
 import api from '@/lib/axios';
 import { getQuestions } from '@/data/dsa_sheets';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 // Initial Mock Data (kept for type inference or fallback)
 const INITIAL_QUESTIONS = getQuestions('blind-75');
 
 
-// Simple Markdown Renderer for AI Feedback
-const MarkdownRenderer = ({ content }: { content: string }) => {
-    if (!content) return null;
 
-    // Split by double newlines for paragraphs
-    const paragraphs = content.split(/\n\n+/);
-
-    return (
-        <div className="space-y-4">
-            {paragraphs.map((paragraph, i) => {
-                // Handle headings (lines starting with # or **Heading**)
-                // But specifically for 'Validation:', 'Analysis:' etc which user wants as headings
-                // My backend prompt uses **Heading:** style.
-
-                const parts = paragraph.split(/(\*\*.*?\*\*)/g);
-                return (
-                    <p key={i} className="text-gray-300 leading-relaxed text-sm md:text-base">
-                        {parts.map((part, j) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                                return <strong key={j} className="text-[#00D9FF] font-bold">{part.slice(2, -2)}</strong>;
-                            }
-                            return part;
-                        })}
-                    </p>
-                );
-            })}
-        </div>
-    );
-};
-
-// Improved Markdown Renderer V2 (List Support + Larger Font)
-const MarkdownRendererImproved = ({ content }: { content: string }) => {
-    if (!content) return null;
-
-    // Split by single newline
-    const lines = content.split('\n');
-
-    return (
-        <div className="space-y-1 text-base md:text-lg">
-            {lines.map((line, i) => {
-                const trimmed = line.trim();
-                // Treat empty lines as spacers (but smaller height)
-                if (!trimmed) return <div key={i} className="h-3"></div>;
-
-                // Check for list items
-                const isBullet = trimmed.startsWith('* ') || trimmed.startsWith('- ');
-                const isOrdered = /^\d+\.\s/.test(trimmed);
-
-                // Indentation
-                const indentClass = (isBullet || isOrdered) ? 'pl-6 relative' : '';
-
-                // Handle bolding
-                const parts = line.split(/(\*\*.*?\*\*)/g);
-
-                return (
-                    <div key={i} className={`${indentClass} text-gray-300 leading-relaxed mb-1`}>
-                        {isBullet && <span className="absolute left-1 top-2.5 w-1.5 h-1.5 bg-[#00D9FF] rounded-full"></span>}
-                        {parts.map((part, j) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                                // If it's a heading like "Validation:", give it block display or highlight
-                                const text = part.slice(2, -2);
-                                // Check if it's likely a heading (ends with :)
-                                const isHeading = text.trim().endsWith(':');
-                                return <strong key={j} className={`text-[#00D9FF] font-bold ${isHeading ? 'block mt-4 mb-2 text-xl border-b border-[#00D9FF]/20 pb-1 w-fit' : ''}`}>{text}</strong>;
-                            }
-                            return part;
-                        })}
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
 
 export default function DSAPage() {
     const [questions, setQuestions] = useState(INITIAL_QUESTIONS);
@@ -421,7 +350,7 @@ export default function DSAPage() {
                                     {aiFeedback && (
                                         <div className="mt-6 p-6 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-2 shadow-inner">
                                             <h4 className="font-bold flex items-center gap-2 mb-4 text-green-300 border-b border-green-500/20 pb-2"><Zap className="w-5 h-5" /> AI Analysis</h4>
-                                            <MarkdownRendererImproved content={aiFeedback} />
+                                            <MarkdownRenderer content={aiFeedback} />
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center mt-4">
