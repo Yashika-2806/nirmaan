@@ -39,24 +39,27 @@ export default function DashboardLayout({
         router.push('/login');
     };
 
-    const navItems = [
-        { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Home' },
-        { href: '/dashboard/dsa', icon: <Code size={18} />, label: 'DSA Practice' },
-        { href: '/dashboard/resume', icon: <FileText size={18} />, label: 'Resume Builder' },
-        { href: '/dashboard/interview', icon: <MessageSquare size={18} />, label: 'Interview Prep' },
-        { href: '/dashboard/roadmap', icon: <Map size={18} />, label: 'Roadmap' },
-        { href: '/dashboard/career-gps', icon: <Navigation size={18} />, label: 'Career GPS' },
-        { href: '/research', icon: <BookOpen size={18} />, label: 'Research' },
-        { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
-        { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
-        { href: '/dashboard/career-twin', icon: <Bot size={18} />, label: 'AI Twin' },
-        ...((user?.role || '').toLowerCase() === 'admin'
-            ? [
-                { href: '/dashboard/career-twin/analytics', icon: <BarChart3 size={16} />, label: 'Twin Analytics' },
-                { href: '/dashboard/funnel', icon: <BarChart3 size={16} />, label: 'Growth Funnel' },
-            ]
-            : []),
-    ], [user?.role]);
+    const navItems = useMemo(
+        () => [
+            { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Home' },
+            { href: '/dashboard/dsa', icon: <Code size={18} />, label: 'DSA Practice' },
+            { href: '/dashboard/resume', icon: <FileText size={18} />, label: 'Resume Builder' },
+            { href: '/dashboard/interview', icon: <MessageSquare size={18} />, label: 'Interview Prep' },
+            { href: '/dashboard/roadmap', icon: <Map size={18} />, label: 'Roadmap' },
+            { href: '/dashboard/career-gps', icon: <Navigation size={18} />, label: 'Career GPS' },
+            { href: '/research', icon: <BookOpen size={18} />, label: 'Research' },
+            { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
+            { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },
+            { href: '/dashboard/career-twin', icon: <Bot size={18} />, label: 'AI Twin' },
+            ...((user?.role || '').toLowerCase() === 'admin'
+                ? [
+                    { href: '/dashboard/career-twin/analytics', icon: <BarChart3 size={16} />, label: 'Twin Analytics' },
+                    { href: '/dashboard/funnel', icon: <BarChart3 size={16} />, label: 'Growth Funnel' },
+                ]
+                : []),
+        ],
+        [user?.role],
+    );
 
     const navHrefs = useMemo(() => navItems.map((item) => item.href), [navItems]);
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { ChevronLeft, LayoutDashboard, Settings2, Zap } from 'lucide-react';
+import { ChevronLeft, Settings2, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useVisualizerEngine } from '@/hooks/useVisualizerEngine';
-import { TEMPLATES_BY_CATEGORY, ALL_TEMPLATES } from '@/lib/visualizer/templates';
+import { TEMPLATES_BY_CATEGORY } from '@/lib/visualizer/templates';
 
 import { CodePanel } from '@/components/visualizer/panels/CodePanel';
 import { ExplanationPanel } from '@/components/visualizer/panels/ExplanationPanel';
@@ -38,6 +38,8 @@ export default function AdvancedVisualizerPage() {
                             className="bg-transparent text-sm text-gray-200 px-3 py-2 outline-none w-full md:w-64 cursor-pointer"
                             value={engine.activeTemplateId}
                             onChange={(e) => engine.setActiveTemplateId(e.target.value)}
+                            title="Select algorithm template"
+                            aria-label="Select algorithm template"
                         >
                             {Object.entries(TEMPLATES_BY_CATEGORY).map(([category, templates]) => (
                                 <optgroup key={category} label={category} className="bg-[#1a1a1a] text-gray-400 font-bold">
@@ -50,7 +52,12 @@ export default function AdvancedVisualizerPage() {
                             ))}
                         </select>
                     </div>
-                    <button className="p-2.5 text-gray-400 hover:text-white bg-[#111111] border border-gray-800 rounded-lg transition-colors">
+                    <button
+                        className="p-2.5 text-gray-400 hover:text-white bg-[#111111] border border-gray-800 rounded-lg transition-colors"
+                        title="Open visualizer settings"
+                        aria-label="Open visualizer settings"
+                        type="button"
+                    >
                         <Settings2 className="w-5 h-5" />
                     </button>
                 </div>
@@ -111,10 +118,12 @@ export default function AdvancedVisualizerPage() {
                                 // A slight hack, properly handled in engine usually
                             }, 0);
                         }}>
-                            <div 
-                                className="absolute top-0 left-0 bottom-0 bg-[#00D9FF] transition-all duration-300"
-                                style={{ width: `${engine.steps.length > 0 ? ((engine.currentStepIndex + 1) / engine.steps.length) * 100 : 0}%` }}
-                            ></div>
+                            <progress
+                                className="absolute top-0 left-0 bottom-0 w-full h-full appearance-none [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:bg-[#00D9FF] [&::-moz-progress-bar]:bg-[#00D9FF]"
+                                value={engine.steps.length > 0 ? engine.currentStepIndex + 1 : 0}
+                                max={Math.max(engine.steps.length, 1)}
+                                aria-label="Visualization progress"
+                            />
                         </div>
                     </div>
 
