@@ -8,7 +8,7 @@ class GeminiClient {
         this.genAI = new GoogleGenerativeAI(apiKey);
     }
     
-    async generateContent(prompt, modelName, timeoutMs = 8000) {
+    async generateContent(prompt, modelName, timeoutMs = 30000) {
         const model = this.genAI.getGenerativeModel({ model: modelName });
         
         const timeoutPromise = new Promise((_, reject) => {

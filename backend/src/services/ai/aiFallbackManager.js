@@ -16,7 +16,7 @@ class AIFallbackManager {
      * Tries models in the fallback chain one by one.
      * Includes retries for each model on applicable errors.
      */
-    async generateWithFallback(prompt, timeoutMs = 8000) {
+    async generateWithFallback(prompt, timeoutMs = 30000) {
         let lastError = null;
 
         for (const modelName of MODEL_CHAIN) {

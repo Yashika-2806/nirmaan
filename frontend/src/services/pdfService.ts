@@ -64,7 +64,7 @@ export const pdfService = {
             sessionId,
             numQuestions: options.numQuestions ?? 10,
             difficulty: options.difficulty ?? 'mixed',
-        }).then(r => r.data.data),
+        }, { timeout: 90000 }).then(r => r.data.data),
 
     generateAssertionReasonQuestions: (
         sessionId: string,
@@ -74,7 +74,7 @@ export const pdfService = {
             sessionId,
             numQuestions: options.numQuestions ?? 8,
             difficulty: options.difficulty ?? 'mixed',
-        }).then(r => r.data.data),
+        }, { timeout: 90000 }).then(r => r.data.data),
 
     generateMarkedQuestions: (
         sessionId: string,
@@ -89,7 +89,7 @@ export const pdfService = {
             numQuestions: options.numQuestions ?? 6,
             difficulty: options.difficulty ?? 'mixed',
             markDistribution: options.markDistribution ?? { '2': 0, '3': 0, '5': 0, '8': 0, '10': 0 },
-        }).then(r => r.data.data),
+        }, { timeout: 90000 }).then(r => r.data.data),
 
     gradeAnswer: (data: {
         question: string;
@@ -97,7 +97,7 @@ export const pdfService = {
         expectedAnswer: string;
         studentAnswer: string;
     }): Promise<GradingResult> =>
-        api.post('/pdf/grade', data).then(r => r.data.data),
+        api.post('/pdf/grade', data, { timeout: 90000 }).then(r => r.data.data),
 
     getSessions: () =>
         api.get('/pdf/sessions').then(r => r.data.data),
