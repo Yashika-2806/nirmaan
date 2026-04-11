@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Brain,
   Filter,
@@ -13,7 +14,6 @@ import {
   BarChart3,
   Clock,
 } from 'lucide-react';
-import { OpenVisualizerButton } from '@/components/dsa/OpenVisualizerButton';
 import { ProblemListItem } from '@/components/dsa/ProblemListItem';
 import toast from 'react-hot-toast';
 import axios from '@/lib/axios';
@@ -136,6 +136,7 @@ const NEETCODE_PROBLEMS = [
 ];
 
 export default function DSAPage() {
+  const router = useRouter();
   const [selectedSheet, setSelectedSheet] = useState('NeetCode 150');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
@@ -371,17 +372,15 @@ export default function DSAPage() {
         </div>
       </div>
 
-      {/* Advanced Visualizer CTA */}
-      <div className="mt-12 pt-12 border-t border-slate-700">
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Ready to Master Algorithms?</h2>
-            <p className="text-gray-400">
-              Use our AI-powered visualizer to understand complex algorithms step by step with interactive animations and voice narration.
-            </p>
-          </div>
-          <OpenVisualizerButton variant="card" />
-        </div>
+      {/* Small Visualizer Button */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <button
+          onClick={() => router.push('/dashboard/dsa/visualizer')}
+          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl"
+          title="Open Advanced Visualizer"
+        >
+          Visualizer
+        </button>
       </div>
     </div>
   );
