@@ -1,5 +1,5 @@
-const RETRY_DELAY_MS = 2500; // 2.5 seconds
-const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000; // 1 second
+const MAX_RETRIES = 1;
 
 /**
  * Determines if an error is retryable based on specific conditions.
