@@ -7,8 +7,9 @@ const MODEL_CHAIN = [
 ];
 
 class AIFallbackManager {
-    constructor(geminiClient) {
+    constructor(geminiClient, claudeClient = null) {
         this.client = geminiClient;
+        this.claudeClient = claudeClient;
     }
 
     /**
@@ -39,6 +40,21 @@ class AIFallbackManager {
                     console.warn(`[AI] Invalid API Key detected. Stopping fallback chain.`);
                     throw error; // Let the caller handle it (or return fallback response)
                 }
+            }
+        }
+
+        // Try Claude if provided
+        if (this.claudeClient) {
+            try {
+                console.log(`[AI] Switched to claude-3-haiku-20240307 (Anthropic)`);
+                const result = await executeWithRetry(
+                    () => this.claudeClient.generateContent(prompt, 'claude-3-haiku-20240307', timeoutMs),
+                    `Model Claude 3 Haiku`
+                );
+                return result;
+            } catch (error) {
+                lastError = error;
+                console.warn(`[AI] Claude also failed.`);
             }
         }
         

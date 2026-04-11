@@ -1,6 +1,8 @@
 const GeminiClient = require('./geminiClient');
 const AIFallbackManager = require('./aiFallbackManager');
 
+const ClaudeClient = require('./claudeClient');
+
 class AIService {
     constructor() {
         this.client = null;
@@ -11,7 +13,12 @@ class AIService {
         if (!this.fallbackManager || apiKey) {
             const keyToUse = apiKey || process.env.GEMINI_KEY_1 || process.env.GEMINI_KEY_6 || process.env.GEMINI_API_KEY;
             this.client = new GeminiClient(keyToUse);
-            this.fallbackManager = new AIFallbackManager(this.client);
+
+            // Initialize Claude as final fallback if API key is in environment
+            const claudeKey = process.env.CLAUDE_API_KEY;
+            const claudeClient = claudeKey ? new ClaudeClient(claudeKey) : null;
+
+            this.fallbackManager = new AIFallbackManager(this.client, claudeClient);
         }
     }
 
@@ -30,16 +37,8 @@ class AIService {
         } catch (error) {
             console.log(`[AI] Fallback response used`);
             
-            // Clean Error Handling: No raw error exposure, no stack trace
-            const fallbackResponse = {
-                success: false,
-                message: "AI temporarily unavailable",
-                fallback: true,
-                explanation: "The AI models are currently experiencing high demand or service disruptions. Please try again in a few moments."
-            };
-            
-            // Return JSON stringified fallback response to degrade gracefully
-            return JSON.stringify(fallbackResponse);
+            // Return clean Markdown instead of naked JSON so it renders nicely in the UI
+            return "⚠️ **AI Service Temporarily Unavailable**\n\nThe AI models are currently experiencing high demand or service disruptions. \n\n*Please try again in a few moments.*";
         }
     }
 }
