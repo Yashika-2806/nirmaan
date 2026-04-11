@@ -19,14 +19,9 @@ class DSAAIWrapper {
             // Get available AI key
             selectedKey = await aiKeyManager.getKey(MODULES.DSA);
 
-            // Initialize Gemini
-            const genAI = new GoogleGenerativeAI(selectedKey.apiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-            // Generate response
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            // Generate response using robust AI service with fallbacks
+            const aiService = require('../../services/ai/aiService');
+            const text = await aiService.generate(prompt, selectedKey.apiKey);
 
             // Estimate tokens (rough estimate: 1 token ≈ 4 characters)
             const tokensUsed = Math.ceil((prompt.length + text.length) / 4);

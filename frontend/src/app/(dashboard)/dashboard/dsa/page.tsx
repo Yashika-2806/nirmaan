@@ -195,41 +195,6 @@ export default function DSAPage() {
         setIsCreateSheetOpen(false);
     };
 
-    // Visualizer State
-    const [code, setCode] = useState(`// Selection Sort
-function selectionSort(arr) {
-  for (let i = 0; i < arr.length; i++) {
-    let minIdx = i;
-    for (let j = i + 1; j < arr.length; j++) {
-      if (arr[j] < arr[minIdx]) {
-        minIdx = j;
-      }
-    }
-    swap(arr, i, minIdx);
-  }
-}`);
-    const [bars, setBars] = useState([40, 70, 20, 90, 30, 60, 10, 50]);
-    const [isVisualizing, setIsVisualizing] = useState(false);
-
-    // Mock visualization
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isVisualizing) {
-            interval = setInterval(() => {
-                setBars(prev => {
-                    const newBars = [...prev];
-                    const i = Math.floor(Math.random() * 8);
-                    const j = Math.floor(Math.random() * 8);
-                    const temp = newBars[i];
-                    newBars[i] = newBars[j];
-                    newBars[j] = temp;
-                    return newBars;
-                });
-            }, 500);
-        }
-        return () => clearInterval(interval);
-    }, [isVisualizing]);
-
     // AI Review State
     const [reviewQuestion, setReviewQuestion] = useState<any>(null);
     const [reviewStep, setReviewStep] = useState(0);
@@ -500,71 +465,25 @@ function selectionSort(arr) {
                 </div>
             )}
 
-            {/* LEFT PANEL: Algo Visualizer */}
-            <div className="w-full xl:w-2/5 flex flex-col gap-4">
-                <div className="bg-[#111111] border border-gray-800 rounded-xl p-1 flex items-center justify-between">
-                    <div className="flex items-center gap-3 px-4 py-2">
-                        <div className="p-2 bg-[#00D9FF]/10 rounded-lg">
-                            <Zap className="w-5 h-5 text-[#00D9FF]" />
+            {/* Main Content Area */}
+            <div className="w-full flex flex-col gap-4">
+                {/* Visualizer Link Card (Top area) */}
+                <div className="bg-gradient-to-r from-[#111111] to-[#0a0a0a] border border-[#00D9FF]/20 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[#00D9FF]/5 shadow-lg relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl transform translate-x-10 -translate-y-10 group-hover:bg-[#00D9FF]/10 transition-colors"></div>
+                    <div className="relative z-10 flex items-center gap-4">
+                        <div className="p-4 bg-[#00D9FF]/10 rounded-xl border border-[#00D9FF]/20">
+                            <Zap className="w-8 h-8 text-[#00D9FF]" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-white">Algo Visualizer</h2>
-                            <p className="text-xs text-gray-400">Step-by-step execution</p>
+                            <h2 className="text-xl font-bold text-white mb-1">Advanced Algorithms Visualizer</h2>
+                            <p className="text-sm text-gray-400">Step-by-step execution, multi-lingual narration, and code highlighting.</p>
                         </div>
                     </div>
+                    <Link href="/dashboard/dsa/visualizer" className="relative z-10 whitespace-nowrap px-6 py-3 bg-[#00D9FF] text-black font-bold rounded-xl hover:bg-[#00D9FF]/90 transition-all flex items-center gap-2 shadow-[0_0_15px_-3px_#00D9FF]">
+                        Open Advanced Visualizer <ArrowRight className="w-5 h-5" />
+                    </Link>
                 </div>
 
-                <div className="flex-1 bg-[#111111] border border-gray-800 rounded-xl p-4 flex flex-col gap-4 overflow-hidden relative group hover:border-[#00D9FF]/30 transition-all">
-                    {/* ... Visualizer Content ... */}
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 text-[#00D9FF] text-sm font-bold">
-                            <Code className="w-4 h-4" /> Code
-                        </div>
-                        <select className="bg-[#1a1a1a] border border-gray-700 text-xs rounded px-2 py-1 text-gray-300 outline-none">
-                            <option>Selection Sort</option>
-                            <option>Bubble Sort</option>
-                            <option>Insertion Sort</option>
-                        </select>
-                    </div>
-
-                    <div className="bg-[#0a0a0a] rounded-lg p-3 font-mono text-xs text-gray-400 border border-gray-800 h-48 overflow-auto">
-                        <pre>{code}</pre>
-                    </div>
-
-                    <button
-                        onClick={() => setIsVisualizing(!isVisualizing)}
-                        className={`w-full py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${isVisualizing ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-[#00D9FF] text-black hover:bg-[#00D9FF]/90'
-                            }`}
-                    >
-                        {isVisualizing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                        {isVisualizing ? 'Stop Visualization' : 'Visualize'}
-                    </button>
-
-                    <div className="flex-1 bg-[#0a0a0a] rounded-lg border border-gray-800 p-4 flex flex-col relative overflow-hidden">
-                        <div className="text-xs text-gray-500 mb-4 font-bold">Array Visualization</div>
-                        <div className="flex-1 flex items-end justify-center gap-2 px-4 pb-4">
-                            {bars.map((h, i) => (
-                                <div
-                                    key={i}
-                                    style={{ height: `${h}%` }}
-                                    className="flex-1 bg-gradient-to-t from-[#00D9FF] to-cyan-300 rounded-t-sm transition-all duration-300 shadow-[0_0_10px_-2px_#00D9FF]"
-                                ></div>
-                            ))}
-                        </div>
-
-                        <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-800">
-                            <button className="p-1 hover:text-white text-gray-500"><RotateCcw className="w-4 h-4" /></button>
-                            <div className="w-32 bg-gray-800 h-1 rounded-full overflow-hidden">
-                                <div className="bg-[#00D9FF] w-1/3 h-full"></div>
-                            </div>
-                            <span className="text-xs text-gray-500">Speed 1x</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* RIGHT PANEL: Sheets & Questions */}
-            <div className="w-full xl:w-3/5 flex flex-col gap-4">
                 {/* Filters */}
                 <div className="bg-[#111111] border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
@@ -592,11 +511,11 @@ function selectionSort(arr) {
                         </div>
                     </div>
 
-                    <div className="w-36">
+                    <div className="w-full md:w-48">
                         <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Difficulty</label>
                         <div className="relative">
                             <select
-                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none"
+                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none cursor-pointer"
                                 value={difficulty}
                                 onChange={(e) => setDifficulty(e.target.value)}
                             >
@@ -609,11 +528,11 @@ function selectionSort(arr) {
                         </div>
                     </div>
 
-                    <div className="w-36">
+                    <div className="w-full md:w-48">
                         <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Topic</label>
                         <div className="relative">
                             <select
-                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none"
+                                className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none cursor-pointer"
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
                             >
@@ -631,13 +550,15 @@ function selectionSort(arr) {
                 <div className="bg-[#111111] border border-gray-800 rounded-xl p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#00D9FF]/5 rounded-full blur-3xl transform translate-x-10 -translate-y-10"></div>
                     <div className="relative z-10">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className="p-3 bg-[#0a0a0a] rounded-xl border border-gray-800">
-                                <Code className="w-8 h-8 text-[#00D9FF]" />
-                            </div>
-                            <div>
-                                <h2 className="text-3xl font-bold text-white mb-1">{activeSheet.name}</h2>
-                                <p className="text-gray-400 text-lg">{activeSheet.desc}</p>
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                            <div className="flex items-start gap-4">
+                                <div className="p-4 bg-[#0a0a0a] rounded-xl border border-gray-800 mt-1 md:mt-0 shadow-inner">
+                                    <Code className="w-8 h-8 text-[#00D9FF]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-white mb-2">{activeSheet.name}</h2>
+                                    <p className="text-gray-400 text-lg">{activeSheet.desc}</p>
+                                </div>
                             </div>
                         </div>
 
