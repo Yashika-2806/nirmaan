@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
+const hpp = require('hpp');
+const mongoSanitize = require('express-mongo-sanitize');
 const connectDB = require('./config/database');
 const config = require('./config/env');
 const logger = require('./core/utils/logger');
@@ -11,15 +14,31 @@ const { startCareerTwinScheduler } = require('./modules/career-twin/scheduler');
 
 const app = express();
 
+app.disable('x-powered-by');
+app.set('trust proxy', config.trustProxy);
+
 // Connect to MongoDB
 connectDB();
 
 // Security middleware
 app.use(helmet());
+app.use(hpp());
+app.use(mongoSanitize());
+app.use(compression());
 
 // CORS configuration
 app.use(cors({
-    origin: config.frontendUrl,
+    origin: (origin, callback) => {
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        if (config.frontendUrls.includes('*') || config.frontendUrls.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('CORS origin not allowed'));
+    },
     credentials: true,
 }));
 
@@ -59,7 +78,7 @@ const PORT = config.port;
 app.listen(PORT, () => {
     logger.info(`🚀 Career OS API running on port ${PORT}`);
     logger.info(`📝 Environment: ${config.nodeEnv}`);
-    logger.info(`🌐 Frontend URL: ${config.frontendUrl}`);
+    logger.info(`🌐 Frontend URLs: ${config.frontendUrls.join(', ')}`);
     startCareerTwinScheduler();
 });
 

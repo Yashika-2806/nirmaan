@@ -22,21 +22,20 @@ export function Canvas({ type, stateSnapshot }: CanvasProps) {
         return (
             <div className="flex-1 flex items-end justify-center gap-1 w-full px-8 pb-8 h-full min-h-[300px]">
                 {arr.map((val, i) => {
-                    const height = (val / maxVal) * 100;
-                    let bgColor = 'bg-gray-700'; // default
+                    const barHeight = Math.max((val / maxVal) * 100, 2);
+                    let barColor = 'text-gray-700';
                     
-                    if (sorted.includes(i)) bgColor = 'bg-green-500 shadow-[0_0_10px_-2px_#22c55e]';
-                    else if (swapped.includes(i)) bgColor = 'bg-red-500 shadow-[0_0_10px_-2px_#ef4444]';
-                    else if (compared.includes(i)) bgColor = 'bg-yellow-500 shadow-[0_0_10px_-2px_#eab308]';
-                    else bgColor = 'bg-gradient-to-t from-[#00D9FF] to-cyan-300 shadow-[0_0_10px_-2px_#00D9FF]';
+                    if (sorted.includes(i)) barColor = 'text-green-500';
+                    else if (swapped.includes(i)) barColor = 'text-red-500';
+                    else if (compared.includes(i)) barColor = 'text-yellow-500';
+                    else barColor = 'text-cyan-400';
 
                     return (
                         <div key={i} className="flex flex-col items-center gap-2 group flex-1 h-full justify-end">
                             <div className="text-xs text-gray-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val}</div>
-                            <div
-                                style={{ height: `${height}%` }}
-                                className={`w-full rounded-t-sm transition-all duration-300 ${bgColor}`}
-                            ></div>
+                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`w-full h-full max-h-full ${barColor}`}>
+                                <rect x="0" y={100 - barHeight} width="100" height={barHeight} className="fill-current transition-all duration-300" />
+                            </svg>
                             <div className="text-xs text-gray-600">{i}</div>
                         </div>
                     );
@@ -114,11 +113,29 @@ export function Canvas({ type, stateSnapshot }: CanvasProps) {
                         const isCurrent = currentNode === node;
                         const isVisited = visited.includes(node);
                         return (
-                            <div key={i} style={{ left: x, top: y }} className={`absolute w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 z-10 
-                                ${isCurrent ? 'bg-yellow-500 text-black shadow-[0_0_15px_#eab308] scale-110' 
-                                : isVisited ? 'bg-[#00D9FF] text-black shadow-[0_0_10px_#00D9FF]' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
-                                {node}
-                            </div>
+                            <svg key={i} className="absolute inset-0 w-full h-full pointer-events-none">
+                                <circle
+                                    cx={x + 20}
+                                    cy={y + 20}
+                                    r={20}
+                                    className={isCurrent ? 'fill-yellow-500' : isVisited ? 'fill-cyan-400' : 'fill-gray-800'}
+                                />
+                                <circle
+                                    cx={x + 20}
+                                    cy={y + 20}
+                                    r={19}
+                                    className={isCurrent || isVisited ? 'fill-transparent' : 'stroke-gray-700'}
+                                    strokeWidth={isCurrent || isVisited ? 0 : 2}
+                                />
+                                <text
+                                    x={x + 20}
+                                    y={y + 25}
+                                    textAnchor="middle"
+                                    className={`font-bold text-sm ${isCurrent || isVisited ? 'fill-black' : 'fill-gray-300'}`}
+                                >
+                                    {node}
+                                </text>
+                            </svg>
                         )
                     })}
                </div>

@@ -24,6 +24,9 @@ const resourceIcon = (type: string) => {
 const progressColor = (pct: number) =>
     pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-[#00D9FF]' : pct >= 25 ? 'bg-yellow-500' : 'bg-gray-600';
 
+const progressFillColor = (pct: number) =>
+    pct >= 80 ? 'text-green-500' : pct >= 50 ? 'text-[#00D9FF]' : pct >= 25 ? 'text-yellow-500' : 'text-gray-600';
+
 /** Parse a milestone duration string like "Month 1-1.5" → number of weeks */
 function parseDurationToWeeks(duration: string): number {
     const rangeMatch = duration.match(/Month\s*([\d.]+)\s*[-–]\s*([\d.]+)/i);
@@ -262,7 +265,7 @@ function QuizModal({ skills, milestoneTitle, onClose }: { skills: string[]; mile
                             <p className="text-base text-white/50 truncate max-w-[260px]">{milestoneTitle}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <button onClick={onClose} title="Close quiz" aria-label="Close quiz" className="p-2 hover:bg-white/10 rounded-lg transition-colors">
                         <X className="w-5 h-5 text-white/60" />
                     </button>
                 </div>
@@ -331,8 +334,9 @@ function QuizModal({ skills, milestoneTitle, onClose }: { skills: string[]; mile
                                 </p>
                             </div>
                             <div className="w-full bg-white/10 rounded-full h-3">
-                                <div className={`h-3 rounded-full transition-all ${score >= 4 ? 'bg-green-400' : score >= 3 ? 'bg-[#00D9FF]' : 'bg-yellow-400'}`}
-                                    style={{ width: `${(score / questions.length) * 100}%` }} />
+                                <svg viewBox="0 0 100 12" preserveAspectRatio="none" className={`w-full h-3 ${score >= 4 ? 'text-green-400' : score >= 3 ? 'text-[#00D9FF]' : 'text-yellow-400'}`}>
+                                    <rect x="0" y="0" width={(score / questions.length) * 100} height="12" className="fill-current transition-all" />
+                                </svg>
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => { setStep('quiz'); setCurrent(0); setSelected(null); setAnswers([]); }}
@@ -534,7 +538,7 @@ function SkillInput({ skills, onChange }: { skills: string[]; onChange: (s: stri
                     placeholder="Type a skill and press Enter…"
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00D9FF]/50"
                 />
-                <button onClick={add} className="px-4 py-3 bg-white/10 hover:bg-white/15 rounded-xl text-white/70 transition-colors">
+                <button onClick={add} title="Add skill" aria-label="Add skill" className="px-4 py-3 bg-white/10 hover:bg-white/15 rounded-xl text-white/70 transition-colors">
                     <Plus className="w-5 h-5" />
                 </button>
             </div>
@@ -543,7 +547,7 @@ function SkillInput({ skills, onChange }: { skills: string[]; onChange: (s: stri
                     {skills.map(s => (
                         <span key={s} className="flex items-center gap-1.5 bg-[#00D9FF]/10 border border-[#00D9FF]/20 text-[#00D9FF] text-base px-3 py-1 rounded-full">
                             {s}
-                            <button onClick={() => onChange(skills.filter(x => x !== s))} className="hover:text-white transition-colors">
+                            <button onClick={() => onChange(skills.filter(x => x !== s))} title={`Remove ${s}`} aria-label={`Remove ${s}`} className="hover:text-white transition-colors">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         </span>
@@ -730,14 +734,14 @@ function RoadmapDetail({
 
             {/* Top bar */}
             <div className="flex items-center gap-3">
-                <button onClick={onBack} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                <button onClick={onBack} title="Back to roadmaps" aria-label="Back to roadmaps" className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                     <ChevronLeft className="w-5 h-5 text-white" />
                 </button>
                 <div className="flex-1 min-w-0">
                     <h1 className="text-3xl font-bold text-white truncate">{roadmap.title}</h1>
                     <p className="text-lg text-white/50">{roadmap.currentRole} → {roadmap.targetGoal}</p>
                 </div>
-                <button onClick={handleDelete} className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors">
+                <button onClick={handleDelete} title="Delete roadmap" aria-label="Delete roadmap" className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors">
                     <Trash2 className="w-5 h-5" />
                 </button>
             </div>
@@ -756,7 +760,9 @@ function RoadmapDetail({
                     </div>
                 </div>
                 <div className="w-full bg-white/10 rounded-full h-3">
-                    <div className={`h-3 rounded-full transition-all duration-500 ${progressColor(pct)}`} style={{ width: `${pct}%` }} />
+                    <svg viewBox="0 0 100 12" preserveAspectRatio="none" className={`w-full h-3 ${progressFillColor(pct)}`}>
+                        <rect x="0" y="0" width={pct} height="12" className="fill-current transition-all duration-500" />
+                    </svg>
                 </div>
             </div>
 
@@ -870,6 +876,8 @@ export default function RoadmapPage() {
                 <div className="flex items-center gap-3">
                     {(phase === 'setup' || phase === 'detail') && (
                         <button onClick={() => { setPhase('hub'); setActiveRoadmap(null); }}
+                            title="Back to roadmap hub"
+                            aria-label="Back to roadmap hub"
                             className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -937,7 +945,9 @@ export default function RoadmapPage() {
                                                 <span className="font-semibold text-white/60">{pct}%</span>
                                             </div>
                                             <div className="w-full bg-white/10 rounded-full h-1.5">
-                                                <div className={`h-1.5 rounded-full ${progressColor(pct)}`} style={{ width: `${pct}%` }} />
+                                                <svg viewBox="0 0 100 6" preserveAspectRatio="none" className={`w-full h-1.5 ${progressFillColor(pct)}`}>
+                                                    <rect x="0" y="0" width={pct} height="6" className="fill-current" />
+                                                </svg>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 text-base text-white/30">

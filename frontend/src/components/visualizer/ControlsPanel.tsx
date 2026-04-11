@@ -32,6 +32,8 @@ export function ControlsPanel({
                         {isNarrationEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                     </button>
                     <select
+                        title="Narration Language"
+                        aria-label="Narration Language"
                         className="bg-transparent text-sm text-gray-300 outline-none pr-2"
                         value={language}
                         onChange={(e) => onLanguageChange(e.target.value as any)}
@@ -46,6 +48,8 @@ export function ControlsPanel({
                 <div className="flex items-center gap-3">
                     <FastForward className="w-4 h-4 text-gray-500" />
                     <input
+                        title="Playback speed"
+                        aria-label="Playback speed"
                         type="range" min="0.5" max="3" step="0.5" value={speed}
                         onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
                         className="w-24 accent-[#00D9FF]"

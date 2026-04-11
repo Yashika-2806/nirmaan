@@ -270,7 +270,7 @@ export default function DSAPage() {
     );
 
     return (
-        <div className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-100px)] relative">
+        <div className="flex flex-col xl:flex-row gap-6 min-h-[calc(100vh-100px)] relative overflow-x-hidden">
 
             {/* Create Sheet Modal */}
             {isCreateSheetOpen && (
@@ -327,6 +327,8 @@ export default function DSAPage() {
                                             {newSheetQuestions.length > 1 && (
                                                 <button
                                                     onClick={() => removeQuestionRow(index)}
+                                                    aria-label={`Remove question ${index + 1}`}
+                                                    title={`Remove question ${index + 1}`}
                                                     className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors mt-1"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -490,6 +492,8 @@ export default function DSAPage() {
                         <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">DSA Sheet</label>
                         <div className="relative">
                             <select
+                                title="Select DSA sheet"
+                                aria-label="Select DSA sheet"
                                 className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none focus:border-[#00D9FF] outline-none cursor-pointer"
                                 value={activeSheet.id}
                                 onChange={(e) => {
@@ -515,6 +519,8 @@ export default function DSAPage() {
                         <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Difficulty</label>
                         <div className="relative">
                             <select
+                                title="Filter by difficulty"
+                                aria-label="Filter by difficulty"
                                 className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none cursor-pointer"
                                 value={difficulty}
                                 onChange={(e) => setDifficulty(e.target.value)}
@@ -532,6 +538,8 @@ export default function DSAPage() {
                         <label className="text-sm text-gray-500 font-bold mb-1 block uppercase">Topic</label>
                         <div className="relative">
                             <select
+                                title="Filter by topic"
+                                aria-label="Filter by topic"
                                 className="w-full bg-[#1a1a1a] border border-gray-700 text-white text-base rounded-lg px-3 py-2.5 appearance-none outline-none cursor-pointer"
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
@@ -572,12 +580,12 @@ export default function DSAPage() {
                                 }%
                             </span>
                         </div>
-                        <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden mb-6">
-                            <div
-                                className="h-full bg-[#00D9FF] transition-all duration-500"
-                                style={{ width: `${filteredQuestions.length > 0 ? (filteredQuestions.filter(q => q.status === 'solved').length / filteredQuestions.length) * 100 : 0}%` }}
-                            ></div>
-                        </div>
+                        <progress
+                            className="w-full h-2 mb-6 [&::-webkit-progress-bar]:bg-gray-800 [&::-webkit-progress-value]:bg-[#00D9FF] [&::-moz-progress-bar]:bg-[#00D9FF]"
+                            max={filteredQuestions.length || 1}
+                            value={filteredQuestions.filter(q => q.status === 'solved').length}
+                            aria-label="Sheet completion progress"
+                        />
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-4 gap-4">

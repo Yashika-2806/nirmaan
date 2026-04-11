@@ -32,6 +32,18 @@ export function ArrayVisualization({
     large: { barHeight: 50, barWidth: 32, gap: 6, containerHeight: 400 },
   }[size];
 
+  const containerHeightClass = {
+    small: 'min-h-[200px]',
+    medium: 'min-h-[300px]',
+    large: 'min-h-[400px]',
+  }[size];
+
+  const barWidthClass = {
+    small: 'w-3',
+    medium: 'w-5',
+    large: 'w-8',
+  }[size];
+
   const getBarColor = (index: number, value: number) => {
     if (sortedElements.includes(index)) return 'bg-gradient-to-t from-green-600 to-green-400 shadow-lg shadow-green-500/50';
     if (minIndex === index) return 'bg-gradient-to-t from-amber-600 to-amber-400 shadow-lg shadow-amber-500/50';
@@ -76,7 +88,7 @@ export function ArrayVisualization({
         </motion.h3>
       )}
 
-      <div className="flex items-flex-end gap-1.5 justify-center p-8 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-700/50 shadow-2xl" style={{ minHeight: sizeConfig.containerHeight }}>
+      <div className={`flex items-flex-end gap-1.5 justify-center p-8 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-700/50 shadow-2xl ${containerHeightClass}`}>
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -95,11 +107,7 @@ export function ArrayVisualization({
                 layout: { type: 'spring', stiffness: 100, damping: 20 },
                 height: { type: 'spring', stiffness: 100, damping: 20 },
               }}
-              className={`rounded-t-lg transition-all cursor-pointer ${getBarColor(index, value)}`}
-              style={{
-                width: sizeConfig.barWidth,
-                minHeight: 4,
-              }}
+              className={`rounded-t-lg transition-all cursor-pointer min-h-1 ${barWidthClass} ${getBarColor(index, value)}`}
               title={`Index ${index}: ${value}`}
               whileHover={{ y: -4 }}
             >

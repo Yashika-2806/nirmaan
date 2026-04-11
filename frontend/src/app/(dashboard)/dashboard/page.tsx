@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import {
     ArrowRight,
@@ -28,6 +28,8 @@ import { trackEvent } from '@/lib/analytics';
 import { OnboardingData, OnboardingGate } from '@/components/growth/OnboardingGate';
 import { PaywallModal } from '@/components/growth/PaywallModal';
 import { TimedNudgeCard } from '@/components/growth/TimedNudgeCard';
+import { roadmapService } from '@/services/roadmapService';
+import { interviewService } from '@/services/interviewService';
 
 type SprintTask = {
     id: string;
@@ -38,8 +40,24 @@ type SprintTask = {
     done: boolean;
 };
 
+type InterviewSessionLite = {
+    _id: string;
+    company: string;
+    role: string;
+    status: 'in-progress' | 'completed' | 'abandoned';
+    completedAt?: string | null;
+};
+
+type RecentActivityItem = {
+    id: string;
+    type: 'dsa' | 'interview' | 'roadmap';
+    title: string;
+    meta: string;
+    completedAt?: string;
+};
+
 export default function DashboardPage() {
-    const { user, isAuthenticated, updateProfile } = useAuthStore();
+    const { user, isAuthenticated, accessToken, updateProfile } = useAuthStore();
     const router = useRouter();
     const [gamificationProfile, setGamificationProfile] = useState<GamificationProfile | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
@@ -51,6 +69,10 @@ export default function DashboardPage() {
     const [paywallOpen, setPaywallOpen] = useState(false);
     const [paywallFeatureName, setPaywallFeatureName] = useState('AI Mentor Check-In');
     const [paywallSource, setPaywallSource] = useState('dashboard');
+    const [roadmaps, setRoadmaps] = useState<any[]>([]);
+    const [interviewSessions, setInterviewSessions] = useState<InterviewSessionLite[]>([]);
+    const lastGamificationErrorRef = useRef<string | null>(null);
+    const gamificationRetryCountRef = useRef(0);
 
     const isPaidUser = (user?.subscription?.tier || '').toLowerCase() !== 'free';
 
@@ -84,8 +106,22 @@ export default function DashboardPage() {
     const completedSprintTasks = sprintTasks.filter((task) => task.done).length;
     const sprintProgress = Math.round((completedSprintTasks / sprintTasks.length) * 100);
 
+    const loadCompletionData = useCallback(async () => {
+        try {
+            const [roadmapData, sessionsData] = await Promise.all([
+                roadmapService.getAll(),
+                interviewService.getSessions(),
+            ]);
+
+            setRoadmaps(Array.isArray(roadmapData) ? roadmapData : []);
+            setInterviewSessions(Array.isArray(sessionsData) ? sessionsData : []);
+        } catch {
+            // Keep dashboard usable even if one source fails.
+        }
+    }, []);
+
     const loadGamificationData = useCallback(async () => {
-        if (!user?._id) {
+        if (!isAuthenticated || !accessToken || !user?._id) {
             return;
         }
 
@@ -102,16 +138,62 @@ export default function DashboardPage() {
 
             setGamificationProfile(profileData);
             setLeaderboard(leaderboardData);
+            lastGamificationErrorRef.current = null;
+            gamificationRetryCountRef.current = 0;
         } catch (error: any) {
-            toast.error(error?.response?.data?.message || 'Failed to load gamification data');
+            const isNetworkError = !error?.response;
+            if (isNetworkError && gamificationRetryCountRef.current < 2) {
+                gamificationRetryCountRef.current += 1;
+
+                if (!gamificationProfile && gamificationRetryCountRef.current === 1) {
+                    toast.error('Unable to reach server. Retrying...');
+                }
+
+                setTimeout(() => {
+                    loadGamificationData();
+                }, 800 * gamificationRetryCountRef.current);
+
+                return;
+            }
+
+            const message =
+                error?.response?.data?.message ||
+                (isNetworkError ? 'Unable to reach server.' : error?.message) ||
+                'Failed to load gamification data';
+
+            if (lastGamificationErrorRef.current !== message) {
+                lastGamificationErrorRef.current = message;
+                toast.error(message);
+            }
         } finally {
             setIsGamificationLoading(false);
         }
-    }, [leaderboardMetric, leaderboardScope, user?._id]);
+    }, [accessToken, isAuthenticated, leaderboardMetric, leaderboardScope, user?._id, gamificationProfile]);
 
     useEffect(() => {
         loadGamificationData();
     }, [loadGamificationData]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadCompletionData();
+        }
+    }, [isAuthenticated, loadCompletionData]);
+
+    useEffect(() => {
+        const routesToPrefetch = [
+            '/dashboard/dsa',
+            '/dashboard/interview',
+            '/dashboard/resume',
+            '/dashboard/roadmap',
+            '/research',
+            '/dashboard/pdf',
+            '/dashboard/skill-marketplace',
+            '/dashboard/career-twin',
+        ];
+
+        routesToPrefetch.forEach((route) => router.prefetch(route));
+    }, [router]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?._id) {
@@ -184,11 +266,66 @@ export default function DashboardPage() {
         toast.success('Your sprint plan is ready.');
     };
 
+    const dsaSolvedCount = gamificationProfile?.stats?.dsa_problem_solved || 0;
+    const interviewCompletedCount = useMemo(
+        () => interviewSessions.filter((s) => s.status === 'completed').length,
+        [interviewSessions]
+    );
+    const roadmapMilestonesCompleted = useMemo(
+        () => roadmaps.reduce((sum, roadmap) => sum + (roadmap.milestones || []).filter((m: any) => m.completed).length, 0),
+        [roadmaps]
+    );
+    const roadmapCompletedCount = useMemo(
+        () => roadmaps.filter((roadmap) => roadmap.status === 'completed').length,
+        [roadmaps]
+    );
+
+    const recentActivities = useMemo<RecentActivityItem[]>(() => {
+        const interviewItems: RecentActivityItem[] = interviewSessions
+            .filter((session) => session.status === 'completed' && session.completedAt)
+            .map((session) => ({
+                id: `interview-${session._id}`,
+                type: 'interview',
+                title: `Completed ${session.company} ${session.role} interview`,
+                meta: 'Interview Prep',
+                completedAt: session.completedAt || undefined,
+            }));
+
+        const roadmapItems: RecentActivityItem[] = roadmaps.flatMap((roadmap) =>
+            (roadmap.milestones || [])
+                .filter((milestone: any) => milestone.completed && milestone.completedAt)
+                .map((milestone: any, index: number) => ({
+                    id: `roadmap-${roadmap._id}-${index}`,
+                    type: 'roadmap',
+                    title: `Completed roadmap milestone: ${milestone.title}`,
+                    meta: roadmap.title,
+                    completedAt: milestone.completedAt,
+                }))
+        );
+
+        const dsaItem: RecentActivityItem[] = dsaSolvedCount > 0
+            ? [{
+                id: 'dsa-summary',
+                type: 'dsa',
+                title: `Solved ${dsaSolvedCount} DSA problems`,
+                meta: 'DSA Practice',
+            }]
+            : [];
+
+        return [...interviewItems, ...roadmapItems, ...dsaItem]
+            .sort((a, b) => {
+                const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                return bTime - aTime;
+            })
+            .slice(0, 6);
+    }, [interviewSessions, roadmaps, dsaSolvedCount]);
+
     // If not authenticated, show the public dashboard with login CTA
     if (!isAuthenticated) {
         return (
-            <div className="space-y-8">
-                <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-8">
+            <div className="space-y-6">
+                <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-6">
                     <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
                     <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
                     <div className="relative z-10 max-w-3xl">
@@ -196,11 +333,11 @@ export default function DashboardPage() {
                             <Sparkles className="h-4 w-4" />
                             Placement Acceleration Platform
                         </div>
-                        <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-                            Crack placements with a daily sprint, not random prep.
+                        <h1 className="text-3xl font-bold leading-tight md:text-4xl">
+                            Crack placements with focused daily prep.
                         </h1>
-                        <p className="mt-4 text-lg text-slate-300">
-                            Sign in to unlock your readiness score, daily task plan, and AI mentor check-ins.
+                        <p className="mt-3 text-base text-slate-300">
+                            Sign in to view readiness score, task plan, and AI mentor checkpoints.
                         </p>
                         <Link
                             href="/login?src=dashboard_public"
@@ -232,8 +369,8 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="space-y-8">
-            <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-8">
+        <div className="space-y-6">
+            <section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#0e162d] p-6">
                 <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
                 <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
                 <div className="relative z-10 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -242,11 +379,11 @@ export default function DashboardPage() {
                             <Sparkles className="h-4 w-4" />
                             Placement Sprint Control Center
                         </div>
-                        <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-                            Welcome back, {user?.name}. Let&#39;s move your shortlist odds today.
+                        <h1 className="text-3xl font-bold leading-tight md:text-4xl">
+                            Welcome back, {user?.name}. Let&#39;s improve your shortlist odds.
                         </h1>
-                        <p className="mt-4 text-lg text-slate-300">
-                            Most students lose momentum by day 5. Your edge is daily execution. Finish today&#39;s sprint before 11:30 PM.
+                        <p className="mt-3 text-base text-slate-300">
+                            Your edge is consistency. Complete today&#39;s sprint to keep momentum.
                         </p>
                         <div className="mt-6 flex flex-wrap gap-3">
                             <Link
@@ -290,10 +427,10 @@ export default function DashboardPage() {
                 isPaidUser={isPaidUser}
             />
 
-            <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-                <div className="rounded-2xl border border-white/10 bg-[#111a33] p-6">
+            <section className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+                <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
                     <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-2xl font-bold text-white">Today&#39;s Placement Sprint</h2>
+                        <h2 className="text-xl font-bold text-white">Today&#39;s Placement Sprint</h2>
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-300/15 px-3 py-1 text-sm font-semibold text-amber-200">
                             <Flame className="h-4 w-4" />
                             {gamificationProfile?.streakCurrent || 0} day streak
@@ -365,9 +502,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-5">
-                    <div className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-5">
+                    <div className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-amber-100">Upgrade Trigger</p>
-                        <h3 className="mt-2 text-xl font-semibold text-white">You are at {gamificationProfile?.readinessScore || 0}/100 readiness.</h3>
+                        <h3 className="mt-2 text-lg font-semibold text-white">You are at {gamificationProfile?.readinessScore || 0}/100 readiness.</h3>
                         <p className="mt-2 text-sm text-amber-50/95">
                             Pro unlocks company-specific prep plans, deeper mock analysis, and daily mentor optimization.
                         </p>
@@ -388,8 +525,8 @@ export default function DashboardPage() {
                         </button>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
-                        <h3 className="text-lg font-semibold text-white">Weekly Momentum</h3>
+                    <div className="rounded-2xl border border-white/10 bg-[#111a33] p-4">
+                        <h3 className="text-base font-semibold text-white">Weekly Momentum</h3>
                         <div className="mt-4 grid gap-3">
                             <MomentumItem icon={<Crown className="h-4 w-4 text-cyan-200" />} label="Career Level" value={`L${gamificationProfile?.level || 1}`} />
                             <MomentumItem icon={<Coins className="h-4 w-4 text-yellow-300" />} label="Credits" value={`${gamificationProfile?.credits?.balance || 0}`} />
@@ -404,12 +541,12 @@ export default function DashboardPage() {
                 <StatCard
                     icon={<Code className="w-6 h-6 text-[#00D9FF]" />}
                     label="DSA Problems Solved"
-                    value={`${gamificationProfile?.stats?.dsa_problem_solved || 0}`}
+                    value={`${dsaSolvedCount}`}
                 />
                 <StatCard
                     icon={<MessageSquare className="w-6 h-6 text-[#00D9FF]" />}
                     label="Interview Sessions"
-                    value={`${gamificationProfile?.stats?.mock_interview_completed || 0}`}
+                    value={`${interviewCompletedCount}`}
                 />
                 <StatCard
                     icon={<FileText className="w-6 h-6 text-[#00D9FF]" />}
@@ -424,10 +561,58 @@ export default function DashboardPage() {
                 />
             </div>
 
+            <section className="rounded-2xl border border-white/10 bg-[#111a33] p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-bold text-white">Progress Across Modules</h2>
+                    <span className="text-xs text-slate-300 uppercase tracking-[0.2em]">Live Completion Feed</span>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <ProgressMiniCard
+                        icon={<Code className="w-4 h-4 text-cyan-200" />}
+                        title="Questions Solved"
+                        value={`${dsaSolvedCount}`}
+                    />
+                    <ProgressMiniCard
+                        icon={<MessageSquare className="w-4 h-4 text-emerald-200" />}
+                        title="Interviews Completed"
+                        value={`${interviewCompletedCount}`}
+                    />
+                    <ProgressMiniCard
+                        icon={<Target className="w-4 h-4 text-violet-200" />}
+                        title="Roadmap Milestones"
+                        value={`${roadmapMilestonesCompleted}`}
+                    />
+                    <ProgressMiniCard
+                        icon={<Trophy className="w-4 h-4 text-amber-200" />}
+                        title="Roadmaps Completed"
+                        value={`${roadmapCompletedCount}`}
+                    />
+                </div>
+
+                <div className="mt-6 space-y-3">
+                    {recentActivities.length === 0 ? (
+                        <p className="text-sm text-slate-400">No completion events yet. Start with DSA, interview prep, or roadmap tasks to see progress here.</p>
+                    ) : (
+                        recentActivities.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-white truncate">{item.title}</p>
+                                    <p className="text-xs text-slate-400">{item.meta}</p>
+                                </div>
+                                <span className="text-xs text-slate-400 shrink-0 ml-3">
+                                    {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : 'Updated'}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </section>
+
             <div>
                 <div className="flex items-center gap-2 mb-6">
                     <Zap className="w-5 h-5 text-[#00D9FF]" />
-                    <h2 className="text-2xl font-bold text-white">Action Hubs</h2>
+                    <h2 className="text-xl font-bold text-white">Action Hubs</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <ActionCard
@@ -510,7 +695,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
                         <Crown className="w-5 h-5 text-[#00D9FF]" />
-                        <h2 className="text-2xl font-bold text-white">Performance and Leaderboard</h2>
+                        <h2 className="text-xl font-bold text-white">Performance and Leaderboard</h2>
                     </div>
                     <div className="px-3 py-1 rounded-full border border-[#00D9FF]/40 bg-[#00D9FF]/10 text-xs font-semibold text-[#00D9FF] tracking-wide">
                         SEASON LIVE
@@ -731,9 +916,21 @@ export default function DashboardPage() {
     );
 }
 
+function ProgressMiniCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-300">{title}</span>
+                <span>{icon}</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+        </div>
+    );
+}
+
 function StatCard({ icon, label, value, subtext = '+0%' }: { icon: React.ReactNode; label: string; value: string; subtext?: string }) {
     return (
-        <div className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-6 hover:border-[#00D9FF]/50 transition-all duration-300">
+        <div className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-5 hover:border-[#00D9FF]/50 transition-all duration-300">
             <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 rounded-lg bg-[#00D9FF]/10 flex items-center justify-center">
                     {icon}
@@ -741,7 +938,7 @@ function StatCard({ icon, label, value, subtext = '+0%' }: { icon: React.ReactNo
                 <span className="text-xs text-green-400 font-medium">{subtext}</span>
             </div>
             <p className="text-gray-400 text-sm mb-1">{label}</p>
-            <p className="text-3xl font-bold text-white">{value}</p>
+            <p className="text-2xl font-bold text-white">{value}</p>
         </div>
     );
 }
@@ -778,39 +975,56 @@ function ActionCard({
     const router = useRouter();
     const { isAuthenticated } = useAuthStore();
 
+    const prefetchTarget = () => {
+        if (!premiumLocked) {
+            router.prefetch(href);
+        }
+    };
+
+    useEffect(() => {
+        prefetchTarget();
+        // Intentionally run once for this card's destination.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        trackEvent('action_hub_clicked', {
+        const analyticsPayload = {
             source: analyticsSource,
             hub: title,
             destination: href,
             premiumLocked,
-        });
+        };
 
         if (!isAuthenticated) {
             e.preventDefault();
             router.push('/login?src=action_hub');
+            setTimeout(() => trackEvent('action_hub_clicked', analyticsPayload), 0);
             return;
         }
 
         if (premiumLocked) {
             onPremiumLocked?.();
+            setTimeout(() => trackEvent('action_hub_clicked', analyticsPayload), 0);
             return;
         }
 
         router.push(href);
+        setTimeout(() => trackEvent('action_hub_clicked', analyticsPayload), 0);
     };
 
     return (
         <div 
             onClick={handleClick}
-            className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-6 hover:border-[#00D9FF]/50 hover:bg-[#111111] transition-all duration-300 cursor-pointer h-full"
+            onMouseEnter={prefetchTarget}
+            onFocus={prefetchTarget}
+            className="group relative overflow-hidden rounded-xl bg-[#111111] border border-gray-800 p-5 hover:border-[#00D9FF]/50 hover:bg-[#111111] transition-all duration-300 cursor-pointer h-full"
         >
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#00D9FF]/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="relative z-10">
                 <div className="w-14 h-14 rounded-xl bg-[#00D9FF]/10 flex items-center justify-center mb-4 group-hover:bg-[#00D9FF]/20 transition-colors">
                     {icon}
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-white">{title}</h3>
+                <h3 className="text-base font-semibold mb-2 text-white">{title}</h3>
                 <p className="text-sm text-gray-400 mb-4">{description}</p>
                 <div className="flex items-center gap-2 text-[#00D9FF] text-sm font-medium">
                     <span>Get started</span>

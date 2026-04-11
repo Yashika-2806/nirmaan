@@ -309,7 +309,7 @@ export default function RoadmapPage() {
                         <div className="card bg-gradient-primary text-white">
                             <h3 className="font-semibold mb-2">Keep Going!</h3>
                             <p className="text-sm text-primary-100">
-                                You're making great progress. Stay consistent and you'll reach your goal!
+                                You&apos;re making great progress. Stay consistent and you&apos;ll reach your goal!
                             </p>
                         </div>
                     </div>

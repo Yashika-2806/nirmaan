@@ -31,6 +31,16 @@ const RESEARCH_TYPES: { value: ResearchType; label: string; icon: React.ReactNod
     },
 ];
 
+function renderInlineMarkdown(text: string) {
+    const segments = text.split(/(\*\*.*?\*\*)/g);
+    return segments.map((segment, index) => {
+        if (segment.startsWith('**') && segment.endsWith('**') && segment.length > 4) {
+            return <strong key={index} className="text-white">{segment.slice(2, -2)}</strong>;
+        }
+        return <span key={index}>{segment}</span>;
+    });
+}
+
 function MarkdownContent({ text }: { text: string }) {
     // Simple markdown renderer for headings, bold, bullets
     const lines = text.split('\n');
@@ -43,19 +53,18 @@ function MarkdownContent({ text }: { text: string }) {
                 if (line.startsWith('- ') || line.startsWith('* ')) return (
                     <div key={i} className="flex gap-2 text-base text-white/75">
                         <span className="text-[#00D9FF] shrink-0 mt-0.5">•</span>
-                        <span dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>') }} />
+                        <span>{renderInlineMarkdown(line.slice(2))}</span>
                     </div>
                 );
                 if (/^\d+\.\s/.test(line)) return (
                     <div key={i} className="flex gap-2 text-base text-white/75">
                         <span className="text-[#00D9FF] shrink-0 font-mono text-sm mt-0.5">{line.match(/^\d+/)?.[0]}.</span>
-                        <span dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\.\s/, '').replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>') }} />
+                        <span>{renderInlineMarkdown(line.replace(/^\d+\.\s/, ''))}</span>
                     </div>
                 );
                 if (line.trim() === '') return <div key={i} className="h-1" />;
                 return (
-                    <p key={i} className="text-base text-white/75 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>') }} />
+                    <p key={i} className="text-base text-white/75 leading-relaxed">{renderInlineMarkdown(line)}</p>
                 );
             })}
         </div>

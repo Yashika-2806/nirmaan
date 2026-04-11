@@ -1,0 +1,29 @@
+# Workspace-wide ignores
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+frontend/.next/
+frontend/out/
+
+# Logs and temp artifacts
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Environment files
+*.env
+*.env.local
+backend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -17,7 +17,7 @@ const apiLimiter = rateLimit({
 // Strict limiter for auth endpoints
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500, // Temporarily increased for testing/debugging
+    max: config.rateLimit.authMax,
     skipSuccessfulRequests: true,
     message: 'Too many authentication attempts, please try again later',
     handler: (req, res) => {
@@ -28,7 +28,7 @@ const authLimiter = rateLimit({
 // AI endpoint limiter
 const aiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 20, // 20 AI requests per minute
+    max: config.rateLimit.aiMax,
     message: 'AI request limit exceeded',
     handler: (req, res) => {
         ApiResponse.tooManyRequests(res, 'AI request limit exceeded. Upgrade your plan for higher limits.');

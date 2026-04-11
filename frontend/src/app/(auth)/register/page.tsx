@@ -58,91 +58,99 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 px-4">
-            <div className="max-w-md w-full">
-                <div className="card">
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-gradient-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                            <UserPlus className="w-8 h-8 text-white" />
-                        </div>
-                        <h1 className="text-3xl font-bold mb-2">Create Account</h1>
-                        <p className="text-gray-600">Start your AI-powered career journey</p>
+        <div className="min-h-screen bg-[#070c1a] text-white">
+            <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
+            <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl" />
+
+            <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8">
+                <div className="grid w-full gap-8 lg:grid-cols-[1.2fr_1fr]">
+                    <div className="hidden lg:block fade-up">
+                        <Link href="/" className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 tap-fast">
+                            <span className="h-2 w-2 rounded-full bg-cyan-300" />
+                            Back to Home
+                        </Link>
+                        <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight">Create your Nirmaan account</h1>
+                        <p className="mt-3 max-w-xl text-sm text-slate-300">Join the placement acceleration workflow with structured DSA, interview preparation, and progress analytics.</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Full Name
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                className="input"
-                                placeholder="John Doe"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            />
+                    <div className="fade-up stagger-1">
+                        <div className="rounded-2xl border border-white/15 bg-[#111a33]/80 p-6 shadow-2xl backdrop-blur-md">
+                            <div className="mb-6 text-center">
+                                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-300/40 bg-cyan-300/15">
+                                    <UserPlus className="h-6 w-6 text-cyan-200" />
+                                </div>
+                                <h2 className="text-2xl font-bold">Create Account</h2>
+                                <p className="mt-1 text-sm text-slate-400">Start your interview preparation workspace in under a minute.</p>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-300">Full Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="input"
+                                        placeholder="John Doe"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-300">Email</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        className="input"
+                                        placeholder="you@example.com"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-300">Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={8}
+                                        className="input"
+                                        placeholder="Minimum 8 characters"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-300">Confirm Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={8}
+                                        className="input"
+                                        placeholder="Re-enter password"
+                                        value={formData.confirmPassword}
+                                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="mt-2 w-full rounded-lg bg-gradient-to-r from-violet-400 to-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:shadow-lg hover:shadow-violet-500/30 disabled:cursor-not-allowed disabled:opacity-60 tap-fast"
+                                >
+                                    {isLoading ? 'Creating account...' : 'Create Account'}
+                                </button>
+                            </form>
+
+                            <p className="mt-5 text-center text-sm text-slate-400">
+                                Already have an account?{' '}
+                                <Link href="/login" className="font-semibold text-cyan-200 hover:text-cyan-100">
+                                    Sign in
+                                </Link>
+                            </p>
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Email
-                            </label>
-                            <input
-                                type="email"
-                                required
-                                className="input"
-                                placeholder="you@example.com"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                minLength={8}
-                                className="input"
-                                placeholder="••••••••"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Confirm Password
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                minLength={8}
-                                className="input"
-                                placeholder="Min 8 characters"
-                                value={formData.confirmPassword}
-                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="btn-secondary w-full"
-                        >
-                            {isLoading ? 'Creating account...' : 'Create Account'}
-                        </button>
-                    </form>
-
-                    <p className="mt-6 text-center text-gray-600">
-                        Already have an account?{' '}
-                        <Link href="/login" className="text-secondary-600 hover:text-secondary-700 font-medium">
-                            Sign in
-                        </Link>
-                    </p>
+                    </div>
                 </div>
             </div>
         </div>

@@ -4,12 +4,12 @@
 
 @layer base {
   html {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   @media (min-width: 1200px) {
     html {
-      font-size: 18px;
+      font-size: 17px;
     }
   }
 
@@ -32,11 +32,16 @@
     @apply font-semibold text-white;
     font-family: var(--font-display), sans-serif;
   }
+
+  button,
+  a[role='button'] {
+    touch-action: manipulation;
+  }
 }
 
 @layer components {
   .btn {
-    @apply px-5 py-3 rounded-lg text-base font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a0a];
+    @apply px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a0a];
   }
 
   .btn-primary {
@@ -52,11 +57,11 @@
   }
 
   .input {
-    @apply w-full px-4 py-3 bg-gray-900/50 border border-gray-800 rounded-lg text-base text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+    @apply w-full px-3.5 py-2.5 bg-gray-900/50 border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
   }
 
   .card {
-    @apply bg-gray-900/30 backdrop-blur-sm rounded-xl shadow-lg border border-gray-800/50 p-6 hover:border-gray-700/50 transition-all;
+    @apply bg-gray-900/30 backdrop-blur-sm rounded-xl shadow-lg border border-gray-800/50 p-5 hover:border-gray-700/50 transition-all;
   }
 
   .card-hover {
@@ -65,6 +70,41 @@
 }
 
 @layer utilities {
+  .tap-fast {
+    @apply transition-all duration-150 ease-out active:scale-[0.98];
+    will-change: transform;
+  }
+
+  .fade-up {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeUp 420ms ease-out forwards;
+  }
+
+  .stagger-1 {
+    animation-delay: 60ms;
+  }
+
+  .stagger-2 {
+    animation-delay: 120ms;
+  }
+
+  .stagger-3 {
+    animation-delay: 180ms;
+  }
+
+  .stagger-4 {
+    animation-delay: 240ms;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500;
   }
@@ -96,6 +136,13 @@
   .animate-gradient {
     background-size: 200% 200%;
     animation: gradient 3s ease infinite;
+  }
+
+  @keyframes fadeUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @keyframes gradient {

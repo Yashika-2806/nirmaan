@@ -170,12 +170,11 @@ export function ClassicTemplate({ resumeData, inputData }: { resumeData: ResumeD
 // ─────────────────────────────────────────────────────────────────────────────
 export function ModernTemplate({ resumeData, inputData }: { resumeData: ResumeData; inputData: InputData }) {
     const { personal, skills, experience, education, projects, certifications, competitiveProgramming, achievements } = resumeData;
-    const sidebarBg = '#0ea5e9';
 
     return (
-        <div className="font-sans text-[12px] leading-relaxed flex min-h-full" style={{ minHeight: '297mm' }}>
+        <div className="font-sans text-[12px] leading-relaxed flex min-h-[297mm]">
             {/* LEFT SIDEBAR */}
-            <div className="w-[34%] shrink-0 text-white p-6 flex flex-col gap-5" style={{ backgroundColor: sidebarBg }}>
+            <div className="w-[34%] shrink-0 text-white p-6 flex flex-col gap-5 bg-sky-500">
                 {/* Photo & Name */}
                 <div className="flex flex-col items-center text-center gap-3">
                     {inputData.photoPreview
@@ -263,14 +262,14 @@ export function ModernTemplate({ resumeData, inputData }: { resumeData: ResumeDa
             <div className="flex-1 p-6 bg-white">
                 {personal.summary && (
                     <section className="mb-5">
-                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-1 pb-1 border-b-2" style={{ borderColor: sidebarBg, color: sidebarBg }}>Profile</h2>
+                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-1 pb-1 border-b-2 border-sky-500 text-sky-500">Profile</h2>
                         <p className="text-gray-700 text-justify mt-2">{personal.summary}</p>
                     </section>
                 )}
 
                 {experience.length > 0 && (
                     <section className="mb-5">
-                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 border-b-2" style={{ borderColor: sidebarBg, color: sidebarBg }}>Experience</h2>
+                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 border-b-2 border-sky-500 text-sky-500">Experience</h2>
                         {experience.map((exp, i) => (
                             <div key={i} className="mb-4">
                                 <div className="flex justify-between items-baseline">
@@ -288,7 +287,7 @@ export function ModernTemplate({ resumeData, inputData }: { resumeData: ResumeDa
 
                 {projects.length > 0 && (
                     <section className="mb-5">
-                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 border-b-2" style={{ borderColor: sidebarBg, color: sidebarBg }}>Projects</h2>
+                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 border-b-2 border-sky-500 text-sky-500">Projects</h2>
                         {projects.map((proj, i) => (
                             <div key={i} className="mb-3">
                                 <div className="flex justify-between items-baseline">
@@ -308,7 +307,7 @@ export function ModernTemplate({ resumeData, inputData }: { resumeData: ResumeDa
 
                 {(competitiveProgramming || achievements?.filter(Boolean).length > 0) && (
                     <section className="mb-5">
-                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 border-b-2" style={{ borderColor: sidebarBg, color: sidebarBg }}>Achievements</h2>
+                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 border-b-2 border-sky-500 text-sky-500">Achievements</h2>
                         {competitiveProgramming && <p className="text-gray-700 mb-1">{competitiveProgramming}</p>}
                         {achievements?.filter(Boolean).length > 0 && (
                             <ul className="list-disc ml-5 text-gray-700 space-y-0.5">{achievements.filter(Boolean).map((a, i) => <li key={i}>{a}</li>)}</ul>
@@ -437,12 +436,11 @@ export function MinimalTemplate({ resumeData, inputData }: { resumeData: ResumeD
 // ─────────────────────────────────────────────────────────────────────────────
 export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: ResumeData; inputData: InputData }) {
     const { personal, skills, experience, education, projects, certifications, competitiveProgramming, achievements } = resumeData;
-    const headerBg = '#1e3a5f';
 
     return (
         <div className="font-sans text-[12.5px] leading-relaxed text-gray-800">
             {/* Bold header banner */}
-            <div className="text-white mb-6" style={{ backgroundColor: headerBg, margin: '-15mm -20mm 20px -20mm', padding: '18px 20mm' }}>
+            <div className="text-white mb-6 bg-[#1e3a5f] mt-[-15mm] mx-[-20mm] px-[20mm] py-[18px]">
                 <div className="flex items-center gap-5">
                     {inputData.photoPreview && (
                         <img src={inputData.photoPreview} alt="Profile" className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shrink-0" />
@@ -463,14 +461,14 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
 
             {personal.summary && (
                 <section className="mb-5">
-                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Executive Summary</h2>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Executive Summary</h2>
                     <p className="text-gray-700">{personal.summary}</p>
                 </section>
             )}
 
             {(skills.languages?.length > 0 || skills.frameworks?.length > 0) && (
                 <section className="mb-5">
-                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Core Competencies</h2>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Core Competencies</h2>
                     <div className="grid grid-cols-2 gap-y-1 text-[12px]">
                         {skills.languages?.length > 0 && <p><span className="font-semibold text-gray-700">Languages:</span> {skills.languages.join(', ')}</p>}
                         {skills.frameworks?.length > 0 && <p><span className="font-semibold text-gray-700">Frameworks:</span> {skills.frameworks.join(', ')}</p>}
@@ -482,13 +480,13 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
 
             {experience.length > 0 && (
                 <section className="mb-5">
-                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Professional Experience</h2>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Professional Experience</h2>
                     {experience.map((exp, i) => (
                         <div key={i} className="mb-4">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="font-bold text-[14px] text-gray-900">{exp.role}</p>
-                                    <p className="font-semibold" style={{ color: headerBg }}>{exp.company}{exp.location ? ` · ${exp.location}` : ''}</p>
+                                    <p className="font-semibold text-[#1e3a5f]">{exp.company}{exp.location ? ` · ${exp.location}` : ''}</p>
                                 </div>
                                 <span className="text-[11px] text-gray-500 whitespace-nowrap">{exp.startDate}{exp.endDate ? ` – ${exp.endDate}` : ''}</span>
                             </div>
@@ -504,7 +502,7 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
 
             {projects.length > 0 && (
                 <section className="mb-5">
-                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Key Projects</h2>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest mb-3 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Key Projects</h2>
                     {projects.map((proj, i) => (
                         <div key={i} className="mb-3">
                             <div className="flex justify-between">
@@ -525,7 +523,7 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
             <div className="grid grid-cols-2 gap-6">
                 {education.length > 0 && (
                     <section>
-                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Education</h2>
+                        <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Education</h2>
                         {education.map((edu, i) => (
                             <div key={i} className="mb-2">
                                 <p className="font-bold">{edu.school}</p>
@@ -539,14 +537,14 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
                 <section>
                     {(competitiveProgramming || achievements?.filter(Boolean).length > 0) && (
                         <>
-                            <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Achievements</h2>
+                            <h2 className="text-[12px] font-bold uppercase tracking-widest mb-2 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Achievements</h2>
                             {competitiveProgramming && <p className="text-gray-700 mb-1">{competitiveProgramming}</p>}
                             {achievements?.filter(Boolean).map((a, i) => <p key={i} className="text-gray-700">• {a}</p>)}
                         </>
                     )}
                     {certifications?.length > 0 && (
                         <>
-                            <h2 className="text-[12px] font-bold uppercase tracking-widest mt-3 mb-2 pb-1" style={{ color: headerBg, borderBottom: `2px solid ${headerBg}` }}>Certifications</h2>
+                            <h2 className="text-[12px] font-bold uppercase tracking-widest mt-3 mb-2 pb-1 text-[#1e3a5f] border-b-2 border-[#1e3a5f]">Certifications</h2>
                             {certifications.map((cert, i) => <p key={i} className="text-gray-700 text-[12px]"><span className="font-semibold">{cert.name}</span>{cert.date ? ` · ${cert.date}` : ''}</p>)}
                         </>
                     )}
@@ -561,25 +559,24 @@ export function ExecutiveTemplate({ resumeData, inputData }: { resumeData: Resum
 // ─────────────────────────────────────────────────────────────────────────────
 export function CreativeTemplate({ resumeData, inputData }: { resumeData: ResumeData; inputData: InputData }) {
     const { personal, skills, experience, education, projects, certifications, competitiveProgramming, achievements } = resumeData;
-    const accent = '#7c3aed';
 
     const SectionTitle = ({ children }: { children: React.ReactNode }) => (
         <div className="flex items-center gap-3 mb-3">
-            <div className="w-1 h-5 rounded-full" style={{ backgroundColor: accent }} />
-            <h2 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: accent }}>{children}</h2>
+            <div className="w-1 h-5 rounded-full bg-violet-600" />
+            <h2 className="text-[13px] font-bold uppercase tracking-widest text-violet-600">{children}</h2>
         </div>
     );
 
     return (
         <div className="font-sans text-[12.5px] leading-relaxed text-gray-800">
             {/* Header */}
-            <div className="mb-6 pb-4" style={{ borderBottom: `3px solid ${accent}` }}>
+            <div className="mb-6 pb-4 border-b-[3px] border-violet-600">
                 <div className="flex items-center gap-5">
                     {inputData.photoPreview && (
-                        <img src={inputData.photoPreview} alt="Profile" className="w-24 h-24 rounded-2xl object-cover border-4 shrink-0" style={{ borderColor: accent }} />
+                        <img src={inputData.photoPreview} alt="Profile" className="w-24 h-24 rounded-2xl object-cover border-4 border-violet-600 shrink-0" />
                     )}
                     <div className="flex-1">
-                        <h1 className="text-[30px] font-black tracking-tight" style={{ color: accent }}>{personal.fullName || 'Your Name'}</h1>
+                        <h1 className="text-[30px] font-black tracking-tight text-violet-600">{personal.fullName || 'Your Name'}</h1>
                         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-gray-500 mt-2">
                             {personal.email && <span className="flex items-center gap-1">✉ {personal.email}</span>}
                             {personal.phone && <span>📞 {personal.phone}</span>}
@@ -601,13 +598,13 @@ export function CreativeTemplate({ resumeData, inputData }: { resumeData: Resume
                         {skills.languages?.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">Lang:</span>
-                                {skills.languages.map((s, i) => <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium text-white" style={{ backgroundColor: accent }}>{s}</span>)}
+                                {skills.languages.map((s, i) => <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium text-white bg-violet-600">{s}</span>)}
                             </div>
                         )}
                         {skills.frameworks?.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">Fw:</span>
-                                {skills.frameworks.map((s, i) => <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border" style={{ color: accent, borderColor: accent }}>{s}</span>)}
+                                {skills.frameworks.map((s, i) => <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium border text-violet-600 border-violet-600">{s}</span>)}
                             </div>
                         )}
                         {skills.tools?.length > 0 && (
@@ -629,7 +626,7 @@ export function CreativeTemplate({ resumeData, inputData }: { resumeData: Resume
                                 <span className="font-bold text-[14px] text-gray-900">{exp.role}</span>
                                 <span className="text-[11px] text-gray-400">{exp.startDate}{exp.endDate ? ` – ${exp.endDate}` : ''}</span>
                             </div>
-                            <p className="font-semibold text-[12px] mb-1" style={{ color: accent }}>{exp.company}{exp.location ? ` · ${exp.location}` : ''}</p>
+                            <p className="font-semibold text-[12px] mb-1 text-violet-600">{exp.company}{exp.location ? ` · ${exp.location}` : ''}</p>
                             {Array.isArray(exp.bullets) && exp.bullets.filter(Boolean).length > 0
                                 ? <ul className="list-disc ml-5 text-gray-700 space-y-0.5">{exp.bullets.filter(Boolean).map((b: string, idx: number) => <li key={idx}>{b.replace(/^[•\-]\s*/, '')}</li>)}</ul>
                                 : exp.description ? <p className="text-gray-700">{exp.description}</p> : null}
@@ -684,7 +681,7 @@ export function CreativeTemplate({ resumeData, inputData }: { resumeData: Resume
                             <SectionTitle>Achievements</SectionTitle>
                             {competitiveProgramming && <p className="text-gray-700 mb-1 text-[12px]">{competitiveProgramming}</p>}
                             {achievements?.filter(Boolean).map((a, i) => (
-                                <p key={i} className="text-gray-700 text-[12px] flex items-start gap-1"><span style={{ color: accent }}>▸</span>{a}</p>
+                                <p key={i} className="text-gray-700 text-[12px] flex items-start gap-1"><span className="text-violet-600">▸</span>{a}</p>
                             ))}
                         </>
                     )}

@@ -621,7 +621,7 @@ export default function SkillMarketplacePage() {
 
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <p className="text-sm font-semibold text-gray-800">Auto-Detect Skills from Profiles</p>
-                                <p className="text-xs text-gray-500">Enter your usernames — we'll fetch your public data and extract skills automatically.</p>
+                                <p className="text-xs text-gray-500">Enter your usernames — we&apos;ll fetch your public data and extract skills automatically.</p>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-gray-500 w-24 shrink-0">GitHub</span>
                                     <input

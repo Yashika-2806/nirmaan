@@ -375,7 +375,7 @@ export default function ResumeBuilder() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-white">Choose a Template</h1>
-                            <p className="text-xs text-gray-500">Pick a design, then we'll build your resume with AI</p>
+                            <p className="text-xs text-gray-500">Pick a design, then we&apos;ll build your resume with AI</p>
                         </div>
                     </div>
                     <button
@@ -387,7 +387,7 @@ export default function ResumeBuilder() {
                 </div>
 
                 {/* Body: sidebar + preview */}
-                <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 73px)' }}>
+                <div className="flex flex-1 overflow-hidden h-[calc(100vh-73px)]">
 
                     {/* LEFT: template list */}
                     <div className="w-64 shrink-0 bg-[#0d0d0d] border-r border-gray-800 overflow-y-auto p-4 flex flex-col gap-3">
@@ -411,13 +411,13 @@ export default function ResumeBuilder() {
                                         t.id === 'modern' ? 'flex' : ''
                                     }`}>
                                         {t.id === 'modern' && (
-                                            <div className="w-[35%] h-full" style={{ backgroundColor: '#0ea5e9' }} />
+                                            <div className="w-[35%] h-full bg-sky-500" />
                                         )}
                                         {t.id === 'executive' && (
-                                            <div className="absolute top-0 left-0 right-0 h-[30%]" style={{ backgroundColor: '#1e3a5f' }} />
+                                            <div className="absolute top-0 left-0 right-0 h-[30%] bg-[#1e3a5f]" />
                                         )}
                                         {t.id === 'creative' && (
-                                            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ backgroundColor: '#7c3aed' }} />
+                                            <div className="absolute top-0 left-0 right-0 h-[3px] bg-violet-600" />
                                         )}
                                         <div className="absolute inset-0 p-2 flex flex-col gap-1 justify-end">
                                             <div className={`h-1.5 rounded-full w-2/3 ${
@@ -433,7 +433,7 @@ export default function ResumeBuilder() {
                                             }`} />
                                         </div>
                                     </div>
-                                    <div className="absolute inset-0 bg-white" style={{ zIndex: -1 }} />
+                                    <div className="absolute inset-0 bg-white -z-10" />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className={`text-sm font-bold ${
@@ -452,8 +452,7 @@ export default function ResumeBuilder() {
                     <div className="flex-1 overflow-y-auto bg-gray-300 p-8 flex flex-col items-center">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Sample Preview — {active.name}</p>
                         <div
-                            className="bg-white shadow-2xl overflow-hidden"
-                            style={{ width: '210mm', minHeight: '297mm', padding: selectedTemplate === 'modern' ? '0' : '15mm 20mm' }}
+                            className={`bg-white shadow-2xl overflow-hidden w-[210mm] min-h-[297mm] ${selectedTemplate === 'modern' ? 'p-0' : 'px-[20mm] py-[15mm]'}`}
                         >
                             <ResumeTemplate
                                 template={selectedTemplate}
@@ -624,7 +623,7 @@ export default function ResumeBuilder() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <label className={labelCls}>Profile Photo (Optional)</label>
-                                        <input type="file" accept="image/*" onChange={handlePhotoUpload}
+                                        <input type="file" accept="image/*" onChange={handlePhotoUpload} title="Upload profile photo" aria-label="Upload profile photo"
                                             className="text-xs text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#00D9FF]/10 file:text-[#00D9FF] hover:file:bg-[#00D9FF]/20 file:cursor-pointer" />
                                     </div>
                                 </div>
@@ -757,7 +756,7 @@ export default function ResumeBuilder() {
                                 <BarChart2 className="w-5 h-5 text-purple-400" />
                                 <span className="text-white font-bold text-base">ATS Score Analysis</span>
                             </div>
-                            <button onClick={() => setShowAtsPanel(false)}
+                            <button onClick={() => setShowAtsPanel(false)} title="Close ATS panel" aria-label="Close ATS panel"
                                 className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
@@ -812,7 +811,7 @@ export default function ResumeBuilder() {
             {/* Header */}
             <div className="flex items-center justify-between shrink-0 bg-[#111111] border border-gray-800 rounded-2xl px-5 py-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setPhase('onboarding')}
+                    <button onClick={() => setPhase('onboarding')} title="Back to onboarding" aria-label="Back to onboarding"
                         className="p-2 hover:bg-gray-800 rounded-xl text-gray-400 transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -910,6 +909,8 @@ export default function ResumeBuilder() {
                                         <div key={field}>
                                             <label className={labelCls}>{field.replace(/([A-Z])/g, ' $1').trim()}</label>
                                             <input className={inputCls}
+                                                title={field.replace(/([A-Z])/g, ' $1').trim()}
+                                                aria-label={field.replace(/([A-Z])/g, ' $1').trim()}
                                                 value={resumeData.personal[field] ?? ''}
                                                 onChange={e => handlePersonalChange(field, e.target.value)} />
                                         </div>
@@ -918,6 +919,8 @@ export default function ResumeBuilder() {
                                         <div key={field} className="col-span-2">
                                             <label className={labelCls}>{field.charAt(0).toUpperCase() + field.slice(1)} URL</label>
                                             <input className={inputCls}
+                                                title={`${field.charAt(0).toUpperCase() + field.slice(1)} URL`}
+                                                aria-label={`${field.charAt(0).toUpperCase() + field.slice(1)} URL`}
                                                 value={resumeData.personal[field] ?? ''}
                                                 onChange={e => handlePersonalChange(field, e.target.value)} />
                                         </div>
@@ -932,6 +935,8 @@ export default function ResumeBuilder() {
                                             </button>
                                         </div>
                                         <textarea rows={5}
+                                            title="Professional Summary"
+                                            aria-label="Professional Summary"
                                             className="w-full bg-[#0a0a0a] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:border-[#00D9FF] outline-none resize-none leading-relaxed"
                                             value={resumeData.personal.summary ?? ''}
                                             onChange={e => handlePersonalChange('summary', e.target.value)} />
@@ -1135,7 +1140,7 @@ export default function ResumeBuilder() {
                                         <div key={i} className="p-3 bg-[#0a0a0a] border border-gray-800 rounded-lg space-y-2">
                                             <div className="flex justify-between text-xs text-gray-500">
                                                 <span>CERT #{i + 1}</span>
-                                                <button onClick={() => removeItem('certifications', i)} className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                                                <button onClick={() => removeItem('certifications', i)} title="Remove certification" aria-label="Remove certification" className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
                                             </div>
                                             <div className="grid grid-cols-3 gap-2">
                                                 <input className={inputCls + ' col-span-2'} placeholder="Certification Name" value={cert.name} onChange={e => updateItem('certifications', i, 'name', e.target.value)} />
@@ -1166,7 +1171,7 @@ export default function ResumeBuilder() {
                                                     arr[i] = e.target.value;
                                                     setResumeData(prev => ({ ...prev, achievements: arr }));
                                                 }} />
-                                            <button onClick={() => setResumeData(prev => ({ ...prev, achievements: prev.achievements.filter((_, j) => j !== i) }))}
+                                            <button onClick={() => setResumeData(prev => ({ ...prev, achievements: prev.achievements.filter((_, j) => j !== i) }))} title="Remove achievement" aria-label="Remove achievement"
                                                 className="px-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg">
                                                 <X className="w-4 h-4" />
                                             </button>
@@ -1221,8 +1226,7 @@ export default function ResumeBuilder() {
                             {/* A4 Page */}
                             <div
                                 ref={previewRef}
-                                className="bg-white mx-auto shadow-md overflow-hidden"
-                                style={{ width: '210mm', minHeight: '297mm', padding: selectedTemplate === 'modern' ? '0' : '15mm 20mm' }}
+                                className={`bg-white mx-auto shadow-md overflow-hidden w-[210mm] min-h-[297mm] ${selectedTemplate === 'modern' ? 'p-0' : 'px-[20mm] py-[15mm]'}`}
                             >
                                 <ResumeTemplate
                                     template={selectedTemplate}

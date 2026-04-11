@@ -1,10 +1,25 @@
 require('dotenv').config();
 
+const toPositiveInt = (value, fallback) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseFrontendUrls = () => {
+    const raw = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000';
+    return raw
+        .split(',')
+        .map(url => url.trim())
+        .filter(Boolean);
+};
+
 const config = {
     // Server
     nodeEnv: process.env.NODE_ENV || 'development',
-    port: parseInt(process.env.PORT, 10) || 5000,
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+    port: toPositiveInt(process.env.PORT, 5000),
+    frontendUrl: parseFrontendUrls()[0],
+    frontendUrls: parseFrontendUrls(),
+    trustProxy: process.env.TRUST_PROXY === 'true',
 
     // Database
     mongoUri: process.env.MONGODB_URI,
@@ -18,13 +33,15 @@ const config = {
     },
 
     // Security
-    bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
+    bcryptRounds: toPositiveInt(process.env.BCRYPT_ROUNDS, 12),
     encryptionKey: process.env.ENCRYPTION_KEY,
 
     // Rate Limiting
     rateLimit: {
-        windowMs: parseInt(process.env.RATE_LIMIT_WINDOW, 10) * 60 * 1000 || 15 * 60 * 1000,
-        max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+        windowMs: toPositiveInt(process.env.RATE_LIMIT_WINDOW, 15) * 60 * 1000,
+        max: toPositiveInt(process.env.RATE_LIMIT_MAX, 100),
+        authMax: toPositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 10),
+        aiMax: toPositiveInt(process.env.AI_RATE_LIMIT_MAX, 20),
     },
 
     // File Upload
@@ -52,6 +69,21 @@ const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
+if (config.nodeEnv === 'production') {
+    if (config.frontendUrls.includes('*')) {
+        throw new Error('FRONTEND_URLS cannot include wildcard (*) in production');
+    }
+    if ((config.jwt.secret || '').length < 32) {
+        throw new Error('JWT_SECRET must be at least 32 characters in production');
+    }
+    if ((config.jwt.refreshSecret || '').length < 32) {
+        throw new Error('JWT_REFRESH_SECRET must be at least 32 characters in production');
+    }
+    if ((config.encryptionKey || '').length < 32) {
+        throw new Error('ENCRYPTION_KEY must be at least 32 characters in production');
+    }
 }
 
 module.exports = config;

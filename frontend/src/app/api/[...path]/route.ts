@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-function getBackendBaseUrl() {
-    const configured = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    const trimmed = configured.replace(/\/$/, '');
+function normalizeBackendBaseUrl(rawUrl: string) {
+    const parsed = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Invalid backend URL protocol');
+    }
+
+    const trimmed = parsed.toString().replace(/\/$/, '');
     return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }
 
+function getBackendBaseUrlCandidates() {
+    const candidates = [
+        process.env.BACKEND_API_URL,
+        process.env.NEXT_PUBLIC_API_URL,
+        'http://127.0.0.1:5000/api',
+        'http://localhost:5000/api',
+    ].filter(Boolean) as string[];
+
+    const normalized: string[] = [];
+    for (const candidate of candidates) {
+        try {
+            normalized.push(normalizeBackendBaseUrl(candidate));
+        } catch {
+            // Ignore invalid candidate and continue with others.
+        }
+    }
+
+    return Array.from(new Set(normalized));
+}
+
 async function proxyRequest(req: NextRequest, pathSegments: string[]) {
-    const path = pathSegments.join('/');
-    const targetUrl = `${getBackendBaseUrl()}/${path}`;
+    const safeSegments = (pathSegments || []).map(segment => encodeURIComponent(segment));
+    const path = safeSegments.join('/');
 
     const headers = new Headers(req.headers);
     headers.delete('host');
@@ -23,22 +47,34 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
         init.body = await req.text();
     }
 
-    try {
-        const response = await fetch(targetUrl, init);
-        const responseHeaders = new Headers(response.headers);
-        return new NextResponse(response.body, {
-            status: response.status,
-            headers: responseHeaders,
-        });
-    } catch {
-        return NextResponse.json(
-            {
-                success: false,
-                message: 'API proxy is unavailable. Set BACKEND_API_URL on the hosting server.',
-            },
-            { status: 502 }
-        );
+    const backendCandidates = getBackendBaseUrlCandidates();
+    let lastError: unknown = null;
+
+    for (const baseUrl of backendCandidates) {
+        const targetUrl = `${baseUrl}/${path}`;
+        try {
+            const response = await fetch(targetUrl, init);
+            const responseHeaders = new Headers(response.headers);
+            return new NextResponse(response.body, {
+                status: response.status,
+                headers: responseHeaders,
+            });
+        } catch (error) {
+            lastError = error;
+        }
     }
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+        {
+            success: false,
+            message: isDev
+                ? 'API proxy is unavailable. Backend may be down. Start backend on localhost:5000.'
+                : 'API proxy is unavailable.',
+            ...(isDev ? { detail: String(lastError || 'Unknown proxy error') } : {}),
+        },
+        { status: 502 }
+    );
 }
 
 export async function GET(req: NextRequest, { params }: { params: { path?: string[] } }) {
