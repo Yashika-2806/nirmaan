@@ -35,10 +35,10 @@ class AIFallbackManager {
             } catch (error) {
                 lastError = error;
                 
-                // If it's a hard error like invalid API key, stop completely
+                // If it's a hard error like invalid API key, break loop but still try Claude
                 if (error.message && (error.message.toLowerCase().includes('api key not valid') || error.message.toLowerCase().includes('invalid api key'))) {
-                    console.warn(`[AI] Invalid API Key detected. Stopping fallback chain.`);
-                    throw error; // Let the caller handle it (or return fallback response)
+                    console.warn(`[AI] Invalid Gemini API Key detected. Breaking Gemini chain.`);
+                    break; 
                 }
             }
         }
@@ -54,11 +54,15 @@ class AIFallbackManager {
                 return result;
             } catch (error) {
                 lastError = error;
-                console.warn(`[AI] Claude also failed.`);
+                // Safely log reason without exposing secret keys:
+                const safeMessage = error.message ? error.message.replace(/sk-ant-api[\w-]+/g, '[REDACTED_API_KEY]') : 'Unknown error';
+                console.warn(`[AI] Claude also failed. Reason: ${safeMessage}`);
             }
+        } else {
+            console.warn(`[AI] Claude skipped because CLAUDE_API_KEY is missing from environment.`);
         }
         
-        throw new Error(`All AI models in the fallback chain failed. Last error: ${lastError.message}`);
+        throw new Error(`All AI models in the fallback chain failed. Last error: ${lastError ? lastError.message : 'Unknown'}`);
     }
 }
 
