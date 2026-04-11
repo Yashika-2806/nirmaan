@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { aiService } from '@/services/aiService';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 // Mock Problem Data
 const PROBLEM = {
@@ -157,7 +158,7 @@ export default function ProblemPage() {
                                         ? 'bg-[#00D9FF] text-black font-medium rounded-br-none'
                                         : 'bg-[#1a1a1a] text-gray-300 border border-gray-800 rounded-bl-none'
                                         }`}>
-                                        {msg.content}
+                                        {msg.role === 'ai' ? <MarkdownRenderer content={msg.content} /> : msg.content}
                                     </div>
                                 </div>
                             ))}

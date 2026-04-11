@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { pdfService, QuizQuestion, MarkedQuestion, GradingResult, AssertionReasonQuestion } from '@/services/pdfService';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import styles from './page.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -703,7 +704,7 @@ export default function PDFPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-gray-600 italic">{q.feedback}</p>
+                                    <MarkdownRenderer content={q.feedback} className="text-xs italic" />
                                 </div>
                             );
                         })}
@@ -794,7 +795,7 @@ export default function PDFPage() {
                                     : <><XCircle className="w-4 h-4 text-red-600" /><span className="font-semibold text-red-700 text-sm">Incorrect</span></>
                                 }
                             </div>
-                            <p className="text-sm text-gray-700">{currentQ.feedback}</p>
+                            <MarkdownRenderer content={currentQ.feedback} className="text-sm" />
                         </div>
                     )}
                 </div>
@@ -943,7 +944,7 @@ export default function PDFPage() {
                                     : <><XCircle className="w-4 h-4 text-red-600" /><span className="font-semibold text-red-700 text-sm">Incorrect</span></>
                                 }
                             </div>
-                            <p className="text-sm text-gray-700">{currentQ.feedback}</p>
+                            <MarkdownRenderer content={currentQ.feedback} className="text-sm" />
                         </div>
                     )}
                 </div>
@@ -1096,7 +1097,7 @@ export default function PDFPage() {
                                             <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
                                                 <Brain className="w-3 h-3" /> AI Feedback
                                             </p>
-                                            <p className="text-sm text-gray-700">{sa.result.feedback}</p>
+                                            <MarkdownRenderer content={sa.result.feedback} className="text-sm" />
                                         </div>
 
                                         {/* Key points */}
