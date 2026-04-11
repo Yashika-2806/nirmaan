@@ -42,7 +42,6 @@ export default function DashboardLayout({
         { href: '/dashboard/resume', icon: <FileText size={18} />, label: 'Resume Builder' },
         { href: '/dashboard/interview', icon: <MessageSquare size={18} />, label: 'Interview Prep' },
         { href: '/dashboard/roadmap', icon: <Map size={18} />, label: 'Roadmap' },
-        { href: '/dashboard/career-gps', icon: <Navigation size={18} />, label: 'Career GPS' },
         { href: '/research', icon: <BookOpen size={18} />, label: 'Research' },
         { href: '/dashboard/pdf', icon: <FileUp size={18} />, label: 'PDF Learning' },
         { href: '/dashboard/skill-marketplace', icon: <Users size={18} />, label: 'Community' },

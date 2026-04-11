@@ -1430,55 +1430,6 @@ Return ONLY valid JSON, no markdown:
         }
     }
 
-    /**
-     * Generate Career GPS gap analysis + roadmap in one AI call sequence.
-     */
-    async generateCareerGPSPlan({ skillGapPrompt, roadmapPrompt }) {
-        const model = this.getModel('roadmap');
-        if (!model) return { error: 'AI unavailable' };
-
-        try {
-            const gapResult = await model.generateContent(skillGapPrompt);
-            const gapResponse = await gapResult.response;
-            const gapJson = this.safeParseJSONObject(gapResponse.text());
-
-            const roadmapResult = await model.generateContent(roadmapPrompt);
-            const roadmapResponse = await roadmapResult.response;
-            const roadmapJson = this.safeParseJSONObject(roadmapResponse.text());
-
-            return {
-                requiredSkillProfile: Array.isArray(gapJson.requiredSkillProfile) ? gapJson.requiredSkillProfile : [],
-                gapAnalysis: Array.isArray(gapJson.gapAnalysis) ? gapJson.gapAnalysis : [],
-                recommendations: Array.isArray(gapJson.recommendations) ? gapJson.recommendations : [],
-                timelineStages: Array.isArray(roadmapJson.timelineStages) ? roadmapJson.timelineStages : [],
-                tasks: Array.isArray(roadmapJson.tasks) ? roadmapJson.tasks : [],
-            };
-        } catch (error) {
-            console.error('Gemini AI API Error (Career GPS Plan):', error);
-            return { error: 'AI Service Error: ' + error.message };
-        }
-    }
-
-    /**
-     * Generate daily Career GPS missions.
-     */
-    async generateCareerGPSMissions({ missionPrompt }) {
-        const model = this.getModel('roadmap');
-        if (!model) return { error: 'AI unavailable' };
-
-        try {
-            const result = await model.generateContent(missionPrompt);
-            const response = await result.response;
-            const parsed = this.safeParseJSONObject(response.text());
-
-            return {
-                missions: Array.isArray(parsed.missions) ? parsed.missions : [],
-            };
-        } catch (error) {
-            console.error('Gemini AI API Error (Career GPS Missions):', error);
-            return { error: 'AI Service Error: ' + error.message };
-        }
-    }
 
     async generateCareerTwinProfile({ name = 'Student', role = 'learner' } = {}) {
         const model = this.getModel('general');
