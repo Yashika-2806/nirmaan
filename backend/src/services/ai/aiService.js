@@ -27,24 +27,25 @@ class AIService {
                 console.warn('[AIService] ⚠️ CLAUDE_API_KEY not set in environment. Fallback to Claude will not be available.');
             }
 
-            // Initialize Cloudflare Client if API key is in environment
-            const cloudflareKey = process.env.CLOUDFLARE_API_KEY;
-            const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-            const CloudflareClient = require('./cloudflareClient');
+            // Only use Cloudflare if BOTH key and account ID are present and non-empty
+            const cloudflareKey = (process.env.CLOUDFLARE_API_KEY || '').trim();
+            const cloudflareAccountId = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
             
             let primaryClient;
             let providerName = 'gemini';
 
             if (cloudflareKey && cloudflareAccountId) {
+                const CloudflareClient = require('./cloudflareClient');
                 primaryClient = new CloudflareClient(cloudflareKey, cloudflareAccountId);
                 providerName = 'cloudflare';
                 console.log('[AIService] Using Cloudflare as primary provider');
             } else {
+                // Default to Gemini as primary provider
                 primaryClient = geminiClient;
                 if (keyToUse) {
                     console.log('[AIService] Using Gemini as primary provider (key detected)');
                 } else {
-                    console.log('[AIService] No Gemini key configured - will rely on Claude fallback');
+                    console.log('[AIService] ⚠️ No Gemini key configured - will rely on Claude fallback only');
                 }
             }
 

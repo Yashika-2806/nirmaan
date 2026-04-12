@@ -380,7 +380,7 @@ export default function DSAPage() {
 
                         {/* Modal Footer (Always Visible Actions) */}
                         <div className="p-6 border-t border-gray-800 bg-[#151515] flex justify-between items-center shrink-0 rounded-b-2xl">
-                            <span className="text-sm text-gray-500">Analysis powered by <strong>Cloudflare AI</strong></span>
+                            <span className="text-sm text-gray-500">Analysis powered by <strong>Google Gemini / Claude</strong></span>
                             
                             <div className="flex gap-4">
                                 <button
