@@ -60,11 +60,11 @@ class AIService {
      * 
      * @param {string} prompt - The prompt to send to the AI
      * @param {string} apiKey - Optional specific API key, otherwise uses env variables
-     * @param {number} timeoutMs - Timeout in milliseconds (default 30s)
+     * @param {number} timeoutMs - Timeout in milliseconds (default 120s)
      * @returns {Promise<string>} - AI-generated content
      * @throws {Error} - If all providers fail
      */
-    async generate(prompt, apiKey = null, timeoutMs = 30000) {
+    async generate(prompt, apiKey = null, timeoutMs = 120000) {
         this._ensureInitialized(apiKey);
 
         try {

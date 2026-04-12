@@ -7,7 +7,7 @@ const apiBaseUrl = '/api';
 
 const api = axios.create({
     baseURL: apiBaseUrl,
-    timeout: 30000,   // 30s default — AI short ops (DSA feedback, ATS analysis)
+    timeout: 130000,  // 130s - allows heavy AI ops (research, marked questions, assertion-reason) with 120s + buffer
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',

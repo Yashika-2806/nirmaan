@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const geminiService = require('../core/ai/gemini-service');
+const claudeResearchService = require('../services/ai/claudeResearchService');
 const { protect } = require('../core/auth/middleware');
 
 const VALID_TYPES = ['literature-review', 'methodology', 'citations'];
@@ -17,7 +17,7 @@ router.post('/:type', protect, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Topic is required' });
         }
 
-        const result = await geminiService.generateResearch({ topic: topic.trim(), type });
+        const result = await claudeResearchService.generateResearch({ topic: topic.trim(), type });
 
         if (result.error) {
             return res.status(503).json({ success: false, message: result.error });

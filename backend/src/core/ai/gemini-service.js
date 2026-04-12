@@ -54,7 +54,7 @@ class GeminiService {
         // If no Gemini key exists, aiService will skip Gemini and go straight to Claude.
         return {
             generateContent: async (prompt, options = {}) => {
-                const timeoutMs = options.timeoutMs || 30000;
+                const timeoutMs = options.timeoutMs || 120000;  // Default to 120s for heavy operations
                 const text = await aiService.generate(prompt, key, timeoutMs);
                 return {
                     response: {

@@ -51,7 +51,7 @@ class AIFallbackManager {
      * On 429 for a model, also rotates through spare keys before giving up.
      * Falls back to Claude if all Gemini models fail.
      */
-    async generateWithFallback(prompt, timeoutMs = 30000) {
+    async generateWithFallback(prompt, timeoutMs = 120000) {
         let lastError = null;
         let geminiAttempted = false;
 
