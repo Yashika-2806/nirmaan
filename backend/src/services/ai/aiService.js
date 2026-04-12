@@ -12,13 +12,28 @@ class AIService {
     _ensureInitialized(apiKey) {
         if (!this.fallbackManager || apiKey) {
             const keyToUse = apiKey || process.env.GEMINI_KEY_1 || process.env.GEMINI_KEY_6 || process.env.GEMINI_API_KEY;
-            this.client = new GeminiClient(keyToUse);
+            const geminiClient = new GeminiClient(keyToUse);
 
             // Initialize Claude as final fallback if API key is in environment
             const claudeKey = process.env.CLAUDE_API_KEY;
             const claudeClient = claudeKey ? new ClaudeClient(claudeKey) : null;
 
-            this.fallbackManager = new AIFallbackManager(this.client, claudeClient);
+            // Initialize Cloudflare Client if API key is in environment
+            const cloudflareKey = process.env.CLOUDFLARE_API_KEY;
+            const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+            const CloudflareClient = require('./cloudflareClient');
+            
+            let primaryClient;
+            let providerName = 'gemini';
+
+            if (cloudflareKey && cloudflareAccountId) {
+                primaryClient = new CloudflareClient(cloudflareKey, cloudflareAccountId);
+                providerName = 'cloudflare';
+            } else {
+                primaryClient = geminiClient;
+            }
+
+            this.fallbackManager = new AIFallbackManager(primaryClient, providerName, geminiClient, claudeClient);
         }
     }
 

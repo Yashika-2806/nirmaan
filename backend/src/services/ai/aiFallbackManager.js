@@ -1,14 +1,16 @@
 const { executeWithRetry } = require('./retryHandler');
 
-const MODEL_CHAIN = [
+const GEMINI_MODEL_CHAIN = [
     'gemini-2.5-flash',
     'gemini-1.5-flash',
     'gemini-1.5-pro'
 ];
 
 class AIFallbackManager {
-    constructor(geminiClient, claudeClient = null) {
-        this.client = geminiClient;
+    constructor(primaryClient, providerName, geminiClient, claudeClient = null) {
+        this.primaryClient = primaryClient;
+        this.providerName = providerName; // 'cloudflare' or 'gemini'
+        this.geminiClient = geminiClient;
         this.claudeClient = claudeClient;
     }
 
@@ -19,31 +21,47 @@ class AIFallbackManager {
     async generateWithFallback(prompt, timeoutMs = 30000) {
         let lastError = null;
 
-        for (const modelName of MODEL_CHAIN) {
+        // 1. Try Cloudflare first if it's the primary provider
+        if (this.providerName === 'cloudflare' && this.primaryClient) {
             try {
-                if (modelName !== MODEL_CHAIN[0]) {
-                    console.log(`[AI] Switched to ${modelName}`);
-                }
-                
-                // Execute with retry for each model
+                console.log(`[AI] Using primary provider: Cloudflare (@cf/meta/llama-3-8b-instruct)`);
                 const result = await executeWithRetry(
-                    () => this.client.generateContent(prompt, modelName, timeoutMs),
-                    `Model ${modelName}`
+                    () => this.primaryClient.generateContent(prompt, '@cf/meta/llama-3-8b-instruct', timeoutMs),
+                    `Model Cloudflare Llama 3 8B`
                 );
-                
                 return result;
             } catch (error) {
                 lastError = error;
-                
-                // If it's a hard error like invalid API key, break loop but still try Claude
-                if (error.message && (error.message.toLowerCase().includes('api key not valid') || error.message.toLowerCase().includes('invalid api key'))) {
-                    console.warn(`[AI] Invalid Gemini API Key detected. Breaking Gemini chain.`);
-                    break; 
+                console.warn(`[AI] Cloudflare failed. Falling back to Gemini... Reason: ${error.message}`);
+            }
+        }
+
+        // 2. Try Gemini Chain
+        if (this.geminiClient) {
+            for (const modelName of GEMINI_MODEL_CHAIN) {
+                try {
+                    if (modelName !== GEMINI_MODEL_CHAIN[0] || this.providerName === 'cloudflare') {
+                        console.log(`[AI] Switched to ${modelName}`);
+                    }
+                    
+                    const result = await executeWithRetry(
+                        () => this.geminiClient.generateContent(prompt, modelName, timeoutMs),
+                        `Model ${modelName}`
+                    );
+                    
+                    return result;
+                } catch (error) {
+                    lastError = error;
+                    
+                    if (error.message && (error.message.toLowerCase().includes('api key not valid') || error.message.toLowerCase().includes('invalid api key'))) {
+                        console.warn(`[AI] Invalid Gemini API Key detected. Breaking Gemini chain.`);
+                        break; 
+                    }
                 }
             }
         }
 
-        // Try Claude if provided
+        // 3. Try Claude if provided
         if (this.claudeClient) {
             try {
                 console.log(`[AI] Switched to claude-3-haiku-20240307 (Anthropic)`);
@@ -54,7 +72,6 @@ class AIFallbackManager {
                 return result;
             } catch (error) {
                 lastError = error;
-                // Safely log reason without exposing secret keys:
                 const safeMessage = error.message ? error.message.replace(/sk-ant-api[\w-]+/g, '[REDACTED_API_KEY]') : 'Unknown error';
                 console.warn(`[AI] Claude also failed. Reason: ${safeMessage}`);
             }

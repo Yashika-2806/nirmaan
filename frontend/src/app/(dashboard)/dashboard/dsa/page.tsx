@@ -318,9 +318,9 @@ export default function DSAPage() {
             {/* AI Review Modal */}
             {reviewQuestion && (
                 <div className="fixed inset-0 z-[100] bg-[#0a0a0a]/95 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-[#111111] border border-[#00D9FF]/30 rounded-2xl w-full max-w-6xl h-[85vh] flex flex-col shadow-[0_0_80px_-20px_#00D9FF] animate-in fade-in zoom-in duration-300">
-                        {/* ... Modal Header ... */}
-                        <div className="p-6 border-b border-gray-800 bg-[#151515] flex justify-between items-center shrink-0">
+                    <div className="bg-[#111111] border border-[#00D9FF]/30 rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-[0_0_80px_-20px_#00D9FF] animate-in fade-in zoom-in duration-300">
+                        {/* Modal Header */}
+                        <div className="p-6 border-b border-gray-800 bg-[#151515] flex justify-between items-center shrink-0 rounded-t-2xl">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-[#00D9FF]/10 rounded-full border border-[#00D9FF]/20">
                                     <Zap className="w-6 h-6 text-[#00D9FF]" />
@@ -333,84 +333,76 @@ export default function DSAPage() {
                             <button onClick={() => setReviewQuestion(null)} className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors">✕</button>
                         </div>
 
+                        {/* Scrollable Content */}
                         <div className="p-8 space-y-8 overflow-y-auto flex-1">
                             {/* Progress */}
-                            <div className="flex items-center gap-2 mb-6">
+                            <div className="flex items-center gap-2 mb-2">
                                 {AI_QUESTIONS.map((_, i) => (
                                     <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${i <= reviewStep ? 'bg-[#00D9FF] shadow-[0_0_10px_#00D9FF]' : 'bg-gray-800'}`}></div>
                                 ))}
                             </div>
 
-                            {/* Question & Feedback */}
                             <div className="space-y-6">
-                                <div className="flex gap-6">
-                                    <div className="w-12 h-12 rounded-full bg-[#00D9FF]/10 flex-shrink-0 flex items-center justify-center border border-[#00D9FF]/20 mt-1">
+                                {/* Prompt Area */}
+                                <div className="flex gap-6 items-start bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
+                                    <div className="w-12 h-12 rounded-full bg-[#00D9FF]/10 flex-shrink-0 flex items-center justify-center border border-[#00D9FF]/20">
                                         <Zap className="w-6 h-6 text-[#00D9FF]" />
                                     </div>
-                                    <div className="space-y-4 flex-1">
+                                    <div className="flex-1 mt-1">
                                         <p className="text-2xl text-white font-medium leading-relaxed">{AI_QUESTIONS[reviewStep]}</p>
-
                                     </div>
                                 </div>
 
-                                {/* User Input */}
-                                <div className="ml-16">
-                                    <textarea
-                                        value={reviewInput}
-                                        onChange={(e) => setReviewInput(e.target.value)}
-                                        placeholder="Type your detailed answer here..."
-                                        disabled={isAiLoading || !!aiFeedback}
-                                        className="w-full h-64 bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 text-lg text-gray-200 resize-none focus:border-[#00D9FF] outline-none transition-all disabled:opacity-50 placeholder:text-gray-600 focus:shadow-[0_0_30px_-5px_rgba(0,217,255,0.1)]"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleReviewSubmit();
-                                            }
-                                        }}
-                                    />
-                                    {aiFeedback && (
-                                        <div className="mt-6 p-6 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-2 shadow-inner">
-                                            <h4 className="font-bold flex items-center gap-2 mb-4 text-green-300 border-b border-green-500/20 pb-2"><Zap className="w-5 h-5" /> AI Analysis</h4>
-                                            <MarkdownRenderer content={aiFeedback} />
-                                        </div>
+                                {/* User Input Area */}
+                                <textarea
+                                    value={reviewInput}
+                                    onChange={(e) => setReviewInput(e.target.value)}
+                                    placeholder="Type your detailed answer here..."
+                                    disabled={isAiLoading || !!aiFeedback}
+                                    className="w-full min-h-[250px] bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 text-lg text-gray-200 resize-y focus:border-[#00D9FF] outline-none transition-all disabled:opacity-50 placeholder:text-gray-600 focus:shadow-[0_0_30px_-5px_rgba(0,217,255,0.1)]"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleReviewSubmit();
+                                        }
+                                    }}
+                                />
+
+                                {/* AI Feedback Area */}
+                                {aiFeedback && (
+                                    <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-2 shadow-inner text-gray-200">
+                                        <h4 className="font-bold flex items-center gap-2 mb-4 text-green-300 border-b border-green-500/20 pb-2"><Zap className="w-5 h-5" /> AI Analysis</h4>
+                                        <MarkdownRenderer content={aiFeedback} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Modal Footer (Always Visible Actions) */}
+                        <div className="p-6 border-t border-gray-800 bg-[#151515] flex justify-between items-center shrink-0 rounded-b-2xl">
+                            <span className="text-sm text-gray-500">Analysis powered by <strong>Cloudflare AI</strong></span>
+                            
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleSkip}
+                                    className="px-6 py-3 border border-gray-700 text-gray-300 font-bold text-lg rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+                                >
+                                    Skip & Mark Complete <SkipForward className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    onClick={handleReviewSubmit}
+                                    disabled={isAiLoading || (!reviewInput.trim() && !aiFeedback)}
+                                    className="px-8 py-3 bg-[#00D9FF] text-black font-bold text-lg rounded-xl hover:bg-[#00D9FF]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-3 shadow-[0_0_20px_-5px_#00D9FF]"
+                                >
+                                    {isAiLoading ? (
+                                        <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</>
+                                    ) : aiFeedback ? (
+                                        <>Next Question <ArrowRight className="w-5 h-5" /></>
+                                    ) : (
+                                        <>Get AI Feedback <MessageSquarePlus className="w-5 h-5" /></>
                                     )}
-                                    <div className="flex justify-between items-center mt-4">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-sm text-gray-500">Analysis powered by <strong>Google Gemini</strong></span>
-                                        </div>
-
-                                        <div className="flex gap-3">
-                                            {/* Skip Button */}
-                                            <button
-                                                onClick={handleSkip}
-                                                className="px-6 py-3 border border-gray-700 text-gray-300 font-bold text-lg rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
-                                            >
-                                                Skip & Mark Complete <SkipForward className="w-5 h-5" />
-                                            </button>
-
-                                            {/* Main Action Button */}
-                                            <button
-                                                onClick={handleReviewSubmit}
-                                                disabled={isAiLoading || (!reviewInput.trim() && !aiFeedback)}
-                                                className="px-8 py-3 bg-[#00D9FF] text-black font-bold text-lg rounded-xl hover:bg-[#00D9FF]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-3 shadow-[0_0_20px_-5px_#00D9FF]"
-                                            >
-                                                {isAiLoading ? (
-                                                    <>
-                                                        <Loader2 className="w-5 h-5 animate-spin" /> Analyzing...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        {aiFeedback ? (
-                                                            <>Next Question <ArrowRight className="w-5 h-5" /></>
-                                                        ) : (
-                                                            <>Get AI Feedback <MessageSquarePlus className="w-5 h-5" /></>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
