@@ -78,21 +78,34 @@ class AIFallbackManager {
 
         // 3. Try each model in the Gemini chain.
         //    For each model, also try rotating through spare API keys on 429.
+        //    If ALL keys are rate-limited on the first model, skip remaining models
+        //    (same keys will be rate-limited on other models too).
         if (hasGeminiKeys) {
+            let allKeysRateLimited = false;
+
             for (const modelName of GEMINI_MODEL_CHAIN) {
+                // If all keys were rate-limited on a previous model, skip — same keys won't work
+                if (allKeysRateLimited) {
+                    break;
+                }
+
                 // Build a list of clients to try: primary client first, then spare keys
                 const clientsToTry = [this.geminiClient];
                 for (const key of this.spareGeminiKeys) {
-                    // Only add spare clients that differ from the primary
                     clientsToTry.push(new GeminiClient(key));
                 }
+
+                let rateLimitedCount = 0;
 
                 for (let ci = 0; ci < clientsToTry.length; ci++) {
                     const client = clientsToTry[ci];
                     try {
                         geminiAttempted = true;
                         if (modelName !== GEMINI_MODEL_CHAIN[0] || this.providerName === 'cloudflare' || ci > 0) {
-                            console.log(`[AI] Trying ${modelName} (key slot ${ci + 1}/${clientsToTry.length})`);
+                            // Only log first and last key attempts to reduce noise
+                            if (ci === 0 || ci === clientsToTry.length - 1) {
+                                console.log(`[AI] Trying ${modelName} (key slot ${ci + 1}/${clientsToTry.length})`);
+                            }
                         }
 
                         const result = await client.generateContent(prompt, modelName, timeoutMs);
@@ -113,23 +126,26 @@ class AIFallbackManager {
 
                         // Invalid key — stop trying this model entirely
                         if (msg.includes('api key not valid') || msg.includes('invalid api key')) {
-                            console.warn(`[AI] Invalid API key for ${modelName}. Skipping remaining keys for this model.`);
+                            console.warn(`[AI] Invalid API key for ${modelName}. Skipping.`);
                             break;
                         }
 
-                        // Model not found (404) — skip to next model entirely, don't waste keys
+                        // Model not found (404) — skip to next model entirely
                         if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
-                            console.warn(`[AI] ${modelName} returned 404 (model not available). Skipping.`);
+                            console.warn(`[AI] ${modelName} not available (404). Skipping.`);
                             break;
                         }
 
                         // Rate limit (429) — try next key
                         if (msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')) {
+                            rateLimitedCount++;
                             if (ci < clientsToTry.length - 1) {
-                                console.warn(`[AI] ${modelName} rate-limited (key ${ci + 1}). Rotating to next key...`);
-                                continue; // try next key
+                                continue; // try next key silently
                             } else {
-                                console.warn(`[AI] ${modelName} rate-limited on all keys. Moving to next model.`);
+                                console.warn(`[AI] ${modelName} rate-limited on all ${rateLimitedCount} keys.`);
+                                if (rateLimitedCount >= clientsToTry.length) {
+                                    allKeysRateLimited = true; // Skip remaining models
+                                }
                                 break;
                             }
                         }
