@@ -11,6 +11,7 @@ const resumeAgent = require('./agents/resume-agent');
 const applyAgent = require('./agents/apply-agent');
 const trackingAgent = require('./agents/tracking-agent');
 const learningAgent = require('./agents/learning-agent');
+const interviewAgent = require('./agents/interview-agent');
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
@@ -57,6 +58,37 @@ const DEFAULT_SAFE_JOBS = [
 ];
 
 class CareerTwinOrchestratorService {
+    async searchJobs(filters = {}) {
+        const normalizedFilters = {
+            query: filters.query || '',
+            location: filters.location || '',
+            workMode: filters.workMode || '',
+            limit: Number(filters.limit || 40),
+            offset: Number(filters.offset || 0),
+        };
+
+        const [items, total] = await Promise.all([
+            researchAgent.queryJobs(normalizedFilters),
+            researchAgent.countJobs(normalizedFilters),
+        ]);
+
+        const limit = Math.min(Math.max(1, normalizedFilters.limit), 100);
+        const offset = Math.max(0, normalizedFilters.offset);
+
+        return {
+            items,
+            total,
+            offset,
+            limit,
+            hasMore: offset + items.length < total,
+        };
+    }
+
+    async getJobDetail(jobId) {
+        if (!jobId) return null;
+        return CareerTwinJob.findOne({ _id: jobId, isActive: true }).lean();
+    }
+
     async getOrCreateProfile(userId) {
         let profile = await CareerTwinProfile.findOne({ userId });
         if (profile) return profile;
@@ -140,6 +172,7 @@ class CareerTwinOrchestratorService {
             location: filters.location || '',
             workMode: filters.workMode || '',
             limit: filters.limit || 40,
+            offset: filters.offset || 0,
         });
 
         if (!jobs.length) {
@@ -153,6 +186,7 @@ class CareerTwinOrchestratorService {
                 location: filters.location || '',
                 workMode: filters.workMode || '',
                 limit: filters.limit || 40,
+                offset: filters.offset || 0,
             });
         }
 
@@ -224,10 +258,30 @@ class CareerTwinOrchestratorService {
             throw new Error('Job not found');
         }
 
-        const [{ tailored }, answers] = await Promise.all([
-            this.generateTailoredResume({ userId, jobId }),
-            applyAgent.prepareAnswers({ profile, job }),
-        ]);
+        const isManual = applyMode === 'manual';
+        const isApplied = applyMode === 'user_approved' || isManual;
+
+        let tailored = {
+            summary: '',
+            bullets: [],
+            atsKeywords: [],
+            resumeFitScore: 0,
+        };
+
+        let answers = {
+            whyThisRole: '',
+            whyYou: '',
+            impactStory: '',
+        };
+
+        if (!isManual) {
+            const generated = await Promise.all([
+                this.generateTailoredResume({ userId, jobId }),
+                applyAgent.prepareAnswers({ profile, job }),
+            ]);
+            tailored = generated[0].tailored;
+            answers = generated[1];
+        }
 
         const recommendations = await this.getRecommendations({ userId, filters: { query: job.title, location: job.location, limit: 20 } });
         const match = recommendations.recommendations.find((item) => String(item.jobId) === String(job._id));
@@ -239,7 +293,7 @@ class CareerTwinOrchestratorService {
                     userId,
                     jobId: job._id,
                     applyMode,
-                    status: applyMode === 'user_approved' ? 'applied' : 'draft',
+                    status: isApplied ? 'applied' : 'draft',
                     matchScore: clamp(Number(match?.fitScore || 0), 0, 100),
                     interviewProbability: clamp(Number(match?.interviewProbability || 0), 0, 100),
                     fitCategory: match?.fitCategory || 'moderate_fit',
@@ -252,39 +306,48 @@ class CareerTwinOrchestratorService {
                     },
                     preparedAnswers: answers,
                     'timeline.lastUpdatedAt': new Date(),
-                    ...(applyMode === 'user_approved' ? { 'timeline.appliedAt': new Date() } : {}),
+                    ...(isApplied ? { 'timeline.appliedAt': new Date() } : {}),
                 },
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        const createdEventType = isApplied ? 'applied' : 'created';
+        const createdEventMessage = isManual
+            ? 'Application tracked as manual external apply'
+            : applyMode === 'user_approved'
+                ? 'Application submitted with user approval'
+                : 'Application draft created';
+
         await trackingAgent.createEvent({
             userId,
             applicationId: application._id,
-            type: applyMode === 'user_approved' ? 'applied' : 'created',
+            type: createdEventType,
             toStatus: application.status,
-            message: applyMode === 'user_approved' ? 'Application submitted with user approval' : 'Application draft created',
+            message: createdEventMessage,
             payload: { jobId: String(job._id), applyMode },
             createdBy: 'agent',
         });
 
-        await trackingAgent.createEvent({
-            userId,
-            applicationId: application._id,
-            type: 'resume_generated',
-            message: 'Tailored resume generated',
-            payload: { resumeFitScore: application.tailoredResume.resumeFitScore },
-            createdBy: 'agent',
-        });
+        if (!isManual) {
+            await trackingAgent.createEvent({
+                userId,
+                applicationId: application._id,
+                type: 'resume_generated',
+                message: 'Tailored resume generated',
+                payload: { resumeFitScore: application.tailoredResume.resumeFitScore },
+                createdBy: 'agent',
+            });
 
-        await trackingAgent.createEvent({
-            userId,
-            applicationId: application._id,
-            type: 'answer_prepared',
-            message: 'Application answers prepared',
-            payload: {},
-            createdBy: 'agent',
-        });
+            await trackingAgent.createEvent({
+                userId,
+                applicationId: application._id,
+                type: 'answer_prepared',
+                message: 'Application answers prepared',
+                payload: {},
+                createdBy: 'agent',
+            });
+        }
 
         return application;
     }
@@ -504,6 +567,132 @@ class CareerTwinOrchestratorService {
             stages,
             fitCategoryConversion,
         };
+    }
+
+    /**
+     * Search jobs based on user's resume-extracted skills using JSearch RapidAPI.
+     */
+    async searchJobsForUser(userId) {
+        const profile = await this.getOrCreateProfile(userId);
+        if (!profile || !profile.skills || profile.skills.length === 0) {
+            throw new Error('No skills found in profile. Please upload your resume first.');
+        }
+
+        const topSkills = profile.skills.slice(0, 5).map((s) => s.name);
+        const queryText = topSkills.join(' ');
+        const location = profile.summary?.preferredLocations?.[0] || '';
+
+        try {
+            const jobSourceAdapters = require('./providers/job-source-adapters');
+            const jobs = await jobSourceAdapters.fetchJSearchJobs(queryText, location, 1, 2);
+
+            if (jobs.length === 0) {
+                throw new Error('No jobs found for your skills. Try adjusting your profile.');
+            }
+
+            const skillSet = new Set(topSkills.map((s) => s.toLowerCase()));
+            const rankedJobs = jobs.map((job) => {
+                const desc = `${job.title} ${job.description || ''}`.toLowerCase();
+                const matchedSkills = [...skillSet].filter(
+                    (skill) => desc.includes(skill) || job.requiredSkills.some((s) => String(s).toLowerCase().includes(skill))
+                );
+                const score = topSkills.length > 0 ? Math.round((matchedSkills.length / topSkills.length) * 100) : 0;
+                return { ...job, fitScore: Math.min(100, score), matchedSkills };
+            }).sort((a, b) => b.fitScore - a.fitScore);
+
+            return {
+                message: `Found ${rankedJobs.length} jobs ranked by Fit Score based on your skills: ${queryText}`,
+                jobs: rankedJobs,
+                userSkills: topSkills,
+            };
+        } catch (error) {
+            console.error('[searchJobsForUser] Error:', error.message);
+            throw error;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // INTERVIEW AGENT METHODS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Start a new mock interview session — returns opening question.
+     * @param {string} userId
+     * @param {string} jobTitle
+     * @returns {Promise<{ question: string, hint: string, resumeSkills: string[] }>}
+     */
+    async startInterviewSession(userId, jobTitle = 'Software Engineer') {
+        const profile = await this.getOrCreateProfile(userId);
+        const resumeSkills = (profile.skills || []).slice(0, 8).map((s) => s.name);
+        const result = await interviewAgent.startSession({ jobTitle, skills: resumeSkills });
+        return { ...result, resumeSkills };
+    }
+
+    /**
+     * Multi-turn interview chat.
+     * @param {object} params
+     * @param {string} params.jobTitle
+     * @param {Array<{role, message}>} params.history
+     * @param {string} params.userMessage
+     * @returns {Promise<{ interviewer: object, conversationHistory: Array }>}
+     */
+    async interviewChat({ jobTitle, history = [], userMessage }) {
+        const result = await interviewAgent.chat({ jobTitle, history, userMessage });
+
+        const updatedHistory = [
+            ...history,
+            { role: 'user', message: userMessage, timestamp: new Date() },
+            { role: 'interviewer', message: result.text, timestamp: new Date() },
+        ];
+
+        return {
+            interviewer: {
+                text: result.text,
+                jobTitle,
+                turnCount: result.turnCount,
+            },
+            conversationHistory: updatedHistory,
+        };
+    }
+
+    /**
+     * Legacy single-turn method kept for backward compatibility.
+     */
+    async generateInterviewerResponse(userTextResponse, jobTitle = 'Developer') {
+        const result = await interviewAgent.chat({
+            jobTitle,
+            history: [],
+            userMessage: userTextResponse,
+        });
+        return {
+            text: result.text,
+            jobTitle,
+            userResponse: userTextResponse,
+            timestamp: new Date(),
+            feedbackPoints: [
+                'Clear communication of technical concepts',
+                'Problem-solving approach',
+                'Real-world application of knowledge',
+            ],
+        };
+    }
+
+    /**
+     * Evaluate the full interview session and produce structured feedback.
+     * @param {object} params
+     * @param {string} params.jobTitle
+     * @param {Array} params.history
+     */
+    async evaluateInterviewSession({ jobTitle, history }) {
+        return interviewAgent.evaluate({ jobTitle, history });
+    }
+
+    /**
+     * Transcribe audio using Gemini 1.5 Flash's native audio understanding.
+     * Falls back gracefully if audio is empty or key is missing.
+     */
+    async processUserAudio(audioBuffer, mimeType = 'audio/webm') {
+        return interviewAgent.transcribeAudio(audioBuffer, mimeType);
     }
 }
 

@@ -55,7 +55,7 @@ const applySchema = Joi.object({
 });
 
 const adminQueueSchema = Joi.object({
-    sourceType: Joi.string().valid('greenhouse', 'lever', 'workday').required(),
+    sourceType: Joi.string().valid('greenhouse', 'lever', 'workday', 'jsearch').required(),
     sourceKey: Joi.string().max(400).required(),
 });
 
@@ -64,7 +64,7 @@ const runQueueSchema = Joi.object({
 });
 
 const sourceConfigSchema = Joi.object({
-    sourceType: Joi.string().valid('greenhouse', 'lever', 'workday').required(),
+    sourceType: Joi.string().valid('greenhouse', 'lever', 'workday', 'jsearch').required(),
     sourceKey: Joi.string().max(400).required(),
     label: Joi.string().max(120).allow('').optional(),
     enabled: Joi.boolean().optional(),
@@ -124,7 +124,62 @@ router.post('/resume/upload-file', aiLimiter, upload.single('resume'), async (re
     }
 });
 
+// Search jobs based on resume-extracted skills (JSearch)
+router.get('/jobs/search-for-me', aiLimiter, controller.searchJobsForUser);
+
+// --- Interview AI Routes ---
+
+const interviewSessionSchema = Joi.object({
+    jobTitle: Joi.string().max(200).optional(),
+});
+
+const interviewChatSchema = Joi.object({
+    userMessage: Joi.string().min(1).max(3000).required(),
+    jobTitle: Joi.string().max(200).optional(),
+    conversationHistory: Joi.array().items(
+        Joi.object({
+            role: Joi.string().valid('user', 'interviewer').required(),
+            message: Joi.string().required(),
+            timestamp: Joi.date().optional(),
+        })
+    ).max(100).optional(),
+});
+
+const interviewEvaluateSchema = Joi.object({
+    jobTitle: Joi.string().max(200).optional(),
+    conversationHistory: Joi.array().items(
+        Joi.object({
+            role: Joi.string().valid('user', 'interviewer').required(),
+            message: Joi.string().required(),
+            timestamp: Joi.date().optional(),
+        })
+    ).min(1).required(),
+});
+
+// Start a new session — returns opening question from InterviewAgent
+router.post('/interview/session/start', aiLimiter, validate(interviewSessionSchema), controller.startInterviewSession);
+
+// Multi-turn chat — sends full history for context-aware next question
+router.post('/interview/session/chat', aiLimiter, validate(interviewChatSchema), controller.interviewChat);
+
+// End session and evaluate — returns score + strengths + improvements
+router.post('/interview/session/evaluate', aiLimiter, validate(interviewEvaluateSchema), controller.evaluateInterviewSession);
+
+// Legacy: single-turn generate
+const interviewLegacySchema = Joi.object({
+    userResponse: Joi.string().min(1).max(2000).required(),
+    jobTitle: Joi.string().max(200).optional(),
+});
+router.post('/interview/generate', aiLimiter, validate(interviewLegacySchema), controller.generateInterviewerResponse);
+
+// Backend audio STT via Gemini 1.5 Flash
+router.post('/interview/voice', aiLimiter, upload.single('audio'), controller.processUserAudio);
+
+// --- END: Interview AI Routes ---
+
 router.post('/jobs/sync', validate(syncJobsSchema), controller.syncJobs);
+router.get('/jobs/search', controller.searchJobs);
+router.get('/jobs/:jobId', controller.getJobDetail);
 router.get('/recommendations', controller.getRecommendations);
 router.post('/resume/tailor', aiLimiter, validate(tailorSchema), controller.generateTailoredResume);
 router.post('/apply/:jobId', aiLimiter, validate(applySchema), controller.applyToJob);

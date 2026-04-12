@@ -4,6 +4,14 @@ export type TwinWorkMode = 'remote' | 'hybrid' | 'onsite' | '';
 export type FitCategory = 'strong_fit' | 'moderate_fit' | 'stretch';
 export type ApplicationStatus = 'draft' | 'applied' | 'shortlisted' | 'interview' | 'rejected' | 'offer' | 'withdrawn';
 
+export interface JobSearchFilters {
+    query?: string;
+    location?: string;
+    workMode?: TwinWorkMode;
+    limit?: number;
+    offset?: number;
+}
+
 export interface CareerTwinRecommendation {
     jobId: string;
     externalId: string;
@@ -20,6 +28,34 @@ export interface CareerTwinRecommendation {
     missingSkills: string[];
     resumeFitScore: number;
     reasoning: string[];
+}
+
+export interface CareerTwinJobSearchItem {
+    _id: string;
+    externalId: string;
+    source: string;
+    sourceUrl: string;
+    applyUrl: string;
+    company: string;
+    title: string;
+    location: string;
+    workMode: TwinWorkMode | 'unknown';
+    employmentType: string;
+    description: string;
+    requiredSkills: string[];
+    niceToHaveSkills: string[];
+    tags: string[];
+    compensationText?: string;
+    postedAt?: string;
+    expiresAt?: string;
+}
+
+export interface CareerTwinJobSearchResponse {
+    items: CareerTwinJobSearchItem[];
+    total: number;
+    offset: number;
+    limit: number;
+    hasMore: boolean;
 }
 
 export interface CareerTwinApplication {
@@ -118,6 +154,36 @@ export interface CareerTwinSourceConfig {
     lastSyncStatus?: 'idle' | 'success' | 'failed';
 }
 
+export interface InterviewMessage {
+    role: 'user' | 'interviewer';
+    message: string;
+    timestamp?: string | Date;
+}
+
+export interface InterviewSessionStart {
+    question: string;
+    hint: string;
+    resumeSkills: string[];
+}
+
+export interface InterviewChatResponse {
+    interviewer: {
+        text: string;
+        jobTitle: string;
+        turnCount: number;
+    };
+    conversationHistory: InterviewMessage[];
+}
+
+export interface InterviewEvaluation {
+    overallScore: number;
+    verdict: 'Excellent' | 'Good' | 'Average' | 'Needs Work';
+    strengths: string[];
+    improvements: string[];
+    starMoments: string[];
+    nextSteps: string[];
+}
+
 export const careerTwinService = {
     uploadResumeText: (resumeText: string, preferences = {}) =>
         api.post('/career-twin/resume/upload-text', { resumeText, preferences }).then((r) => r.data.data),
@@ -136,15 +202,25 @@ export const careerTwinService = {
     syncJobs: (jobs: Record<string, unknown>[], source = 'manual_feed') =>
         api.post('/career-twin/jobs/sync', { jobs, source }).then((r) => r.data.data),
 
-    getDashboard: (filters?: { query?: string; location?: string; workMode?: TwinWorkMode; limit?: number }) =>
+    getDashboard: (filters?: JobSearchFilters) =>
         api
             .get('/career-twin/dashboard', { params: filters || {} })
             .then((r) => r.data.data as TwinDashboardData),
 
-    getRecommendations: (filters?: { query?: string; location?: string; workMode?: TwinWorkMode; limit?: number }) =>
+    getRecommendations: (filters?: JobSearchFilters) =>
         api
             .get('/career-twin/recommendations', { params: filters || {} })
             .then((r) => r.data.data as TwinDashboardData['recommendations']),
+
+    searchJobs: (filters?: JobSearchFilters) =>
+        api
+            .get('/career-twin/jobs/search', { params: filters || {} })
+            .then((r) => r.data.data as CareerTwinJobSearchResponse),
+
+    getJobDetail: (jobId: string) =>
+        api
+            .get(`/career-twin/jobs/${jobId}`)
+            .then((r) => (r.data.data as { job: CareerTwinJobSearchItem }).job),
 
     tailorResume: (jobId: string) =>
         api.post('/career-twin/resume/tailor', { jobId }).then((r) => r.data.data as {
@@ -240,4 +316,59 @@ export const careerTwinService = {
 
     recoverSourceById: (sourceId: string) =>
         api.post(`/career-twin/admin/sources/${sourceId}/recover`).then((r) => r.data.data),
+
+    // === Interview Session API (Session-based, multi-turn) ===
+
+    /**
+     * Start a new interview session — returns the opening question from InterviewAgent.
+     */
+    startInterviewSession: (jobTitle: string): Promise<InterviewSessionStart> =>
+        api
+            .post('/career-twin/interview/session/start', { jobTitle })
+            .then((r) => r.data.data as InterviewSessionStart),
+
+    /**
+     * Send a message in a running interview session (full history for context).
+     */
+    interviewChat: (
+        userMessage: string,
+        jobTitle: string,
+        conversationHistory: InterviewMessage[]
+    ): Promise<InterviewChatResponse> =>
+        api
+            .post('/career-twin/interview/session/chat', { userMessage, jobTitle, conversationHistory })
+            .then((r) => r.data.data as InterviewChatResponse),
+
+    /**
+     * Evaluate the completed interview session — returns structured score + feedback.
+     */
+    evaluateInterviewSession: (
+        jobTitle: string,
+        conversationHistory: InterviewMessage[]
+    ): Promise<InterviewEvaluation> =>
+        api
+            .post('/career-twin/interview/session/evaluate', { jobTitle, conversationHistory })
+            .then((r) => r.data.data as InterviewEvaluation),
+
+    /**
+     * Search jobs based on resume-extracted skills using JSearch RapidAPI
+     */
+    searchJobsForMe: () =>
+        api.get('/career-twin/jobs/search-for-me').then((r) => ({
+            message: r.data.data.message as string,
+            jobs: r.data.data.jobs as any[],
+            userSkills: r.data.data.userSkills as string[],
+        })),
+
+    /**
+     * Process user audio for interview via Gemini STT (backend fallback)
+     */
+    processUserAudio: async (audioFile: File) => {
+        const formData = new FormData();
+        formData.append('audio', audioFile);
+        const response = await api.post('/career-twin/interview/voice', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data.data as { text: string; success: boolean };
+    },
 };
