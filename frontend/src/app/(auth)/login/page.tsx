@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { LogIn } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login, isLoading } = useAuthStore();
@@ -109,5 +109,17 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#070c1a] flex items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }
