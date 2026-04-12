@@ -20,6 +20,7 @@
   body {
     @apply text-gray-100 antialiased;
     font-family: var(--font-body), sans-serif;
+    line-height: 1.6;
     min-height: 100vh;
     background-color: #060b18;
     background-image:
@@ -30,6 +31,7 @@
 
   html[data-theme='light'] body {
     @apply text-slate-900;
+    line-height: 1.6;
     background-color: #f5f8ff;
     background-image:
       radial-gradient(1100px 480px at 10% -10%, rgba(56, 189, 248, 0.2), transparent 56%),
@@ -60,6 +62,32 @@
   button,
   a[role='button'] {
     touch-action: manipulation;
+  }
+
+  /* Keep common utility text classes readable on dark surfaces. */
+  html:not([data-theme='light']) .text-gray-500,
+  html:not([data-theme='light']) .text-slate-500 {
+    color: #9fb0c9 !important;
+  }
+
+  html:not([data-theme='light']) .text-gray-600,
+  html:not([data-theme='light']) .text-slate-600 {
+    color: #b8c6da !important;
+  }
+
+  html:not([data-theme='light']) .text-gray-700,
+  html:not([data-theme='light']) .text-slate-700 {
+    color: #d1dceb !important;
+  }
+
+  html:not([data-theme='light']) .text-gray-800,
+  html:not([data-theme='light']) .text-slate-800 {
+    color: #e5ecf8 !important;
+  }
+
+  html:not([data-theme='light']) .placeholder-gray-600::placeholder,
+  html:not([data-theme='light']) .placeholder-slate-600::placeholder {
+    color: #8fa1bc !important;
   }
 }
 

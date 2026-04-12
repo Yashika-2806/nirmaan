@@ -38,7 +38,7 @@ function renderInline(text: string): React.ReactNode[] {
         } else if (match[4]) {
             // *italic*
             nodes.push(
-                <em key={key} className="italic text-gray-200">{match[4]}</em>
+                <em key={key} className="italic text-gray-100">{match[4]}</em>
             );
         } else if (match[5]) {
             // `inline code`
@@ -108,7 +108,7 @@ function parseTable(lines: string[], startIdx: number): { element: React.ReactNo
                     {rows.map((row, ri) => (
                         <tr key={ri} className={`border-b border-gray-800 ${ri % 2 === 0 ? 'bg-[#111111]' : 'bg-[#0d0d0d]'} hover:bg-[#1a1a1a] transition-colors`}>
                             {row.map((cell, ci) => (
-                                <td key={ci} className="px-4 py-2 text-gray-300 text-sm">
+                                <td key={ci} className="px-4 py-2 text-gray-200 text-sm">
                                     {renderInline(cell)}
                                 </td>
                             ))}
@@ -137,12 +137,12 @@ function parseCodeBlock(lines: string[], startIdx: number): { element: React.Rea
     const element = (
         <div key={`code-${startIdx}`} className="my-4 rounded-lg overflow-hidden border border-gray-700">
             {lang && (
-                <div className="px-4 py-1.5 bg-[#1a1a1a] border-b border-gray-700 text-xs text-gray-400 font-mono uppercase">
+                <div className="px-4 py-1.5 bg-[#1a1a1a] border-b border-gray-700 text-xs text-gray-300 font-mono uppercase">
                     {lang}
                 </div>
             )}
             <pre className="bg-[#0a0a0a] p-4 overflow-x-auto">
-                <code className="text-sm font-mono text-gray-300 leading-relaxed whitespace-pre">
+                <code className="text-sm font-mono text-gray-200 leading-relaxed whitespace-pre">
                     {codeLines.join('\n')}
                 </code>
             </pre>
@@ -211,8 +211,8 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             const headingClasses: Record<number, string> = {
                 1: 'text-2xl font-bold text-white mt-6 mb-3',
                 2: 'text-xl font-bold text-[#00D9FF] mt-5 mb-2 border-b border-[#00D9FF]/20 pb-1',
-                3: 'text-lg font-bold text-gray-100 mt-4 mb-2',
-                4: 'text-base font-bold text-gray-200 mt-3 mb-1',
+                3: 'text-lg font-bold text-gray-50 mt-4 mb-2',
+                4: 'text-base font-bold text-gray-100 mt-3 mb-1',
             };
             elements.push(
                 <div key={`h-${i}`} className={headingClasses[level] || headingClasses[4]}>
@@ -233,7 +233,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
                             {match[1]}:
                         </span>
                         {match[2]?.trim() && (
-                            <span className="text-gray-300 ml-2">{renderInline(match[2].trim())}</span>
+                            <span className="text-gray-200 ml-2">{renderInline(match[2].trim())}</span>
                         )}
                     </div>
                 );
@@ -252,8 +252,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             elements.push(
                 <blockquote
                     key={`bq-${i}`}
-                    className="my-3 pl-4 border-l-3 border-[#00D9FF] bg-[#00D9FF]/5 py-2 pr-3 rounded-r-lg text-gray-300 italic"
-                    style={{ borderLeftWidth: '3px' }}
+                    className="my-3 pl-4 border-l-[3px] border-[#00D9FF] bg-[#00D9FF]/5 py-2 pr-3 rounded-r-lg text-gray-200 italic"
                 >
                     {quoteLines.map((ql, qi) => (
                         <p key={qi} className="mb-1 last:mb-0">{renderInline(ql)}</p>
@@ -273,7 +272,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             elements.push(
                 <ul key={`ul-${i}`} className="my-2 space-y-1.5 pl-1">
                     {listItems.map((item, li) => (
-                        <li key={li} className="flex gap-2.5 text-gray-300 leading-relaxed">
+                        <li key={li} className="flex gap-2.5 text-gray-200 leading-relaxed">
                             <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#00D9FF] shrink-0" />
                             <span>{renderInline(item)}</span>
                         </li>
@@ -293,7 +292,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             elements.push(
                 <ol key={`ol-${i}`} className="my-2 space-y-1.5 pl-1">
                     {listItems.map((item, li) => (
-                        <li key={li} className="flex gap-2.5 text-gray-300 leading-relaxed">
+                        <li key={li} className="flex gap-2.5 text-gray-200 leading-relaxed">
                             <span className="text-[#00D9FF] font-bold shrink-0 w-6 text-right">{li + 1}.</span>
                             <span>{renderInline(item)}</span>
                         </li>
@@ -305,7 +304,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
 
         // ── Regular paragraph ────────────────────────────────────────────
         elements.push(
-            <p key={`p-${i}`} className="text-gray-300 leading-relaxed mb-1">
+            <p key={`p-${i}`} className="text-gray-200 leading-relaxed mb-1">
                 {renderInline(trimmed)}
             </p>
         );

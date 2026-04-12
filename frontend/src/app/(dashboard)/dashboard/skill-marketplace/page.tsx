@@ -174,6 +174,14 @@ export default function SkillMarketplacePage() {
         }
     }, [user?._id]);
 
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            return;
+        }
+
+        loadAll();
+    }, [activeTab, isAuthenticated, user?._id]);
+
     const handleCreateListing = async () => {
         if (!requireAuth('Creating a listing')) {
             return;
@@ -199,7 +207,7 @@ export default function SkillMarketplacePage() {
             });
             setHasListing(true);
             toast.success('Listing created! Finding matches...');
-            await findMatches();
+            await loadAll();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create listing');
         } finally {
@@ -296,6 +304,7 @@ export default function SkillMarketplacePage() {
             });
             setRequestSkill('');
             setRequestDescription('');
+            setRequestReward('skill-exchange');
             toast.success('Skill request posted');
             await loadAll();
         } catch (error: any) {
@@ -353,6 +362,9 @@ export default function SkillMarketplacePage() {
                 duration: sessionDuration,
                 meetingLink: sessionLink,
             });
+            setSessionSkill('');
+            setSessionTime('');
+            setSessionDuration(60);
             toast.success('Session scheduled');
             await loadAll();
         } catch (error: any) {
@@ -392,6 +404,8 @@ export default function SkillMarketplacePage() {
                 rating: reviewRating,
                 feedback: reviewFeedback,
             });
+            setReviewSessionId('');
+            setReviewRating(5);
             setReviewFeedback('');
             toast.success('Review submitted');
             await loadAll();
@@ -422,6 +436,7 @@ export default function SkillMarketplacePage() {
                 encouragement: plan.encouragement || '',
             });
             toast.success('AI mentor response generated');
+            await loadAll();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to generate AI mentor response');
         } finally {
