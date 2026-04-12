@@ -224,17 +224,41 @@ export default function ResumeBuilder() {
         const tid = toast.loading('Fetching profiles & building your resume with AI...');
         try {
             const response = await resumeService.generateResume(inputData);
+            
+            // Check for explicit structured success
             if (response.success && response.data && !response.data.error) {
-                const clean = sanitizeResumeData(response.data);
+                let parsedData = response.data;
+                // If it's a string, try to parse it
+                if (typeof parsedData === 'string') {
+                    try {
+                        let cleanText = parsedData.trim();
+                        const startIndex = cleanText.indexOf('{');
+                        const lastIndex = cleanText.lastIndexOf('}');
+                        if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                            cleanText = cleanText.substring(startIndex, lastIndex + 1);
+                        }
+                        parsedData = JSON.parse(cleanText);
+                    } catch (e) {
+                        toast.error('Cannot parse the response: AI returned invalid JSON', { id: tid });
+                        return;
+                    }
+                }
+                
+                if (typeof parsedData !== 'object' || parsedData === null) {
+                    toast.error('Cannot parse the response: Expected an object', { id: tid });
+                    return;
+                }
+
+                const clean = sanitizeResumeData(parsedData);
                 setResumeData(prev => ({ ...prev, ...clean }));
                 setPhase('editing');
                 toast.success('Resume generated! Review and edit each section.', { id: tid });
                 await saveResume(clean, inputData.resumeName || `${inputData.fullName}'s Resume`);
             } else {
-                toast.error(response.data?.error || 'AI could not build the resume. Check your API key.', { id: tid });
+                toast.error(response.message || response.data?.error || response.error || 'AI could not build the resume. Check your API key.', { id: tid });
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Backend connection failed.', { id: tid });
+            toast.error(err?.response?.data?.message || err?.message || 'Backend connection failed or cannot parse the response.', { id: tid });
         } finally {
             setIsGenerating(false);
         }

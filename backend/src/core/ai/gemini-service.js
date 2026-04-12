@@ -362,18 +362,23 @@ class GeminiService {
             const response = await result.response;
             let text = response.text();
 
-            // Clean up markdown if present
-            if (text.startsWith('```json')) {
-                text = text.replace(/```json/g, '').replace(/```/g, '');
+            let cleanText = text.trim();
+            
+            // Comprehensive JSON extraction
+            const startIndex = cleanText.indexOf('{');
+            const lastIndex = cleanText.lastIndexOf('}');
+            
+            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                cleanText = cleanText.substring(startIndex, lastIndex + 1);
             }
-
+            
             try {
-                const json = JSON.parse(text);
+                const json = JSON.parse(cleanText);
                 console.log("[GeminiService] Resume JSON generated successfully.");
                 return json;
             } catch (e) {
                 console.error("[GeminiService] Failed to parse JSON response:", text);
-                return { error: "Failed to parse AI response. Please try again." };
+                return { error: "Cannot parse the response. Please try again." };
             }
 
         } catch (error) {
@@ -427,13 +432,18 @@ Return STRICT JSON (no markdown, no backticks):
             const response = await result.response;
             let text = response.text();
 
-            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
-            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            let cleanText = text.trim();
+            const startIndex = cleanText.indexOf('{');
+            const lastIndex = cleanText.lastIndexOf('}');
+            
+            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            }
 
             try {
-                return JSON.parse(text.trim());
+                return JSON.parse(cleanText);
             } catch (e) {
-                return { atsScore: 72, improvements: ["Could not parse AI response. Please try again."] };
+                return { atsScore: 72, improvements: ["Cannot parse the response. Please try again.", "Error: " + e.message] };
             }
         } catch (error) {
             console.error("Gemini AI API Error (Analyze Resume):", error);
@@ -545,15 +555,20 @@ Return STRICT JSON array (no markdown, no backticks, no explanation):
             const response = await result.response;
             let text = response.text().trim();
 
-            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
-            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            let cleanText = text.trim();
+            const startIndex = cleanText.indexOf('[');
+            const lastIndex = cleanText.lastIndexOf(']');
+            
+            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            }
 
-            const questions = JSON.parse(text);
+            const questions = JSON.parse(cleanText);
             console.log(`[GeminiService] Generated ${questions.length} interview questions.`);
             return { questions };
         } catch (error) {
             console.error("Gemini AI API Error (Generate Questions):", error);
-            return { error: "AI Service Error: " + error.message };
+            return { error: "Cannot parse the response. Please try again. " + error.message };
         }
     }
 
@@ -595,15 +610,20 @@ Return STRICT JSON (no markdown, no backticks):
             const response = await result.response;
             let text = response.text().trim();
 
-            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
-            if (text.startsWith('```')) text = text.replace(/```/g, '');
+            let cleanText = text.trim();
+            const startIndex = cleanText.indexOf('{');
+            const lastIndex = cleanText.lastIndexOf('}');
+            
+            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            }
 
-            const evaluation = JSON.parse(text);
+            const evaluation = JSON.parse(cleanText);
             console.log(`[GeminiService] Answer evaluated. Score: ${evaluation.score}`);
             return evaluation;
         } catch (error) {
             console.error("Gemini AI API Error (Evaluate Answer):", error);
-            return { error: "AI Service Error: " + error.message };
+            return { error: "Cannot parse the response. Please try again. " + error.message };
         }
     }
 
@@ -662,9 +682,15 @@ Rules:
             const result = await model.generateContent(prompt);
             const response = await result.response;
             let text = response.text().trim();
-            if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
-            if (text.startsWith('```')) text = text.replace(/```/g, '');
-            const roadmap = JSON.parse(text);
+            let cleanText = text.trim();
+            const startIndex = cleanText.indexOf('{');
+            const lastIndex = cleanText.lastIndexOf('}');
+            
+            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
+                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            }
+            
+            const roadmap = JSON.parse(cleanText);
             console.log(`[GeminiService] Roadmap generated: ${roadmap.milestones?.length} milestones for "${targetGoal}"`);
             return roadmap;
         } catch (error) {

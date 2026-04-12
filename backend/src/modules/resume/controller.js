@@ -150,9 +150,18 @@ exports.generateResume = async (req, res, next) => {
 
         const generatedData = await profileScraperService.generateResumeFromProfiles(req.body);
 
+        if (generatedData && generatedData.error) {
+            return res.status(500).json({
+                success: false,
+                message: "Cannot parse the response or AI failed",
+                error: generatedData.error
+            });
+        }
+
         res.status(200).json({
             success: true,
-            data: generatedData
+            data: generatedData,
+            message: "Resume generated successfully"
         });
 
     } catch (error) {
@@ -182,9 +191,18 @@ exports.analyzeResume = async (req, res, next) => {
             );
         }
 
+        if (analysis && analysis.error) {
+            return res.status(500).json({
+                success: false,
+                message: "Cannot parse the response or AI failed",
+                error: analysis.error
+            });
+        }
+
         res.status(200).json({
             success: true,
-            data: analysis
+            data: analysis,
+            message: "Resume analyzed successfully"
         });
     } catch (error) {
         next(error);
@@ -204,9 +222,18 @@ exports.regenerateSummary = async (req, res, next) => {
 
         const summary = await geminiService.regenerateSummary(resumeData);
 
+        if (typeof summary === 'string' && (summary.startsWith('Error') || summary.startsWith('Configuration Error'))) {
+            return res.status(500).json({
+                success: false,
+                message: "Cannot parse the response or AI failed",
+                error: summary
+            });
+        }
+
         res.status(200).json({
             success: true,
-            data: { summary }
+            data: { summary },
+            message: "Summary regenerated successfully"
         });
     } catch (error) {
         next(error);
