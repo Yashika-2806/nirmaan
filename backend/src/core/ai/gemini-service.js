@@ -983,7 +983,7 @@ Return ONLY valid JSON array:
                 });
             };
 
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(prompt, { timeoutMs: 60000 });
             const response = await result.response;
             const parsed = parseQuestions(response.text());
             const normalized = normalize(parsed);
@@ -1056,7 +1056,7 @@ Return ONLY valid JSON array (no markdown, no backticks):
   }
 ]`;
 
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(prompt, { timeoutMs: 60000 });
             const response = await result.response;
             let text = response.text().trim();
             if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '');
@@ -1218,7 +1218,7 @@ Provide the same citations in BibTeX format for LaTeX users.
         const prompt = prompts[type] || prompts['literature-review'];
 
         try {
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(prompt, { timeoutMs: 60000 });
             const response = await result.response;
             const text = response.text().trim();
 
