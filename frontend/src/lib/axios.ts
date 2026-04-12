@@ -1,6 +1,20 @@
 import axios from 'axios';
 
-const apiBaseUrl = '/api';
+// In production, backend API is on port 8000 of the same domain
+// In development, use localhost:8000
+const getApiBaseUrl = () => {
+    if (typeof window === 'undefined') return '/api';
+    
+    const { hostname, protocol } = window.location;
+    // For production: use same domain but port 8000
+    // For localhost development: use localhost:8000
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:8000/api';
+    }
+    return `${protocol}//${hostname}:8000/api`;
+};
+
+const apiBaseUrl = getApiBaseUrl();
 
 const api = axios.create({
     baseURL: apiBaseUrl,
