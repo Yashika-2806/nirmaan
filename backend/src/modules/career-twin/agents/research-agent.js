@@ -3,6 +3,24 @@ const CareerTwinJob = require('../job-model');
 const { canonicalizeUrl, makeFingerprint } = require('../job-normalization');
 
 class ResearchAgent {
+    buildQueryFilter({ query = '', location = '', workMode = '' } = {}) {
+        const filter = { isActive: true };
+        if (query) {
+            filter.$or = [
+                { title: { $regex: query, $options: 'i' } },
+                { company: { $regex: query, $options: 'i' } },
+                { tags: { $elemMatch: { $regex: query, $options: 'i' } } },
+            ];
+        }
+        if (location) {
+            filter.location = { $regex: location, $options: 'i' };
+        }
+        if (workMode) {
+            filter.workMode = workMode;
+        }
+        return filter;
+    }
+
     computeQuality({ title, company, description, applyUrl, requiredSkills, postedAt }) {
         let score = 100;
         const flags = [];
@@ -122,24 +140,22 @@ class ResearchAgent {
         return { imported: writes.length, deduplicated: normalized.length - dedupedJobs.length };
     }
 
-    async queryJobs({ query = '', location = '', workMode = '', limit = 40 }) {
-        const filter = { isActive: true };
-        if (query) {
-            filter.$or = [
-                { title: { $regex: query, $options: 'i' } },
-                { company: { $regex: query, $options: 'i' } },
-                { tags: { $elemMatch: { $regex: query, $options: 'i' } } },
-            ];
-        }
-        if (location) {
-            filter.location = { $regex: location, $options: 'i' };
-        }
-        if (workMode) {
-            filter.workMode = workMode;
-        }
+    async queryJobs({ query = '', location = '', workMode = '', limit = 40, offset = 0 }) {
+        const filter = this.buildQueryFilter({ query, location, workMode });
+        const normalizedLimit = Math.min(Math.max(1, Number(limit || 40)), 100);
+        const normalizedOffset = Math.max(0, Number(offset || 0));
 
-        const jobs = await CareerTwinJob.find(filter).sort({ postedAt: -1 }).limit(Math.min(limit, 100)).lean();
+        const jobs = await CareerTwinJob.find(filter)
+            .sort({ postedAt: -1 })
+            .skip(normalizedOffset)
+            .limit(normalizedLimit)
+            .lean();
         return jobs;
+    }
+
+    async countJobs({ query = '', location = '', workMode = '' }) {
+        const filter = this.buildQueryFilter({ query, location, workMode });
+        return CareerTwinJob.countDocuments(filter);
     }
 }
 

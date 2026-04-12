@@ -9,6 +9,14 @@ const ensureSelf = (req, userId) => {
     }
 };
 
+const parsePositiveInt = (value, fallback, max) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return fallback;
+    }
+    return Math.min(Math.trunc(parsed), max);
+};
+
 const controller = {
     async uploadResume(req, res, next) {
         try {
@@ -43,13 +51,44 @@ const controller = {
         }
     },
 
+    async searchJobs(req, res, next) {
+        try {
+            const filters = {
+                query: String(req.query.query || ''),
+                location: String(req.query.location || ''),
+                workMode: String(req.query.workMode || ''),
+                limit: parsePositiveInt(req.query.limit, 40, 100),
+                offset: parsePositiveInt(req.query.offset, 0, 5000),
+            };
+
+            const data = await careerTwinService.searchJobs(filters);
+            return ApiResponse.success(res, data, 'Jobs fetched successfully');
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async getJobDetail(req, res, next) {
+        try {
+            const { jobId } = req.params;
+            const job = await careerTwinService.getJobDetail(jobId);
+            if (!job) {
+                return ApiResponse.notFound(res, 'Job not found');
+            }
+            return ApiResponse.success(res, { job }, 'Job details fetched');
+        } catch (error) {
+            next(error);
+        }
+    },
+
     async getRecommendations(req, res, next) {
         try {
             const filters = {
                 query: req.query.query || '',
                 location: req.query.location || '',
                 workMode: req.query.workMode || '',
-                limit: req.query.limit ? Number(req.query.limit) : 40,
+                limit: parsePositiveInt(req.query.limit, 40, 100),
+                offset: parsePositiveInt(req.query.offset, 0, 5000),
             };
             const data = await careerTwinService.getRecommendations({ userId: req.user.userId, filters });
             return ApiResponse.success(res, data, 'Recommendations generated');
@@ -127,7 +166,8 @@ const controller = {
                 query: req.query.query || '',
                 location: req.query.location || '',
                 workMode: req.query.workMode || '',
-                limit: req.query.limit ? Number(req.query.limit) : 40,
+                limit: parsePositiveInt(req.query.limit, 40, 100),
+                offset: parsePositiveInt(req.query.offset, 0, 5000),
             };
             const data = await careerTwinService.getDashboard(req.user.userId, filters);
             return ApiResponse.success(res, data, 'AI Twin dashboard loaded');
@@ -281,6 +321,125 @@ const controller = {
                 },
                 queued ? 'Source recovered and queued for sync' : 'Source recovered; sync already queued/running'
             );
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+    /**
+     * NEW: Upload and parse resume with Gemini AI skill extraction
+     */
+    async uploadAndParseResume(req, res, next) {
+        try {
+            const resumeText = req.body.resumeText || req.file?.resumeTextExtracted;
+            if (!resumeText) {
+                return ApiResponse.badRequest(res, 'resumeText is required or upload a supported PDF');
+            }
+
+            const profile = await careerTwinService.uploadResumeAndBuildProfile({
+                userId: req.user.userId,
+                resumeText,
+                filename: req.file?.originalname || '',
+                preferences: req.body.preferences || {},
+            });
+
+            return ApiResponse.success(res, { profile }, 'Resume parsed and profile updated with AI skill extraction');
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /**
+     * NEW: Search jobs based on resume-extracted skills using JSearch RapidAPI
+     */
+    async searchJobsForUser(req, res, next) {
+        try {
+            const result = await careerTwinService.searchJobsForUser(req.user.userId);
+            return ApiResponse.success(res, result, 'Jobs fetched and ranked by fit score');
+        } catch (error) {
+            return ApiResponse.badRequest(res, error.message);
+        }
+    },
+
+    /**
+     * NEW: Start a fresh interview session — returns opening question.
+     */
+    async startInterviewSession(req, res, next) {
+        try {
+            const { jobTitle = 'Software Engineer' } = req.body;
+            const result = await careerTwinService.startInterviewSession(req.user.userId, jobTitle);
+            return ApiResponse.success(res, result, 'Interview session started');
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+    /**
+     * NEW: Mock interview chat endpoint (multi-turn session mode).
+     */
+    async interviewChat(req, res, next) {
+        try {
+            const { userMessage, jobTitle = 'Developer', conversationHistory = [] } = req.body;
+            if (!userMessage) {
+                return ApiResponse.badRequest(res, 'userMessage is required');
+            }
+
+            const result = await careerTwinService.interviewChat({
+                jobTitle,
+                history: conversationHistory,
+                userMessage,
+            });
+
+            return ApiResponse.success(res, result, 'Interview conversation progressed');
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+    /**
+     * NEW: Evaluate completed interview session — returns score + feedback.
+     */
+    async evaluateInterviewSession(req, res, next) {
+        try {
+            const { jobTitle = 'Software Engineer', conversationHistory = [] } = req.body;
+            const result = await careerTwinService.evaluateInterviewSession({
+                jobTitle,
+                history: conversationHistory,
+            });
+            return ApiResponse.success(res, result, 'Interview session evaluated');
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+    /**
+     * NEW: Generate single mock interview response (backward-compat).
+     */
+    async generateInterviewerResponse(req, res, next) {
+        try {
+            const { userResponse, jobTitle } = req.body;
+            if (!userResponse) {
+                return ApiResponse.badRequest(res, 'userResponse is required');
+            }
+
+            const result = await careerTwinService.generateInterviewerResponse(userResponse, jobTitle || 'Developer');
+            return ApiResponse.success(res, { interviewer: result }, 'Interview response generated');
+        } catch (error) {
+            return ApiResponse.badRequest(res, error.message);
+        }
+    },
+
+    /**
+     * NEW: Process user audio for interview via Gemini STT.
+     */
+    async processUserAudio(req, res, next) {
+        try {
+            if (!req.file) {
+                return ApiResponse.badRequest(res, 'Audio file is required');
+            }
+
+            const result = await careerTwinService.processUserAudio(req.file.buffer, req.file.mimetype);
+            return ApiResponse.success(res, result, 'Audio processed');
         } catch (error) {
             return next(error);
         }
