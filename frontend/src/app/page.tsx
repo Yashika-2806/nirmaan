@@ -92,7 +92,7 @@ export default function HomePage() {
     return (
         <div className={`landing-shell min-h-screen ${isLight ? 'text-slate-900' : 'text-white'}`}>
             <header className={`sticky top-0 z-50 border-b backdrop-blur-xl ${isLight ? 'border-slate-200/80 bg-white/85' : 'border-cyan-300/10 bg-[#060b18]/85'}`}>
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 fade-up">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
                     <Link
                         href="/"
                         onClick={() => trackEvent('cta_clicked', { source: 'landing_topbar', cta: 'home_logo' })}

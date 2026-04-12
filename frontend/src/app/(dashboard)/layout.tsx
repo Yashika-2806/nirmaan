@@ -31,9 +31,6 @@ export default function DashboardLayout({
     const pathname = usePathname();
     const { user, isAuthenticated, logout } = useAuthStore();
     const { isLight } = useTheme();
-    const [showTopBar, setShowTopBar] = useState(true);
-    const lastScrollYRef = useRef(0);
-
     // Removed auth check redirect - dashboard is now publicly accessible
 
     const handleLogout = async () => {
@@ -65,29 +62,6 @@ export default function DashboardLayout({
     const navHrefs = useMemo(() => navItems.map((item) => item.href), [navItems]);
 
     useEffect(() => {
-        const onScroll = () => {
-            const currentY = window.scrollY;
-
-            if (currentY <= 32) {
-                setShowTopBar(true);
-                lastScrollYRef.current = currentY;
-                return;
-            }
-
-            if (currentY > lastScrollYRef.current + 8) {
-                setShowTopBar(false);
-            } else if (currentY < lastScrollYRef.current - 8) {
-                setShowTopBar(true);
-            }
-
-            lastScrollYRef.current = currentY;
-        };
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
-
-    useEffect(() => {
         // Warm key dashboard routes to make navigation feel immediate.
         navHrefs.forEach((href) => {
             router.prefetch(href);
@@ -99,9 +73,7 @@ export default function DashboardLayout({
             {/* Top Header Navigation */}
             <header className={`sticky top-0 z-50 border-b backdrop-blur-md ${isLight ? 'border-slate-300/80 bg-white/95' : 'border-gray-800/80 bg-[#0a0a0a]/95'}`}>
                 <div
-                    className={`overflow-hidden border-b transition-[max-height,opacity] duration-300 ${isLight ? 'border-slate-200' : 'border-gray-900'} ${
-                        showTopBar ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
+                    className={`overflow-hidden border-b ${isLight ? 'border-slate-200' : 'border-gray-900'}`}
                 >
                     <div className="px-4 md:px-5 py-2.5">
                         <div className="flex items-center justify-between gap-4">
