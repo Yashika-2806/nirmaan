@@ -1,5 +1,6 @@
 const DSAProblem = require('./model');
 const dsaAI = require('./ai-wrapper');
+const dsaAnalysisFormatter = require('./analysis-formatter');
 const { AppError } = require('../../core/middleware/error');
 const { ERROR_CODES } = require('../../config/constants');
 
@@ -71,6 +72,54 @@ class DSAService {
             solved: problemRecord.solved,
             attemptCount: problemRecord.attempts.length,
         };
+    }
+
+    /**
+     * Analyze solution with structured interview-ready feedback
+     * This is the new improved endpoint that returns comprehensive structured analysis
+     * 
+     * @param {string} problemTitle - Title of the problem
+     * @param {string} problemDescription - Full problem description
+     * @param {string} code - User's solution code
+     * @param {string} language - Programming language
+     * @param {string} userId - User ID for logging
+     * @returns {Promise<object>} - Structured analysis object
+     */
+    async analyzeSolutionStructured(problemTitle, problemDescription, code, language, userId) {
+        console.log(`[DSAService] Starting structured analysis for "${problemTitle}"`);
+        
+        try {
+            // Get structured analysis from formatter
+            const analysis = await dsaAnalysisFormatter.analyzeSolution(
+                problemTitle,
+                problemDescription,
+                code,
+                language,
+                30000 // 30 second timeout
+            );
+
+            console.log(`[DSAService] ✅ Analysis complete for user ${userId}`);
+
+            // Determine if solution is correct based on analysis
+            const isCorrect = analysis.correctness === 'Correct' || 
+                            analysis.rating === 'Strong' || 
+                            analysis.rating === 'Good';
+
+            return {
+                success: true,
+                analysis,
+                isCorrect,
+                displayText: dsaAnalysisFormatter.formatForDisplay(analysis),
+            };
+        } catch (error) {
+            console.error(`[DSAService] ❌ Analysis failed:`, error.message);
+
+            throw new AppError(
+                `Unable to analyze your solution. ${error.message}. Please try again.`,
+                503,
+                ERROR_CODES.AI_SERVICE_ERROR
+            );
+        }
     }
 
     /**

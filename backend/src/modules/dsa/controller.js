@@ -19,7 +19,7 @@ class DSAController {
         ApiResponse.success(res, result, 'Solution approach generated');
     });
 
-    // Submit solution
+    // Submit solution (legacy endpoint)
     submitSolution = asyncHandler(async (req, res) => {
         const result = await dsaService.submitSolution(req.user.userId, req.body);
 
@@ -43,6 +43,20 @@ class DSAController {
         );
 
         ApiResponse.success(res, result, 'Follow-up questions generated');
+    });
+
+    // New: Analyze solution with structured interview-ready feedback
+    analyzeSolution = asyncHandler(async (req, res) => {
+        const { problemTitle, problemDescription, code, language } = req.body;
+        const result = await dsaService.analyzeSolutionStructured(
+            problemTitle,
+            problemDescription,
+            code,
+            language,
+            req.user.userId
+        );
+
+        ApiResponse.success(res, result, 'Solution analysis completed');
     });
 }
 

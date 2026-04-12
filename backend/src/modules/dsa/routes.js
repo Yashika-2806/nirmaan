@@ -29,11 +29,23 @@ const followUpSchema = Joi.object({
     difficulty: Joi.string().valid('easy', 'medium', 'hard').required(),
 });
 
+// New schema for detailed solution analysis
+const analyzeSolutionSchema = Joi.object({
+    problemTitle: Joi.string().required().min(2).max(200),
+    problemDescription: Joi.string().required().min(10).max(10000),
+    code: Joi.string().required().min(10).max(50000),
+    language: Joi.string().required().valid('python', 'javascript', 'java', 'cpp', 'nodejs', 'typescript'),
+});
+
 // Routes
 router.post('/explain', aiLimiter, validate(explainProblemSchema), dsaController.explainProblem);
 router.post('/approach', aiLimiter, validate(explainProblemSchema), dsaController.getSolutionApproach);
 router.post('/submit', aiLimiter, validate(submitSolutionSchema), dsaController.submitSolution);
 router.post('/follow-up', aiLimiter, validate(followUpSchema), dsaController.getFollowUpQuestions);
+
+// New endpoint for detailed solution analysis with structured feedback
+router.post('/analyze', aiLimiter, validate(analyzeSolutionSchema), dsaController.analyzeSolution);
+
 router.get('/analytics', dsaController.getUserAnalytics);
 
 module.exports = router;

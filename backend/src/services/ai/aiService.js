@@ -22,9 +22,9 @@ class AIService {
             const claudeClient = claudeKey ? new ClaudeClient(claudeKey) : null;
 
             if (claudeKey) {
-                console.log('[AIService] Claude fallback configured ✅');
+                console.log('[AIService] ✅ Claude fallback configured with API key');
             } else {
-                console.warn('[AIService] ⚠️ CLAUDE_API_KEY not set. No fallback provider available.');
+                console.warn('[AIService] ⚠️ CLAUDE_API_KEY not set in environment. Fallback to Claude will not be available.');
             }
 
             // Initialize Cloudflare Client if API key is in environment
@@ -38,8 +38,14 @@ class AIService {
             if (cloudflareKey && cloudflareAccountId) {
                 primaryClient = new CloudflareClient(cloudflareKey, cloudflareAccountId);
                 providerName = 'cloudflare';
+                console.log('[AIService] Using Cloudflare as primary provider');
             } else {
                 primaryClient = geminiClient;
+                if (keyToUse) {
+                    console.log('[AIService] Using Gemini as primary provider (key detected)');
+                } else {
+                    console.log('[AIService] No Gemini key configured - will rely on Claude fallback');
+                }
             }
 
             this.fallbackManager = new AIFallbackManager(primaryClient, providerName, geminiClient, claudeClient);
@@ -50,15 +56,24 @@ class AIService {
     /**
      * Generate content with full fallback and retry logic.
      * Priority: Gemini (with key rotation) → Claude (paid fallback)
+     * 
      * @param {string} prompt - The prompt to send to the AI
      * @param {string} apiKey - Optional specific API key, otherwise uses env variables
      * @param {number} timeoutMs - Timeout in milliseconds (default 30s)
+     * @returns {Promise<string>} - AI-generated content
+     * @throws {Error} - If all providers fail
      */
     async generate(prompt, apiKey = null, timeoutMs = 30000) {
         this._ensureInitialized(apiKey);
 
-        const result = await this.fallbackManager.generateWithFallback(prompt, timeoutMs);
-        return result;
+        try {
+            const result = await this.fallbackManager.generateWithFallback(prompt, timeoutMs);
+            console.log('[AIService] ✅ Response generated successfully from fallback chain');
+            return result;
+        } catch (error) {
+            console.error('[AIService] ❌ All providers exhausted. Final error:', error.message);
+            throw error;
+        }
     }
 }
 
