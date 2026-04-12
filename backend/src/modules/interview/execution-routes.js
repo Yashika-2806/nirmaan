@@ -76,6 +76,8 @@ router.post('/run', apiLimiter, validate(runCodeSchema), async (req, res, next) 
             memory: result.memory ? `${result.memory} KB` : '--',
             status: result.status,
             testCases: [],
+            testMode: result.testMode || false,
+            warning: result.warning || null,
         };
 
         return ApiResponse.success(res, response, 'Code executed');
@@ -115,6 +117,8 @@ router.post('/submit', apiLimiter, validate(submitCodeSchema), async (req, res, 
                 executionTime: result.testCases?.[0]?.time || '--',
                 memory: result.testCases?.[0]?.memory || '--',
             },
+            testMode: result.testMode || false,
+            warning: result.warning || null,
         };
 
         return ApiResponse.success(res, response, 'Submission evaluated');

@@ -37,12 +37,12 @@ const executorController = {
             // Execute code
             const result = await Judge0Service.executeCode(sourceCode, finalLanguage || '', stdin || '');
 
-            if (!result.success) {
+            if (!result.success && !result.testMode) {
                 return ApiResponse.error(res, result.message || 'Code execution failed', 500, result);
             }
 
-            // Return execution result
-            return ApiResponse.success(res, result, 'Code execution completed');
+            // Return execution result (including testMode flag if applicable)
+            return ApiResponse.success(res, result, result.testMode ? '⚠️ Test mode: ' + (result.message || 'Code executed in test mode') : 'Code execution completed');
         } catch (error) {
             logger.error('Judge0 controller error:', error.message);
             next(error);
