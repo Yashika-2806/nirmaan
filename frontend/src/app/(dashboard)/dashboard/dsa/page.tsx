@@ -51,7 +51,15 @@ export default function DSAPage() {
         if (!activeSheet.id.startsWith('custom-')) {
             const newQuestions = getQuestions(activeSheet.id);
             if (newQuestions.length > 0) {
-                setQuestions(newQuestions);
+                try {
+                    const savedIds = JSON.parse(localStorage.getItem(`dsa_progress_${activeSheet.id}`) || '[]');
+                    const restoredQuestions = newQuestions.map(q => 
+                        savedIds.includes(q.id) ? { ...q, status: 'solved' } : q
+                    );
+                    setQuestions(restoredQuestions);
+                } catch (e) {
+                    setQuestions(newQuestions);
+                }
             } else {
                 // If it returns empty (e.g. undefined sheet), maybe keep previous or clear
                 // setQuestions([]); 
@@ -146,10 +154,19 @@ export default function DSAPage() {
         setReviewInput('');
     };
 
+    const saveProgress = (sheetId: string, questionsList: any[]) => {
+        const solvedIds = questionsList.filter(q => q.status === 'solved').map(q => q.id);
+        localStorage.setItem(`dsa_progress_${sheetId}`, JSON.stringify(solvedIds));
+    };
+
     const handleSkip = () => {
-        setQuestions(prev => prev.map(q =>
-            q.id === reviewQuestion.id ? { ...q, status: 'solved' } : q
-        ));
+        setQuestions(prev => {
+            const newQ = prev.map(q =>
+                q.id === reviewQuestion.id ? { ...q, status: 'solved' } : q
+            );
+            saveProgress(activeSheet.id, newQ);
+            return newQ;
+        });
         setReviewQuestion(null);
     };
 
@@ -160,9 +177,13 @@ export default function DSAPage() {
                 setReviewInput('');
                 setAiFeedback('');
             } else {
-                setQuestions(prev => prev.map(q =>
-                    q.id === reviewQuestion.id ? { ...q, status: 'solved' } : q
-                ));
+                setQuestions(prev => {
+                    const newQ = prev.map(q =>
+                        q.id === reviewQuestion.id ? { ...q, status: 'solved' } : q
+                    );
+                    saveProgress(activeSheet.id, newQ);
+                    return newQ;
+                });
                 setReviewQuestion(null);
                 alert(`Great job! "${reviewQuestion.title}" is now marked as completed.`);
             }
@@ -296,7 +317,7 @@ export default function DSAPage() {
 
             {/* AI Review Modal */}
             {reviewQuestion && (
-                <div className="absolute inset-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] bg-[#0a0a0a]/95 backdrop-blur-md flex items-center justify-center p-4">
                     <div className="bg-[#111111] border border-[#00D9FF]/30 rounded-2xl w-full max-w-6xl h-[85vh] flex flex-col shadow-[0_0_80px_-20px_#00D9FF] animate-in fade-in zoom-in duration-300">
                         {/* ... Modal Header ... */}
                         <div className="p-6 border-b border-gray-800 bg-[#151515] flex justify-between items-center shrink-0">
@@ -553,7 +574,16 @@ export default function DSAPage() {
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                handleMarkComplete(q);
+                                                if (q.status === 'solved') {
+                                                    setQuestions(prev => {
+                                                        const newQ = prev.map(qu => qu.id === q.id ? { ...qu, status: 'pending' } : qu);
+                                                        const solvedIds = newQ.filter(qu => qu.status === 'solved').map(qu => qu.id);
+                                                        localStorage.setItem(`dsa_progress_${activeSheet.id}`, JSON.stringify(solvedIds));
+                                                        return newQ;
+                                                    });
+                                                } else {
+                                                    handleMarkComplete(q);
+                                                }
                                             }}
                                             className="focus:outline-none z-10 relative p-1 rounded-full hover:bg-gray-800 transition-colors"
                                             title={q.status === 'solved' ? "Completed" : "Mark as completed"}
