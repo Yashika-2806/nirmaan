@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { resumeService } from '@/services/resumeService';
 import toast from 'react-hot-toast';
 import {
@@ -100,6 +101,7 @@ const DUMMY_DATA = {
 };
 
 export default function ResumeBuilder() {
+    const router = useRouter();
     const [phase, setPhase] = useState<'template-select' | 'onboarding' | 'editing'>('template-select');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
@@ -220,10 +222,35 @@ export default function ResumeBuilder() {
     // ── Generate ──────────────────────────────────────────────────────────────
     const generateResume = async () => {
         if (!inputData.fullName.trim()) { toast.error('Full name is required'); return; }
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        if (!token) {
+            toast.error('Please sign in to generate resume');
+            router.push('/login');
+            return;
+        }
+
+        const normalizePublicProfileInput = (value: string, platform: 'github' | 'leetcode' | 'codeforces') => {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            if (/^https?:\/\//i.test(raw)) return raw;
+
+            if (platform === 'github') return `https://github.com/${raw.replace(/^@/, '')}`;
+            if (platform === 'leetcode') return `https://leetcode.com/${raw.replace(/^@/, '')}`;
+            return `https://codeforces.com/profile/${raw.replace(/^@/, '')}`;
+        };
+
+        const payload = {
+            ...inputData,
+            githubUrl: normalizePublicProfileInput(inputData.githubUrl, 'github'),
+            leetcodeUrl: normalizePublicProfileInput(inputData.leetcodeUrl, 'leetcode'),
+            codeforcesUrl: normalizePublicProfileInput(inputData.codeforcesUrl, 'codeforces'),
+        };
+
         setIsGenerating(true);
         const tid = toast.loading('Fetching profiles & building your resume with AI...');
         try {
-            const response = await resumeService.generateResume(inputData);
+            const response = await resumeService.generateResume(payload);
             
             // Check for explicit structured success
             if (response.success && response.data && !response.data.error) {
@@ -258,6 +285,11 @@ export default function ResumeBuilder() {
                 toast.error(response.message || response.data?.error || response.error || 'AI could not build the resume. Check your API key.', { id: tid });
             }
         } catch (err: any) {
+            if (err?.response?.status === 401) {
+                toast.error('Session expired. Please sign in again.', { id: tid });
+                router.push('/login');
+                return;
+            }
             const backendMessage = err?.response?.data?.message;
             const backendError = err?.response?.data?.error;
             const finalMessage = backendMessage
