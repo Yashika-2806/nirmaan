@@ -34,7 +34,7 @@ const INITIAL_QUESTIONS = getQuestions('blind-75');
 
 
 export default function DSAPage() {
-    const [questions, setQuestions] = useState(INITIAL_QUESTIONS);
+    const [questions, setQuestions] = useState<any[]>(INITIAL_QUESTIONS as any[]);
 
     const [sheets, setSheets] = useState([
         { id: 'blind-75', name: 'Blind 75 Must-Do Questions', total: 75, solved: 0, desc: 'Top 75 LeetCode questions for interview prep' },
@@ -53,7 +53,7 @@ export default function DSAPage() {
             if (newQuestions.length > 0) {
                 try {
                     const savedIds = JSON.parse(localStorage.getItem(`dsa_progress_${activeSheet.id}`) || '[]');
-                    const restoredQuestions = newQuestions.map(q => 
+                    const restoredQuestions = newQuestions.map((q: any) => 
                         savedIds.includes(q.id) ? { ...q, status: 'solved' } : q
                     );
                     setQuestions(restoredQuestions);

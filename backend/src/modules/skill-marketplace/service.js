@@ -6,6 +6,8 @@ const SkillSession = require('./session-model');
 const SkillReview = require('./review-model');
 const SkillPointsLedger = require('./points-ledger-model');
 const User = require('../../core/auth/model');
+const { AppError } = require('../../core/middleware/error');
+const { ERROR_CODES } = require('../../config/constants');
 
 const EXPERIENCE_SCORE = {
     beginner: 1,
@@ -253,8 +255,10 @@ class SkillMarketplaceService {
 
     async claimRequest(requestId, helperId) {
         const request = await SkillRequest.findById(requestId);
-        if (!request) throw new Error('Request not found');
-        if (request.status !== 'open') throw new Error('Only open requests can be claimed');
+        if (!request) throw new AppError('Request not found', 404, ERROR_CODES.NOT_FOUND);
+        if (request.status !== 'open') {
+            throw new AppError('Only open requests can be claimed', 400, ERROR_CODES.VALIDATION_ERROR);
+        }
 
         request.status = 'matched';
         request.helperId = helperId;
@@ -273,11 +277,13 @@ class SkillMarketplaceService {
 
     async completeRequest(requestId, userId) {
         const request = await SkillRequest.findById(requestId);
-        if (!request) throw new Error('Request not found');
+        if (!request) throw new AppError('Request not found', 404, ERROR_CODES.NOT_FOUND);
 
         const isOwner = String(request.userId) === String(userId);
         const isHelper = request.helperId && String(request.helperId) === String(userId);
-        if (!isOwner && !isHelper) throw new Error('You are not allowed to complete this request');
+        if (!isOwner && !isHelper) {
+            throw new AppError('You are not allowed to complete this request', 403, ERROR_CODES.AUTHORIZATION_ERROR);
+        }
 
         request.status = 'completed';
         await request.save();
@@ -320,10 +326,12 @@ class SkillMarketplaceService {
 
     async completeSession(sessionId, userId) {
         const session = await SkillSession.findById(sessionId);
-        if (!session) throw new Error('Session not found');
+        if (!session) throw new AppError('Session not found', 404, ERROR_CODES.NOT_FOUND);
 
         const isParticipant = String(session.mentorId) === String(userId) || String(session.learnerId) === String(userId);
-        if (!isParticipant) throw new Error('You are not allowed to update this session');
+        if (!isParticipant) {
+            throw new AppError('You are not allowed to update this session', 403, ERROR_CODES.AUTHORIZATION_ERROR);
+        }
 
         session.status = 'completed';
         await session.save();
@@ -341,12 +349,16 @@ class SkillMarketplaceService {
 
     async leaveReview(userId, payload) {
         const session = await SkillSession.findById(payload.sessionId);
-        if (!session) throw new Error('Session not found');
-        if (session.status !== 'completed') throw new Error('You can review only completed sessions');
+        if (!session) throw new AppError('Session not found', 404, ERROR_CODES.NOT_FOUND);
+        if (session.status !== 'completed') {
+            throw new AppError('You can review only completed sessions', 400, ERROR_CODES.VALIDATION_ERROR);
+        }
 
         const isMentor = String(session.mentorId) === String(userId);
         const isLearner = String(session.learnerId) === String(userId);
-        if (!isMentor && !isLearner) throw new Error('You are not part of this session');
+        if (!isMentor && !isLearner) {
+            throw new AppError('You are not part of this session', 403, ERROR_CODES.AUTHORIZATION_ERROR);
+        }
 
         const revieweeId = isMentor ? session.learnerId : session.mentorId;
 

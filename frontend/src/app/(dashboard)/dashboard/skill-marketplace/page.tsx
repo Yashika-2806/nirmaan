@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Users, Sparkles, Calendar, MessageSquare, TrendingUp, Star, Bot, Coins, ClipboardList } from 'lucide-react';
@@ -130,7 +130,7 @@ export default function SkillMarketplacePage() {
         return false;
     };
 
-    const loadAll = async () => {
+    const loadAll = useCallback(async () => {
         if (!isAuthenticated || !user?._id) {
             return;
         }
@@ -158,14 +158,6 @@ export default function SkillMarketplacePage() {
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to load marketplace data');
         }
-    };
-
-    useEffect(() => {
-        if (!isAuthenticated || !user?._id) {
-            return;
-        }
-
-        loadAll();
     }, [isAuthenticated, user?._id]);
 
     useEffect(() => {
@@ -180,7 +172,7 @@ export default function SkillMarketplacePage() {
         }
 
         loadAll();
-    }, [activeTab, isAuthenticated, user?._id]);
+    }, [activeTab, isAuthenticated, user?._id, loadAll]);
 
     const handleCreateListing = async () => {
         if (!requireAuth('Creating a listing')) {

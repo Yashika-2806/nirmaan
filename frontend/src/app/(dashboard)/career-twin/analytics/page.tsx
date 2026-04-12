@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, RefreshCcw, Settings2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -32,7 +32,7 @@ export default function CareerTwinAnalyticsPage() {
     });
     const [isLoading, setIsLoading] = useState(true);
 
-    const loadAll = async () => {
+    const loadAll = useCallback(async () => {
         setIsLoading(true);
         try {
             const [funnelData, syncData] = await Promise.all([
@@ -49,11 +49,11 @@ export default function CareerTwinAnalyticsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [isAdmin, lookbackDays]);
 
     useEffect(() => {
         loadAll();
-    }, [lookbackDays, isAdmin]);
+    }, [loadAll]);
 
     const fitBars = useMemo(() => {
         return (funnel?.fitCategoryConversion || []).map((item) => ({
