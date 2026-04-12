@@ -253,33 +253,30 @@ const makeMockSession = (company: string, role: string, round: string, experienc
 const fmtTime = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
 async function executeWithJudge0(sourceCode: string, language: Language) {
-    const response = await fetch('/api/executor/judge0', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+    try {
+        const api = (await import('@/lib/axios')).default;
+        const response = await api.post('/executor/judge0', {
             sourceCode,
-            languageId: JUDGE0_LANGUAGE_IDS[language],
-            stdin: '',
-        }),
-    });
+            language,
+        });
 
-    const data = await response.json();
+        // API returns { success, message, data: {...} }, extract the data
+        const result = response.data.data;
 
-    if (!response.ok) {
-        throw new Error(data?.message || 'Judge0 execution failed');
+        return result as {
+            success: boolean;
+            stdout?: string;
+            stderr?: string;
+            compile_output?: string;
+            message?: string;
+            status?: Judge0Status;
+            time?: string;
+            memory?: number;
+        };
+    } catch (error: any) {
+        // Re-throw to be handled by caller
+        throw error;
     }
-
-    return data as {
-        stdout?: string;
-        stderr?: string;
-        compile_output?: string;
-        message?: string;
-        status?: Judge0Status;
-        time?: string;
-        memory?: number;
-    };
 }
 
 function difficultyTone(d?: string) {

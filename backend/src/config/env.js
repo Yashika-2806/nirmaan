@@ -55,6 +55,13 @@ const config = {
         email: process.env.ADMIN_EMAIL,
         password: process.env.ADMIN_PASSWORD,
     },
+
+    // Judge0 API (Code Execution)
+    judge0: {
+        apiKey: process.env.JUDGE0_API_KEY,
+        apiHost: process.env.JUDGE0_API_HOST || 'judge0-ce.p.rapidapi.com',
+        baseUrl: process.env.JUDGE0_API_BASE_URL || 'https://judge0-ce.p.rapidapi.com',
+    },
 };
 
 // Validate required environment variables
