@@ -25,11 +25,57 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor - handle token refresh
+// Response interceptor - handle token refresh and error parsing
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        // Ensure error response has proper data structure - parse if needed
+        if (error.response) {
+            let responseData = error.response.data;
+            
+            // If data is a string, try to parse it as JSON
+            if (typeof responseData === 'string') {
+                try {
+                    responseData = JSON.parse(responseData);
+                } catch (parseErr) {
+                    responseData = {
+                        success: false,
+                        message: `Server error: ${error.response.statusText || 'Unknown error'}`,
+                        data: responseData,
+                    };
+                }
+            }
+            
+            // If parsed data is not an object, wrap it
+            if (!responseData || typeof responseData !== 'object') {
+                responseData = {
+                    success: false,
+                    message: `Server error: ${error.response.statusText || 'Unknown error'}`,
+                };
+            }
+            
+            // Ensure it has required fields
+            if (!responseData.success) {
+                responseData.success = false;
+            }
+            if (!responseData.message) {
+                responseData.message = error.response.statusText || 'An error occurred';
+            }
+            
+            error.response.data = responseData;
+        } else if (!error.response) {
+            // Network error or timeout
+            error.response = {
+                status: error.code === 'ECONNABORTED' ? 504 : 503,
+                statusText: 'Network Error',
+                data: {
+                    success: false,
+                    message: error.message || 'Network error. Please check your connection.',
+                },
+            };
+        }
 
         // If 401 and not already retried
         if (error.response?.status === 401 && !originalRequest._retry) {

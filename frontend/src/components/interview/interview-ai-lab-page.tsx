@@ -529,17 +529,19 @@ export default function InterviewAiLabPage() {
                 toast.error('Code ran, but sample output did not match.');
             }
         } catch (error: any) {
+            const errorMsg = error?.response?.data?.message || error?.message || 'Judge0 execution failed';
             setRunResult({
                 status: 'error',
                 verdict: 'Execution Error',
                 stdout: '',
-                stderr: error?.message || 'Judge0 execution failed',
+                stderr: errorMsg,
                 memory: '--',
                 time: '--',
                 testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
             });
             setActiveTab('errors');
-            toast.error(error?.message || 'Judge0 execution failed');
+            toast.error(errorMsg);
+            console.error('[Judge0] Execution error:', error);
         } finally {
             setRunning(false);
         }

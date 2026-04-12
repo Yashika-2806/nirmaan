@@ -13,11 +13,7 @@ exports.getResumes = async (req, res, next) => {
             .select('name updatedAt version analysis.atsScore status')
             .sort('-updatedAt');
 
-        res.status(200).json({
-            success: true,
-            count: resumes.length,
-            data: resumes
-        });
+        return ApiResponse.success(res, resumes, 'Resumes retrieved successfully', 200);
     } catch (error) {
         next(error);
     }
@@ -35,13 +31,10 @@ exports.getResume = async (req, res, next) => {
         });
 
         if (!resume) {
-            return next(new AppError('Resume not found', 404));
+            return ApiResponse.notFound(res, 'Resume not found');
         }
 
-        res.status(200).json({
-            success: true,
-            data: resume
-        });
+        return ApiResponse.success(res, resume, 'Resume retrieved successfully', 200);
     } catch (error) {
         next(error);
     }
@@ -68,10 +61,7 @@ exports.createResume = async (req, res, next) => {
 
         const resume = await Resume.create(req.body);
 
-        res.status(201).json({
-            success: true,
-            data: resume
-        });
+        return ApiResponse.created(res, resume, 'Resume created successfully');
     } catch (error) {
         next(error);
     }
@@ -101,10 +91,7 @@ exports.updateResume = async (req, res, next) => {
             runValidators: true
         });
 
-        res.status(200).json({
-            success: true,
-            data: resume
-        });
+        return ApiResponse.success(res, resume, 'Resume updated successfully', 200);
     } catch (error) {
         next(error);
     }
@@ -121,17 +108,14 @@ exports.deleteResume = async (req, res, next) => {
         });
 
         if (!resume) {
-            return next(new AppError('Resume not found', 404));
+            return ApiResponse.notFound(res, 'Resume not found');
         }
 
         // Soft delete
         resume.isActive = false;
         await resume.save();
 
-        res.status(200).json({
-            success: true,
-            data: {}
-        });
+        return ApiResponse.success(res, {}, 'Resume deleted successfully', 200);
     } catch (error) {
         next(error);
     }
@@ -145,21 +129,14 @@ exports.generateResume = async (req, res, next) => {
         const { fullName } = req.body;
 
         if (!fullName) {
-            return res.status(400).json({
-                success: false,
-                message: 'Full Name is required'
-            });
+            return ApiResponse.badRequest(res, 'Full Name is required');
         }
 
         const generatedData = await profileScraperService.generateResumeFromProfiles(req.body);
 
         // 1. Null / undefined
         if (!generatedData) {
-            return res.status(500).json({
-                success: false,
-                message: 'AI failed to generate resume content. Please try again.',
-                error: 'generateResumeFromProfiles returned null/undefined'
-            });
+            return ApiResponse.error(res, 'AI failed to generate resume content. Please try again.', 500);
         }
 
         // 2. Explicit error field WITHOUT a personal section = real failure
@@ -169,51 +146,35 @@ exports.generateResume = async (req, res, next) => {
             const userMessage = isRateLimit
                 ? 'AI quota exceeded. Please try again later or check your API keys.'
                 : 'AI failed to generate resume content. Please try again.';
-            return res.status(isRateLimit ? 429 : 500).json({
-                success: false,
-                message: userMessage,
-                error: errorMsg
-            });
+            const statusCode = isRateLimit ? 429 : 500;
+            return ApiResponse.error(res, userMessage, statusCode);
         }
 
         // 3. String leak — should never happen after safe parser, but guard
         if (typeof generatedData === 'string') {
-            return res.status(500).json({
-                success: false,
-                message: 'AI returned raw text instead of structured data. Please try again.',
-                error: 'Response was a string, not an object'
-            });
+            return ApiResponse.error(res, 'AI returned raw text instead of structured data. Please try again.', 500);
         }
 
         // 4. Valid object — ensure it has at least the 'personal' key
         if (typeof generatedData !== 'object' || !generatedData.personal) {
-            return res.status(500).json({
-                success: false,
-                message: 'AI returned an incomplete resume structure. Please try again.',
-                error: 'Missing required "personal" field in generated data'
-            });
+            return ApiResponse.error(res, 'AI returned an incomplete resume structure. Please try again.', 500);
         }
 
         // 5. Success — works for both AI-generated and fallback resumes
-        res.status(200).json({
-            success: true,
-            data: generatedData,
-            message: generatedData?._meta?.fallbackUsed
-                ? 'Resume draft generated. You can edit and refine it now.'
-                : 'Resume generated successfully'
-        });
+        const message = generatedData?._meta?.fallbackUsed
+            ? 'Resume draft generated. You can edit and refine it now.'
+            : 'Resume generated successfully';
+        return ApiResponse.success(res, generatedData, message, 200);
 
     } catch (error) {
         console.error('[Resume Generate] Unhandled error:', error.message || error);
         const errorMsg = error.message || String(error);
         const isRateLimit = errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
-        res.status(isRateLimit ? 429 : 500).json({
-            success: false,
-            message: isRateLimit
-                ? 'AI quota exceeded. Please try again later.'
-                : 'Resume generation failed. Please try again.',
-            error: errorMsg
-        });
+        const statusCode = isRateLimit ? 429 : 500;
+        const message = isRateLimit
+            ? 'AI quota exceeded. Please try again later.'
+            : 'Resume generation failed. Please try again.';
+        return ApiResponse.error(res, message, statusCode);
     }
 };
 
@@ -225,10 +186,7 @@ exports.analyzeResume = async (req, res, next) => {
         const { resumeData, jobDescription } = req.body;
 
         if (!resumeData) {
-            return res.status(400).json({
-                success: false,
-                message: 'Resume data is required'
-            });
+            return ApiResponse.badRequest(res, 'Resume data is required');
         }
 
         const analysis = await geminiService.analyzeResume(resumeData, jobDescription);
@@ -237,13 +195,11 @@ exports.analyzeResume = async (req, res, next) => {
         if (analysis && analysis.error) {
             const errorMsg = String(analysis.error);
             const isRateLimit = errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
-            return res.status(isRateLimit ? 429 : 500).json({
-                success: false,
-                message: isRateLimit
-                    ? 'AI quota exceeded. Please try again later.'
-                    : 'AI failed to analyze resume. Please try again.',
-                error: errorMsg
-            });
+            const statusCode = isRateLimit ? 429 : 500;
+            const message = isRateLimit
+                ? 'AI quota exceeded. Please try again later.'
+                : 'AI failed to analyze resume. Please try again.';
+            return ApiResponse.error(res, message, statusCode);
         }
 
         // If resume ID provided, save the score (only on success)
@@ -260,18 +216,10 @@ exports.analyzeResume = async (req, res, next) => {
             }
         }
 
-        res.status(200).json({
-            success: true,
-            data: analysis,
-            message: "Resume analyzed successfully"
-        });
+        return ApiResponse.success(res, analysis, "Resume analyzed successfully", 200);
     } catch (error) {
         console.error('[Resume Analyze] Unhandled error:', error.message || error);
-        res.status(500).json({
-            success: false,
-            message: 'Resume analysis failed. Please try again.',
-            error: error.message || String(error)
-        });
+        return ApiResponse.error(res, 'Resume analysis failed. Please try again.', 500);
     }
 };
 
@@ -284,36 +232,23 @@ exports.regenerateSummary = async (req, res, next) => {
         const { resumeData } = req.body;
 
         if (!resumeData) {
-            return res.status(400).json({
-                success: false,
-                message: 'Resume data is required'
-            });
+            return ApiResponse.badRequest(res, 'Resume data is required');
         }
 
         const summary = await geminiService.regenerateSummary(resumeData);
 
         if (typeof summary === 'string' && (summary.startsWith('Error') || summary.startsWith('Configuration Error') || summary.startsWith('AI Service'))) {
             const isRateLimit = summary.includes('429') || summary.includes('quota');
-            return res.status(isRateLimit ? 429 : 500).json({
-                success: false,
-                message: isRateLimit
-                    ? 'AI quota exceeded. Please try again later.'
-                    : 'AI failed to regenerate summary. Please try again.',
-                error: summary
-            });
+            const statusCode = isRateLimit ? 429 : 500;
+            const message = isRateLimit
+                ? 'AI quota exceeded. Please try again later.'
+                : 'AI failed to regenerate summary. Please try again.';
+            return ApiResponse.error(res, message, statusCode);
         }
 
-        res.status(200).json({
-            success: true,
-            data: { summary },
-            message: "Summary regenerated successfully"
-        });
+        return ApiResponse.success(res, { summary }, "Summary regenerated successfully", 200);
     } catch (error) {
         console.error('[Resume RegenerateSummary] Unhandled error:', error.message || error);
-        res.status(500).json({
-            success: false,
-            message: 'Summary regeneration failed. Please try again.',
-            error: error.message || String(error)
-        });
+        return ApiResponse.error(res, 'Summary regeneration failed. Please try again.', 500);
     }
 };

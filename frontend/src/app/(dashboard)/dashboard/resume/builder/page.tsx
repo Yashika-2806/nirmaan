@@ -295,7 +295,27 @@ export default function ResumeBuilder() {
                 toast.error(msg, { id: tid });
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.message || 'Backend connection failed or cannot parse the response.', { id: tid });
+            // Enhanced error handling to safely extract error message
+            let errorMsg = 'Backend connection failed or cannot parse the response.';
+            
+            try {
+                // Try to extract message from various error locations
+                if (err?.response?.data?.message) {
+                    errorMsg = err.response.data.message;
+                } else if (err?.response?.data?.error) {
+                    errorMsg = err.response.data.error;
+                } else if (err?.message) {
+                    errorMsg = err.message;
+                } else if (typeof err === 'string') {
+                    errorMsg = err;
+                }
+            } catch (parseErr) {
+                // If we can't parse error, use default message
+                console.error('[Resume Generate] Error message extraction failed:', parseErr);
+            }
+            
+            toast.error(errorMsg, { id: tid });
+            console.error('[Resume Generate] Error:', err);
         } finally {
             setIsGenerating(false);
         }
@@ -334,8 +354,11 @@ export default function ResumeBuilder() {
                 if (res.success) setSavedResumeId(res.data._id);
             }
             if (!data) toast.success('Resume saved!');
-        } catch {
-            if (!data) toast.error('Failed to save resume.');
+        } catch (err: any) {
+            if (!data) {
+                const errorMsg = err?.response?.data?.message || err?.message || 'Failed to save resume.';
+                toast.error(errorMsg);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -353,8 +376,10 @@ export default function ResumeBuilder() {
                 setShowAtsPanel(true);
                 toast.success(`ATS Score: ${res.data.atsScore}/100`, { id: tid });
             }
-        } catch {
-            toast.error('ATS analysis failed.', { id: tid });
+        } catch (err: any) {
+            const errorMsg = err?.response?.data?.message || err?.message || 'ATS analysis failed.';
+            toast.error(errorMsg, { id: tid });
+            console.error('[ATS Analyze] Error:', err);
         } finally {
             setIsAnalyzing(false);
         }
