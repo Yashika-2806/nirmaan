@@ -192,29 +192,17 @@ export default function AdvancedVisualizerPage() {
         transition={{ duration: 0.6 }}
         className="relative overflow-hidden rounded-2xl border border-slate-700/60 bg-gradient-to-br from-slate-800/80 via-slate-900/50 to-black p-8 shadow-2xl"
       >
-        {/* Animated gradient overlays */}
-        <motion.div
-          className="absolute inset-0 opacity-20"
-          animate={{
-            background: [
-              'radial-gradient(400px at 20% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 80%)',
-              'radial-gradient(400px at 80% 50%, rgba(139, 92, 246, 0.3) 0%, transparent 80%)',
-              'radial-gradient(400px at 20% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 80%)',
-            ],
-          }}
-          transition={{ duration: 8, repeat: Infinity } as any}
-        />
-
+        {/* Single stable glow orb - opacity only, no scale */}
         <motion.div
           className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary-500/30 blur-3xl"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2] }}
-          transition={{ duration: 8, repeat: Infinity } as any}
+          animate={{ opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
 
         <motion.div
           className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-blue-500/20 blur-3xl"
-          animate={{ scale: [1.2, 1, 1.2], opacity: [0.2, 0.3, 0.2] }}
-          transition={{ duration: 10, repeat: Infinity, delay: 1 } as any}
+          animate={{ opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 12, repeat: Infinity, delay: 6, ease: 'easeInOut' }}
         />
 
         <div className="relative z-10 space-y-4">
@@ -225,14 +213,14 @@ export default function AdvancedVisualizerPage() {
             transition={{ delay: 0.2 }}
           >
             <motion.div
-              animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-              transition={{ duration: 3, repeat: Infinity } as any}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
             >
               <Brain className="w-8 h-8 text-primary-400" />
             </motion.div>
             <motion.div
               animate={{ rotate: -360 }}
-              transition={{ duration: 4, repeat: Infinity } as any}
+              transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
             >
               <Sparkles className="w-6 h-6 text-cyan-400" />
             </motion.div>
@@ -263,11 +251,11 @@ export default function AdvancedVisualizerPage() {
           </motion.div>
         </div>
 
-        {/* Premium border glow */}
+        {/* Single stable border glow - opacity only */}
         <motion.div
-          className="absolute inset-0 rounded-2xl pointer-events-none"
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 3, repeat: Infinity } as any}
+          className="absolute inset-0 rounded-2xl pointer-events-none will-change-opacity"
+          animate={{ opacity: [0.25, 0.5, 0.25] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             boxShadow: 'inset 0 0 30px rgba(59, 130, 246, 0.2), inset 0 0 60px rgba(139, 92, 246, 0.1)',
           }}
