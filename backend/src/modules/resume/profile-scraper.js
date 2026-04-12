@@ -405,7 +405,66 @@ class ProfileScraperService {
         console.log('Sending structured data to Gemini for Synthesis...');
         const resumeJson = await geminiService.generateResumeContent(aggregatedText);
 
+        if (!resumeJson || resumeJson.error) {
+            const reason = resumeJson?.error || 'AI response unavailable';
+            console.warn(`[ResumeFallback] Using deterministic fallback resume. Reason: ${reason}`);
+            return this.generateFallbackResume(inputData, reason);
+        }
+
         return resumeJson;
+    }
+
+    generateFallbackResume(inputData, reason = '') {
+        const {
+            fullName,
+            email,
+            phone,
+            location,
+            githubUrl,
+            portfolioUrl,
+        } = inputData || {};
+
+        const inferredSkills = [];
+        if (githubUrl) inferredSkills.push('Git', 'GitHub', 'Version Control');
+        if (portfolioUrl) inferredSkills.push('Web Development');
+
+        return {
+            personal: {
+                fullName: fullName || '',
+                email: email || '',
+                phone: phone || '',
+                location: location || '',
+                linkedin: '',
+                github: githubUrl || '',
+                portfolio: portfolioUrl || '',
+                summary: 'Entry-level software developer profile generated from provided details. Update this summary with your target role, strongest technologies, and measurable project impact.',
+            },
+            skills: {
+                languages: [],
+                frameworks: [],
+                tools: inferredSkills,
+                concepts: ['Data Structures', 'Problem Solving'],
+            },
+            experience: [],
+            education: [
+                {
+                    school: 'Please fill in manually',
+                    degree: 'Please fill in manually',
+                    fieldOfStudy: 'Please fill in manually',
+                    year: '',
+                    grade: '',
+                    coursework: '',
+                },
+            ],
+            projects: [],
+            certifications: [],
+            competitiveProgramming: 'Actively practicing Data Structures & Algorithms',
+            achievements: [],
+            _meta: {
+                fallbackUsed: true,
+                fallbackReason: reason,
+            },
+        };
     }
 }
 

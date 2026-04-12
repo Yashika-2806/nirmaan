@@ -150,22 +150,25 @@ exports.generateResume = async (req, res, next) => {
 
         const generatedData = await profileScraperService.generateResumeFromProfiles(req.body);
 
-        if (generatedData && generatedData.error) {
-            return res.status(500).json({
-                success: false,
-                message: "Cannot parse the response or AI failed",
-                error: generatedData.error
-            });
-        }
-
         res.status(200).json({
             success: true,
             data: generatedData,
-            message: "Resume generated successfully"
+            message: generatedData?._meta?.fallbackUsed
+                ? 'Resume draft generated with fallback. You can edit and refine it now.'
+                : 'Resume generated successfully'
         });
 
     } catch (error) {
-        next(error);
+        const fallbackData = profileScraperService.generateFallbackResume(
+            req.body || {},
+            error?.message || 'Unexpected resume generation error'
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: fallbackData,
+            message: 'Resume draft generated with fallback due to a temporary AI issue.',
+        });
     }
 };
 

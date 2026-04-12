@@ -289,17 +289,36 @@ export default function SkillMarketplacePage() {
             return;
         }
 
-        if (!requestSkill.trim() || !requestDescription.trim()) {
+        const skill = requestSkill.trim();
+        const description = requestDescription.trim();
+        const preferredTime = requestPreferredTime.trim();
+
+        if (!skill || !description) {
             toast.error('Skill and description are required');
+            return;
+        }
+
+        if (skill.length < 2) {
+            toast.error('Skill must be at least 2 characters');
+            return;
+        }
+
+        if (description.length < 10) {
+            toast.error('Description must be at least 10 characters');
+            return;
+        }
+
+        if (!preferredTime || preferredTime.length < 2) {
+            toast.error('Preferred time is required');
             return;
         }
 
         setIsLoading(true);
         try {
             await skillMarketplaceService.createRequest({
-                skill: requestSkill,
-                description: requestDescription,
-                preferredTime: requestPreferredTime,
+                skill,
+                description,
+                preferredTime,
                 rewardType: requestReward,
             });
             setRequestSkill('');

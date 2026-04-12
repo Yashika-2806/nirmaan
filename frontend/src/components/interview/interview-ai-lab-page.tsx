@@ -553,9 +553,17 @@ export default function InterviewAiLabPage() {
 
         setSubmitting(true);
         try {
-            if (runResult.status !== 'success') {
+            const judgeUnavailable =
+                runResult.status === 'error' &&
+                /judge0|provider|unavailable|failed|proxy/i.test(runResult.stderr || '');
+
+            if (runResult.status !== 'success' && !judgeUnavailable) {
                 toast.error('Run and pass sample tests before submitting.');
                 return;
+            }
+
+            if (judgeUnavailable) {
+                toast('Judge0 is currently unavailable. Submitting without runtime validation.', { icon: '⚠️' });
             }
 
             setSession((prev) => {
@@ -564,10 +572,14 @@ export default function InterviewAiLabPage() {
                 const target = nextSession.questions[currentIndex];
                 if (target) {
                     target.answer = currentCode;
-                    target.score = 92;
-                    target.verdict = 'Strong';
-                    target.strengths = ['Solution compiles cleanly in Judge0', 'Passed available sample checks'];
-                    target.improvements = ['Add more edge cases if the backend enables hidden tests'];
+                    target.score = judgeUnavailable ? 70 : 92;
+                    target.verdict = judgeUnavailable ? 'Pending Validation' : 'Strong';
+                    target.strengths = judgeUnavailable
+                        ? ['Solution submitted successfully', 'Awaiting runtime validation once Judge0 is available']
+                        : ['Solution compiles cleanly in Judge0', 'Passed available sample checks'];
+                    target.improvements = judgeUnavailable
+                        ? ['Re-run code when Judge0 is available to validate sample and hidden tests']
+                        : ['Add more edge cases if the backend enables hidden tests'];
                 }
                 return nextSession;
             });

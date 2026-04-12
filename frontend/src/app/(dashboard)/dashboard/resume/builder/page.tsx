@@ -258,7 +258,12 @@ export default function ResumeBuilder() {
                 toast.error(response.message || response.data?.error || response.error || 'AI could not build the resume. Check your API key.', { id: tid });
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.message || 'Backend connection failed or cannot parse the response.', { id: tid });
+            const backendMessage = err?.response?.data?.message;
+            const backendError = err?.response?.data?.error;
+            const finalMessage = backendMessage
+                ? `${backendMessage}${backendError ? `: ${backendError}` : ''}`
+                : (err?.message || 'Backend connection failed or cannot parse the response.');
+            toast.error(finalMessage, { id: tid });
         } finally {
             setIsGenerating(false);
         }

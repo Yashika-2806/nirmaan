@@ -36,7 +36,7 @@ const detectSkillsSchema = Joi.object({
 
 const createRequestSchema = Joi.object({
     skill: Joi.string().trim().min(2).max(80).required(),
-    description: Joi.string().trim().min(10).max(1000).required(),
+    description: Joi.string().trim().min(2).max(1000).required(),
     preferredTime: Joi.string().trim().min(2).max(200).required(),
     rewardType: Joi.string().valid('skill-exchange', 'points').required(),
 });
