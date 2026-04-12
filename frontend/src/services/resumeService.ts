@@ -31,7 +31,8 @@ export const resumeService = {
     },
 
     generateResume: async (data: any) => {
-        const response = await api.post('/resume/generate', data);
+        // Resume generation fetches external APIs + runs AI inference — needs a long timeout.
+        const response = await api.post('/resume/generate', data, { timeout: 120000 });
         return response.data;
     },
 

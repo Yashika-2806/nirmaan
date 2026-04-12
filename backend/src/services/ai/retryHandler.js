@@ -1,5 +1,5 @@
-const RETRY_DELAY_MS = 1000; // 1 second
-const MAX_RETRIES = 1;
+const BASE_RETRY_DELAY_MS = 2000; // 2 seconds base
+const MAX_RETRIES = 2; // allow 2 retries (3 total attempts)
 
 /**
  * Determines if an error is retryable based on specific conditions.
@@ -27,6 +27,11 @@ function isRetryableError(error) {
         message.includes('bad request')
     ) {
         return false;
+    }
+    
+    // Retry on 429 (Rate Limited) — wait longer
+    if (status === 429 || message.includes('429') || message.includes('rate limit') || message.includes('quota')) {
+        return true;
     }
     
     // ONLY retry for 503 errors, network failures, timeout
@@ -68,7 +73,7 @@ function isRetryableError(error) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Executes a function with retry logic.
+ * Executes a function with retry logic and exponential backoff.
  */
 async function executeWithRetry(operation, context = 'AI Operation') {
     let attempt = 0;
@@ -83,8 +88,12 @@ async function executeWithRetry(operation, context = 'AI Operation') {
             }
             
             attempt++;
-            console.log(`[AI] ${context} failed -> retrying...`);
-            await sleep(RETRY_DELAY_MS);
+            // Use longer delay for rate limits (429), standard for others
+            const msg = (error.message || '').toLowerCase();
+            const isRateLimit = msg.includes('429') || msg.includes('rate limit') || msg.includes('quota');
+            const delay = isRateLimit ? BASE_RETRY_DELAY_MS * attempt * 2 : BASE_RETRY_DELAY_MS * attempt;
+            console.log(`[AI] ${context} failed -> retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})...`);
+            await sleep(delay);
         }
     }
 }

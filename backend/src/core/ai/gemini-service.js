@@ -2,6 +2,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
+const { safeParseAIJson } = require('../utils/safeJsonParser');
 
 /**
  * Service to interact with Google Gemini AI
@@ -49,8 +50,9 @@ class GeminiService {
         // Return a facade that mimics the SDK model interface
         // This ensures all legacy code routes through our new robust AI fallback manager
         return {
-            generateContent: async (prompt) => {
-                const text = await aiService.generate(prompt, key);
+            generateContent: async (prompt, options = {}) => {
+                const timeoutMs = options.timeoutMs || 30000;
+                const text = await aiService.generate(prompt, key, timeoutMs);
                 return {
                     response: {
                         text: () => text
@@ -358,32 +360,25 @@ class GeminiService {
             ═══════════════════════════════════════════════════════════════════════
             `;
 
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(prompt, { timeoutMs: 90000 });
             const response = await result.response;
             let text = response.text();
 
-            let cleanText = text.trim();
-            
-            // Comprehensive JSON extraction
-            const startIndex = cleanText.indexOf('{');
-            const lastIndex = cleanText.lastIndexOf('}');
-            
-            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                cleanText = cleanText.substring(startIndex, lastIndex + 1);
-            }
-            
-            try {
-                const json = JSON.parse(cleanText);
+            console.log(`[GeminiService] Raw resume AI response length: ${text.length} chars`);
+
+            const parsed = safeParseAIJson(text, 'object');
+            if (parsed.ok) {
                 console.log("[GeminiService] Resume JSON generated successfully.");
-                return json;
-            } catch (e) {
-                console.error("[GeminiService] Failed to parse JSON response:", text);
-                return { error: "Cannot parse the response. Please try again." };
+                return parsed.data;
+            } else {
+                console.error("[GeminiService] Failed to parse resume JSON:", parsed.error);
+                console.error("[GeminiService] Raw response preview:", text.substring(0, 300));
+                return { error: "AI returned a non-JSON response. Please try again." };
             }
 
         } catch (error) {
-            console.error("Gemini AI API Error (Resume):", error);
-            return { error: "AI Service Error: " + error.message };
+            console.error("Gemini AI API Error (Resume):", error.message || error);
+            return { error: "AI Service Error: " + (error.message || String(error)) };
         }
     }
 
@@ -432,22 +427,16 @@ Return STRICT JSON (no markdown, no backticks):
             const response = await result.response;
             let text = response.text();
 
-            let cleanText = text.trim();
-            const startIndex = cleanText.indexOf('{');
-            const lastIndex = cleanText.lastIndexOf('}');
-            
-            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                cleanText = cleanText.substring(startIndex, lastIndex + 1);
-            }
-
-            try {
-                return JSON.parse(cleanText);
-            } catch (e) {
-                return { atsScore: 72, improvements: ["Cannot parse the response. Please try again.", "Error: " + e.message] };
+            const parsed = safeParseAIJson(text, 'object');
+            if (parsed.ok) {
+                return parsed.data;
+            } else {
+                console.error("[GeminiService] Failed to parse ATS JSON:", parsed.error);
+                return { atsScore: 0, improvements: ["AI returned an unreadable response. Please try again."], error: parsed.error };
             }
         } catch (error) {
-            console.error("Gemini AI API Error (Analyze Resume):", error);
-            return { atsScore: 0, improvements: ["AI Service Error: " + error.message] };
+            console.error("Gemini AI API Error (Analyze Resume):", error.message || error);
+            return { atsScore: 0, improvements: ["AI Service Error: " + (error.message || String(error))], error: error.message };
         }
     }
 
@@ -553,22 +542,19 @@ Return STRICT JSON array (no markdown, no backticks, no explanation):
 `;
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            let text = response.text().trim();
+            let text = response.text();
 
-            let cleanText = text.trim();
-            const startIndex = cleanText.indexOf('[');
-            const lastIndex = cleanText.lastIndexOf(']');
-            
-            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            const parsed = safeParseAIJson(text, 'array');
+            if (parsed.ok) {
+                console.log(`[GeminiService] Generated ${parsed.data.length} interview questions.`);
+                return { questions: parsed.data };
+            } else {
+                console.error("[GeminiService] Failed to parse interview questions JSON:", parsed.error);
+                return { error: "AI returned an unreadable response. Please try again." };
             }
-
-            const questions = JSON.parse(cleanText);
-            console.log(`[GeminiService] Generated ${questions.length} interview questions.`);
-            return { questions };
         } catch (error) {
-            console.error("Gemini AI API Error (Generate Questions):", error);
-            return { error: "Cannot parse the response. Please try again. " + error.message };
+            console.error("Gemini AI API Error (Generate Questions):", error.message || error);
+            return { error: "AI service error: " + (error.message || String(error)) };
         }
     }
 
@@ -608,22 +594,19 @@ Return STRICT JSON (no markdown, no backticks):
 `;
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            let text = response.text().trim();
+            let text = response.text();
 
-            let cleanText = text.trim();
-            const startIndex = cleanText.indexOf('{');
-            const lastIndex = cleanText.lastIndexOf('}');
-            
-            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            const parsed = safeParseAIJson(text, 'object');
+            if (parsed.ok) {
+                console.log(`[GeminiService] Answer evaluated. Score: ${parsed.data.score}`);
+                return parsed.data;
+            } else {
+                console.error("[GeminiService] Failed to parse evaluation JSON:", parsed.error);
+                return { error: "AI returned an unreadable response. Please try again." };
             }
-
-            const evaluation = JSON.parse(cleanText);
-            console.log(`[GeminiService] Answer evaluated. Score: ${evaluation.score}`);
-            return evaluation;
         } catch (error) {
-            console.error("Gemini AI API Error (Evaluate Answer):", error);
-            return { error: "Cannot parse the response. Please try again. " + error.message };
+            console.error("Gemini AI API Error (Evaluate Answer):", error.message || error);
+            return { error: "AI service error: " + (error.message || String(error)) };
         }
     }
 
@@ -681,21 +664,19 @@ Rules:
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            let text = response.text().trim();
-            let cleanText = text.trim();
-            const startIndex = cleanText.indexOf('{');
-            const lastIndex = cleanText.lastIndexOf('}');
-            
-            if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                cleanText = cleanText.substring(startIndex, lastIndex + 1);
+            let text = response.text();
+
+            const parsed = safeParseAIJson(text, 'object');
+            if (parsed.ok) {
+                console.log(`[GeminiService] Roadmap generated: ${parsed.data.milestones?.length} milestones for "${targetGoal}"`);
+                return parsed.data;
+            } else {
+                console.error('[GeminiService] Failed to parse roadmap JSON:', parsed.error);
+                return { error: 'AI returned an unreadable response. Please try again.' };
             }
-            
-            const roadmap = JSON.parse(cleanText);
-            console.log(`[GeminiService] Roadmap generated: ${roadmap.milestones?.length} milestones for "${targetGoal}"`);
-            return roadmap;
         } catch (error) {
-            console.error('Gemini AI API Error (Generate Roadmap):', error);
-            return { error: 'AI Service Error: ' + error.message };
+            console.error('Gemini AI API Error (Generate Roadmap):', error.message || error);
+            return { error: 'AI Service Error: ' + (error.message || String(error)) };
         }
     }
 

@@ -225,40 +225,59 @@ export default function ResumeBuilder() {
         try {
             const response = await resumeService.generateResume(inputData);
             
-            // Check for explicit structured success
-            if (response.success && response.data && !response.data.error) {
-                let parsedData = response.data;
-                // If it's a string, try to parse it
-                if (typeof parsedData === 'string') {
+            // Backend guarantees: { success: true, data: { personal, skills, ... }, message }
+            if (response?.success && response?.data) {
+                let resumePayload = response.data;
+
+                // Extra safety: if data is somehow a string, try parsing it
+                if (typeof resumePayload === 'string') {
                     try {
-                        let cleanText = parsedData.trim();
-                        const startIndex = cleanText.indexOf('{');
-                        const lastIndex = cleanText.lastIndexOf('}');
-                        if (startIndex !== -1 && lastIndex !== -1 && lastIndex >= startIndex) {
-                            cleanText = cleanText.substring(startIndex, lastIndex + 1);
+                        const start = resumePayload.indexOf('{');
+                        const end = resumePayload.lastIndexOf('}');
+                        if (start !== -1 && end > start) {
+                            resumePayload = JSON.parse(resumePayload.substring(start, end + 1));
+                        } else {
+                            throw new Error('No JSON object in string');
                         }
-                        parsedData = JSON.parse(cleanText);
-                    } catch (e) {
-                        toast.error('Cannot parse the response: AI returned invalid JSON', { id: tid });
+                    } catch {
+                        toast.error('AI returned an unreadable response. Please try again.', { id: tid });
                         return;
                     }
                 }
-                
-                if (typeof parsedData !== 'object' || parsedData === null) {
-                    toast.error('Cannot parse the response: Expected an object', { id: tid });
+
+                // Validate it's a usable object
+                if (!resumePayload || typeof resumePayload !== 'object') {
+                    toast.error('AI returned an unexpected response format. Please try again.', { id: tid });
                     return;
                 }
 
-                const clean = sanitizeResumeData(parsedData);
+                // Check that the resume has at least a personal section
+                if (!resumePayload.personal) {
+                    toast.error('AI generated an incomplete resume. Please try again.', { id: tid });
+                    return;
+                }
+
+                const clean = sanitizeResumeData(resumePayload);
                 setResumeData(prev => ({ ...prev, ...clean }));
                 setPhase('editing');
                 toast.success('Resume generated! Review and edit each section.', { id: tid });
                 await saveResume(clean, inputData.resumeName || `${inputData.fullName}'s Resume`);
             } else {
-                toast.error(response.message || response.data?.error || response.error || 'AI could not build the resume. Check your API key.', { id: tid });
+                // Backend returned success: false or missing data
+                const msg = response?.message || 'AI could not generate the resume. Please try again.';
+                toast.error(msg, { id: tid });
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.message || 'Backend connection failed or cannot parse the response.', { id: tid });
+            // Axios throws on 4xx/5xx — extract the backend's message field
+            const backendMsg = err?.response?.data?.message;
+            const status = err?.response?.status;
+            if (status === 429 || (backendMsg && (backendMsg.includes('quota') || backendMsg.includes('limit')))) {
+                toast.error('⏳ AI quota exceeded — daily free-tier limit reached. Please try again tomorrow.', { id: tid, duration: 6000 });
+            } else if (backendMsg) {
+                toast.error(backendMsg, { id: tid });
+            } else {
+                toast.error(err?.message || 'Failed to connect to the backend. Please try again.', { id: tid });
+            }
         } finally {
             setIsGenerating(false);
         }

@@ -46,15 +46,8 @@ class AIService {
     async generate(prompt, apiKey = null, timeoutMs = 30000) {
         this._ensureInitialized(apiKey);
 
-        try {
-            const result = await this.fallbackManager.generateWithFallback(prompt, timeoutMs);
-            return result;
-        } catch (error) {
-            console.log(`[AI] Fallback response used`);
-            
-            // Return clean Markdown instead of naked JSON so it renders nicely in the UI
-            return "⚠️ **AI Service Temporarily Unavailable**\n\nThe AI models are currently experiencing high demand or service disruptions. \n\n*Please try again in a few moments.*";
-        }
+        const result = await this.fallbackManager.generateWithFallback(prompt, timeoutMs);
+        return result;
     }
 }
 

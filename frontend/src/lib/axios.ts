@@ -4,7 +4,7 @@ const apiBaseUrl = '/api';
 
 const api = axios.create({
     baseURL: apiBaseUrl,
-    timeout: 15000,
+    timeout: 30000,   // 30s default — AI short ops (DSA feedback, ATS analysis)
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
