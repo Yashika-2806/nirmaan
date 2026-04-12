@@ -42,7 +42,22 @@ export const roadmapService = {
         timelineMonths: number;
         currentSkills?: string[];
         experienceNotes?: string;
-    }) => api.post('/roadmap/generate', data).then(r => r.data.data) as Promise<Roadmap>,
+    }) => {
+        const allowedTimelines = [3, 6, 12, 18, 24] as const;
+        const timeline = allowedTimelines.includes(data.timelineMonths as (typeof allowedTimelines)[number])
+            ? data.timelineMonths
+            : 6;
+
+        const payload = {
+            currentRole: data.currentRole.trim(),
+            targetGoal: data.targetGoal.trim(),
+            timelineMonths: timeline,
+            currentSkills: (data.currentSkills || []).map((s) => s.trim()).filter(Boolean),
+            experienceNotes: (data.experienceNotes || '').trim(),
+        };
+
+        return api.post('/roadmap/generate', payload).then(r => r.data.data) as Promise<Roadmap>;
+    },
 
     getAll: () => api.get('/roadmap').then(r => r.data.data) as Promise<Roadmap[]>,
 

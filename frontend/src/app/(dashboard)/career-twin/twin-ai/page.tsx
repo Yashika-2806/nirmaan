@@ -36,11 +36,24 @@ import {
 
 type TabType = 'jobs' | 'interview';
 
+type BrowserSpeechRecognition = {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    onresult: ((event: any) => void) | null;
+    onerror: (() => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+};
+
+type BrowserSpeechRecognitionCtor = new () => BrowserSpeechRecognition;
+
 // ─── Web Speech API type declarations ────────────────────────────────────────
 declare global {
     interface Window {
-        SpeechRecognition: typeof SpeechRecognition;
-        webkitSpeechRecognition: typeof SpeechRecognition;
+        SpeechRecognition?: BrowserSpeechRecognitionCtor;
+        webkitSpeechRecognition?: BrowserSpeechRecognitionCtor;
     }
 }
 
@@ -93,7 +106,7 @@ export default function AITwinPage() {
 
     // ── Voice state ───────────────────────────────────────────────────────────
     const [listening, setListening] = useState(false);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll chat
@@ -112,12 +125,16 @@ export default function AITwinPage() {
         }
 
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            toast.error('Speech recognition is not available in this browser session.');
+            return;
+        }
         const recognition = new SR();
         recognition.lang = 'en-US';
         recognition.interimResults = true;
         recognition.continuous = false;
 
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
+        recognition.onresult = (event: any) => {
             let transcript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 transcript += event.results[i][0].transcript;
@@ -511,8 +528,9 @@ export default function AITwinPage() {
                                                     {[0, 1, 2].map((i) => (
                                                         <div
                                                             key={i}
-                                                            className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce"
-                                                            style={{ animationDelay: `${i * 0.15}s` }}
+                                                            className={`w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce ${
+                                                                i === 1 ? 'stagger-2' : i === 2 ? 'stagger-3' : 'stagger-1'
+                                                            }`}
                                                         />
                                                     ))}
                                                 </div>

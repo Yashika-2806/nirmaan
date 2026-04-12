@@ -100,7 +100,7 @@ export default function PDFPage() {
         setCurrentQuizIdx(0);
         setQuizAnswers([]);
         try {
-            const data = await pdfService.generateQuiz(sessionId, 10);
+            const data = await pdfService.generateQuiz(sessionId, { numQuestions: 10 });
             setQuizQuestions(data.questions);
             setQuizAnswers(data.questions.map(() => ({ selected: null, submitted: false })));
             setPhase('quiz');
@@ -147,7 +147,7 @@ export default function PDFPage() {
         setMarkedLoading(true);
         setMarkedComplete(false);
         try {
-            const data = await pdfService.generateMarkedQuestions(sessionId, 6);
+            const data = await pdfService.generateMarkedQuestions(sessionId, { numQuestions: 6 });
             setMarkedQuestions(data.questions);
             setStudentAnswers(data.questions.map(() => ({ text: '', result: null, loading: false })));
             setPhase('marked-questions');

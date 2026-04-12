@@ -455,7 +455,7 @@ const LOVE_BABBAR_SAMPLE = [
 ];
 
 
-export const getQuestions = (sheetId: string) => {
+export const getQuestions = (sheetId: string): any[] => {
     // 1. NeetCode 150
     if (sheetId === 'neetcode-150' || sheetId === 'blind-75') {
         const questions: any[] = [];

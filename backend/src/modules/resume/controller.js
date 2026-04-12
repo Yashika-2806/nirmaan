@@ -153,44 +153,11 @@ exports.generateResume = async (req, res, next) => {
 
         const generatedData = await profileScraperService.generateResumeFromProfiles(req.body);
 
-        // 1. Null / undefined
-        if (!generatedData) {
+        if (generatedData && generatedData.error) {
             return res.status(500).json({
                 success: false,
-                message: 'AI failed to generate resume content. Please try again.',
-                error: 'generateResumeFromProfiles returned null/undefined'
-            });
-        }
-
-        // 2. Explicit error field (returned by geminiService on parse/API failures)
-        if (generatedData.error) {
-            const errorMsg = String(generatedData.error);
-            const isRateLimit = errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
-            const userMessage = isRateLimit
-                ? 'AI quota exceeded. The free-tier daily limit has been reached. Please try again after midnight (Pacific Time) or add a paid API key.'
-                : 'AI failed to generate resume content. Please try again.';
-            return res.status(isRateLimit ? 429 : 500).json({
-                success: false,
-                message: userMessage,
-                error: errorMsg
-            });
-        }
-
-        // 3. String leak — should never happen after safe parser, but guard
-        if (typeof generatedData === 'string') {
-            return res.status(500).json({
-                success: false,
-                message: 'AI returned raw text instead of structured data. Please try again.',
-                error: 'Response was a string, not an object'
-            });
-        }
-
-        // 4. Valid object — ensure it has at least the 'personal' key
-        if (typeof generatedData !== 'object' || !generatedData.personal) {
-            return res.status(500).json({
-                success: false,
-                message: 'AI returned an incomplete resume structure. Please try again.',
-                error: 'Missing required "personal" field in generated data'
+                message: "Cannot parse the response or AI failed",
+                error: generatedData.error
             });
         }
 
@@ -198,23 +165,15 @@ exports.generateResume = async (req, res, next) => {
         res.status(200).json({
             success: true,
             data: generatedData,
-            message: "Resume generated successfully"
+            message: generatedData?._meta?.fallbackUsed
+                ? 'Resume draft generated with fallback. You can edit and refine it now.'
+                : 'Resume generated successfully'
         });
 
     } catch (error) {
-        console.error('[Resume Generate] Unhandled error:', error.message || error);
-        const errorMsg = error.message || String(error);
-        const isRateLimit = errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
-        res.status(isRateLimit ? 429 : 500).json({
-            success: false,
-            message: isRateLimit
-                ? 'AI quota exceeded. Please try again later.'
-                : 'Resume generation failed. Please try again.',
-            error: errorMsg
-        });
+        next(error);
     }
 };
-
 
 // @desc    Analyze resume and get ATS score
 // @route   POST /api/resume/analyze

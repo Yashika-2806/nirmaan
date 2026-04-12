@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Users, Sparkles, Calendar, MessageSquare, TrendingUp, Star, Bot, Coins, ClipboardList } from 'lucide-react';
@@ -130,7 +130,7 @@ export default function SkillMarketplacePage() {
         return false;
     };
 
-    const loadAll = async () => {
+    const loadAll = useCallback(async () => {
         if (!isAuthenticated || !user?._id) {
             return;
         }
@@ -158,14 +158,6 @@ export default function SkillMarketplacePage() {
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to load marketplace data');
         }
-    };
-
-    useEffect(() => {
-        if (!isAuthenticated || !user?._id) {
-            return;
-        }
-
-        loadAll();
     }, [isAuthenticated, user?._id]);
 
     useEffect(() => {
@@ -173,6 +165,14 @@ export default function SkillMarketplacePage() {
             setSessionLearnerId(user._id);
         }
     }, [user?._id]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            return;
+        }
+
+        loadAll();
+    }, [activeTab, isAuthenticated, user?._id, loadAll]);
 
     const handleCreateListing = async () => {
         if (!requireAuth('Creating a listing')) {
@@ -199,7 +199,7 @@ export default function SkillMarketplacePage() {
             });
             setHasListing(true);
             toast.success('Listing created! Finding matches...');
-            await findMatches();
+            await loadAll();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create listing');
         } finally {
@@ -281,21 +281,41 @@ export default function SkillMarketplacePage() {
             return;
         }
 
-        if (!requestSkill.trim() || !requestDescription.trim()) {
+        const skill = requestSkill.trim();
+        const description = requestDescription.trim();
+        const preferredTime = requestPreferredTime.trim();
+
+        if (!skill || !description) {
             toast.error('Skill and description are required');
+            return;
+        }
+
+        if (skill.length < 2) {
+            toast.error('Skill must be at least 2 characters');
+            return;
+        }
+
+        if (description.length < 10) {
+            toast.error('Description must be at least 10 characters');
+            return;
+        }
+
+        if (!preferredTime || preferredTime.length < 2) {
+            toast.error('Preferred time is required');
             return;
         }
 
         setIsLoading(true);
         try {
             await skillMarketplaceService.createRequest({
-                skill: requestSkill,
-                description: requestDescription,
-                preferredTime: requestPreferredTime,
+                skill,
+                description,
+                preferredTime,
                 rewardType: requestReward,
             });
             setRequestSkill('');
             setRequestDescription('');
+            setRequestReward('skill-exchange');
             toast.success('Skill request posted');
             await loadAll();
         } catch (error: any) {
@@ -353,6 +373,9 @@ export default function SkillMarketplacePage() {
                 duration: sessionDuration,
                 meetingLink: sessionLink,
             });
+            setSessionSkill('');
+            setSessionTime('');
+            setSessionDuration(60);
             toast.success('Session scheduled');
             await loadAll();
         } catch (error: any) {
@@ -392,6 +415,8 @@ export default function SkillMarketplacePage() {
                 rating: reviewRating,
                 feedback: reviewFeedback,
             });
+            setReviewSessionId('');
+            setReviewRating(5);
             setReviewFeedback('');
             toast.success('Review submitted');
             await loadAll();
@@ -422,6 +447,7 @@ export default function SkillMarketplacePage() {
                 encouragement: plan.encouragement || '',
             });
             toast.success('AI mentor response generated');
+            await loadAll();
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to generate AI mentor response');
         } finally {

@@ -115,7 +115,7 @@ export default function CareerTwinRecommendationsPage() {
                         <option value="hybrid">Hybrid</option>
                         <option value="onsite">Onsite</option>
                     </select>
-                    <button onClick={load} className="btn-primary inline-flex items-center justify-center gap-2">
+                    <button onClick={() => load({ append: false })} className="btn-primary inline-flex items-center justify-center gap-2">
                         <Filter className="w-4 h-4" />
                         Apply Filters
                     </button>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 
 interface ArrayVisualizationProps {
   data: number[];
@@ -53,7 +53,7 @@ export function ArrayVisualization({
     return 'bg-gradient-to-t from-slate-700 to-slate-600 hover:shadow-md hover:shadow-slate-500/30';
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -64,14 +64,14 @@ export function ArrayVisualization({
     },
   };
 
-  const barVariants = {
+  const barVariants: Variants = {
     hidden: { opacity: 0, scale: 0.8 },
     visible: {
       opacity: 1,
       scale: 1,
       transition: {
         duration: 0.4,
-        ease: 'easeOut',
+        ease: 'easeOut' as const,
       },
     },
   };

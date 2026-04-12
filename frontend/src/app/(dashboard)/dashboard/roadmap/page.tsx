@@ -844,7 +844,11 @@ export default function RoadmapPage() {
             // Reset form
             setCurrentRole(''); setTargetGoal(''); setCurrentSkills([]); setExperienceNotes('');
         } catch (e: any) {
-            toast.error(e.response?.data?.message || 'Failed to generate roadmap');
+            const apiError = e?.response?.data;
+            const firstValidationMessage = Array.isArray(apiError?.errors)
+                ? (apiError.errors[0]?.message || apiError.errors[0])
+                : '';
+            toast.error(firstValidationMessage || apiError?.message || 'Failed to generate roadmap');
             setPhase('setup');
         } finally { setGenerating(false); }
     };

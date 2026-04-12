@@ -9,13 +9,13 @@ const router = express.Router();
 router.use(protect);
 
 const generateSchema = Joi.object({
-    currentRole: Joi.string().required().min(2).max(100),
-    targetGoal: Joi.string().min(5).max(200).optional(),
-    goal: Joi.string().min(5).max(200).optional(),
-    timelineMonths: Joi.number().integer().valid(3, 6, 12, 18, 24).optional(),
-    duration: Joi.number().integer().valid(3, 6, 12, 18, 24).optional(),
-    currentSkills: Joi.array().items(Joi.string().max(50)).max(20).optional(),
-    experienceNotes: Joi.string().max(500).optional().allow(''),
+    currentRole: Joi.string().trim().required().min(2).max(100),
+    targetGoal: Joi.string().trim().min(2).max(200).optional(),
+    goal: Joi.string().trim().min(2).max(200).optional(),
+    timelineMonths: Joi.number().integer().min(1).max(24).optional(),
+    duration: Joi.number().integer().min(1).max(24).optional(),
+    currentSkills: Joi.array().items(Joi.string().trim().max(50)).max(20).optional(),
+    experienceNotes: Joi.string().trim().max(500).optional().allow(''),
 })
     .or('targetGoal', 'goal')
     .or('timelineMonths', 'duration');

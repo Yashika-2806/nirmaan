@@ -1,5 +1,7 @@
 const geminiService = require('../../core/ai/gemini-service');
 const Roadmap = require('./model');
+const { AppError } = require('../../core/middleware/error');
+const { ERROR_CODES } = require('../../config/constants');
 
 class RoadmapService {
     async generateRoadmap({ userId, currentRole, targetGoal, timelineMonths, currentSkills = [], experienceNotes = '' }) {
@@ -11,7 +13,9 @@ class RoadmapService {
             experience: experienceNotes,
         });
 
-        if (result.error) throw new Error(result.error);
+        if (result.error) {
+            throw new AppError(result.error, 502, ERROR_CODES.AI_SERVICE_ERROR);
+        }
 
         const roadmap = await Roadmap.create({
             userId,
@@ -36,15 +40,15 @@ class RoadmapService {
 
     async getRoadmap(id, userId) {
         const roadmap = await Roadmap.findOne({ _id: id, userId });
-        if (!roadmap) throw new Error('Roadmap not found');
+        if (!roadmap) throw new AppError('Roadmap not found', 404, ERROR_CODES.NOT_FOUND);
         return roadmap;
     }
 
     async toggleMilestone(id, userId, milestoneIndex) {
         const roadmap = await Roadmap.findOne({ _id: id, userId });
-        if (!roadmap) throw new Error('Roadmap not found');
+        if (!roadmap) throw new AppError('Roadmap not found', 404, ERROR_CODES.NOT_FOUND);
         if (milestoneIndex < 0 || milestoneIndex >= roadmap.milestones.length) {
-            throw new Error('Invalid milestone index');
+            throw new AppError('Invalid milestone index', 400, ERROR_CODES.VALIDATION_ERROR);
         }
         const m = roadmap.milestones[milestoneIndex];
         m.completed = !m.completed;
@@ -60,7 +64,7 @@ class RoadmapService {
 
     async deleteRoadmap(id, userId) {
         const roadmap = await Roadmap.findOneAndDelete({ _id: id, userId });
-        if (!roadmap) throw new Error('Roadmap not found');
+        if (!roadmap) throw new AppError('Roadmap not found', 404, ERROR_CODES.NOT_FOUND);
         return roadmap;
     }
 }

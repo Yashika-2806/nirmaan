@@ -86,25 +86,77 @@ class ProfileScraperService {
         }
     }
 
-    // --- Helper: Extract Username from URL ---
-    extractUsername(url) { // Removed platform arg to be more generic, handled inside scanners
-        if (!url) return null;
-        try {
-            // Remove trailing slash
-            let cleanUrl = url.replace(/\/$/, '');
-            // Remove query params
-            cleanUrl = cleanUrl.split('?')[0];
+    // --- Helper: Extract Username from URL or plain handle ---
+    extractUsername(input, platform = '') {
+        if (!input) return null;
 
-            const parts = cleanUrl.split('/');
-            return parts[parts.length - 1];
-        } catch (e) {
+        const raw = String(input).trim();
+        if (!raw) return null;
+
+        const cleanCandidate = (value) => {
+            if (!value) return null;
+            const v = String(value).trim().replace(/^@/, '').replace(/\/+$/, '');
+            if (!v || /\s/.test(v)) return null;
+            return v;
+        };
+
+        const plainUsernameFromRaw = () => {
+            const withoutProto = raw.replace(/^https?:\/\//i, '');
+
+            if (platform === 'github' && /^github\.[\w-]+$/i.test(withoutProto)) {
+                return cleanCandidate(withoutProto.split('.')[1]);
+            }
+
+            if (platform === 'leetcode') {
+                const m = withoutProto.match(/leetcode\.com\/(u\/)?([^/?#]+)/i);
+                if (m?.[2]) return cleanCandidate(m[2]);
+            }
+
+            if (platform === 'codeforces') {
+                const m = withoutProto.match(/codeforces\.com\/(profile\/)?([^/?#]+)/i);
+                if (m?.[2]) return cleanCandidate(m[2]);
+            }
+
+            if (/^[A-Za-z0-9_.-]+$/.test(withoutProto) && !withoutProto.includes('.com')) {
+                return cleanCandidate(withoutProto);
+            }
+
             return null;
+        };
+
+        try {
+            const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+            const parsed = new URL(normalized);
+            const host = parsed.hostname.toLowerCase();
+            const segments = parsed.pathname.split('/').filter(Boolean);
+
+            if (platform === 'github' && host.includes('github.com')) {
+                return cleanCandidate(segments[0]);
+            }
+
+            if (platform === 'leetcode' && host.includes('leetcode.com')) {
+                if (segments[0] === 'u') return cleanCandidate(segments[1]);
+                return cleanCandidate(segments[0]);
+            }
+
+            if (platform === 'codeforces' && host.includes('codeforces.com')) {
+                if (segments[0] === 'profile') return cleanCandidate(segments[1]);
+                return cleanCandidate(segments[0]);
+            }
+
+            if (segments.length > 0) {
+                return cleanCandidate(segments[segments.length - 1]);
+            }
+
+            return plainUsernameFromRaw();
+        } catch (e) {
+            return plainUsernameFromRaw();
         }
     }
 
     async fetchGithubData(url) {
         if (!url) return '';
-        const username = this.extractUsername(url);
+        const username = this.extractUsername(url, 'github');
         if (!username) return `GitHub URL provided but invalid: ${url}`;
 
         try {
@@ -168,7 +220,7 @@ class ProfileScraperService {
 
     async fetchLeetCodeData(url) {
         if (!url) return '';
-        let username = this.extractUsername(url);
+        let username = this.extractUsername(url, 'leetcode');
 
         // Handle /u/username format specifically
         if (url.includes('/u/')) {
@@ -251,7 +303,7 @@ class ProfileScraperService {
 
     async fetchCodeforcesData(url) {
         if (!url) return '';
-        const username = this.extractUsername(url); // Handle is last part
+        const username = this.extractUsername(url, 'codeforces');
         if (!username) return `Codeforces URL invalid: ${url}`;
 
         try {
@@ -405,7 +457,66 @@ class ProfileScraperService {
         console.log('Sending structured data to Gemini for Synthesis...');
         const resumeJson = await geminiService.generateResumeContent(aggregatedText);
 
+        if (!resumeJson || resumeJson.error) {
+            const reason = resumeJson?.error || 'AI response unavailable';
+            console.warn(`[ResumeFallback] Using deterministic fallback resume. Reason: ${reason}`);
+            return this.generateFallbackResume(inputData, reason);
+        }
+
         return resumeJson;
+    }
+
+    generateFallbackResume(inputData, reason = '') {
+        const {
+            fullName,
+            email,
+            phone,
+            location,
+            githubUrl,
+            portfolioUrl,
+        } = inputData || {};
+
+        const inferredSkills = [];
+        if (githubUrl) inferredSkills.push('Git', 'GitHub', 'Version Control');
+        if (portfolioUrl) inferredSkills.push('Web Development');
+
+        return {
+            personal: {
+                fullName: fullName || '',
+                email: email || '',
+                phone: phone || '',
+                location: location || '',
+                linkedin: '',
+                github: githubUrl || '',
+                portfolio: portfolioUrl || '',
+                summary: 'Entry-level software developer profile generated from provided details. Update this summary with your target role, strongest technologies, and measurable project impact.',
+            },
+            skills: {
+                languages: [],
+                frameworks: [],
+                tools: inferredSkills,
+                concepts: ['Data Structures', 'Problem Solving'],
+            },
+            experience: [],
+            education: [
+                {
+                    school: 'Please fill in manually',
+                    degree: 'Please fill in manually',
+                    fieldOfStudy: 'Please fill in manually',
+                    year: '',
+                    grade: '',
+                    coursework: '',
+                },
+            ],
+            projects: [],
+            certifications: [],
+            competitiveProgramming: 'Actively practicing Data Structures & Algorithms',
+            achievements: [],
+            _meta: {
+                fallbackUsed: true,
+                fallbackReason: reason,
+            },
+        };
     }
 }
 

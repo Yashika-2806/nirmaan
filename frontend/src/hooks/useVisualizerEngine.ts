@@ -28,7 +28,7 @@ export function useVisualizerEngine() {
         setIsPlaying(false);
         narration.stop();
         
-    }, [activeTemplateId]);
+    }, [activeTemplateId, narration.stop]);
 
     const playStep = useCallback((index: number) => {
         if (index < steps.length && index >= 0) {
