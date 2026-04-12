@@ -15,6 +15,8 @@ class ClaudeClient {
         this.apiKey = apiKey;
         this.anthropic = new Anthropic({
             apiKey: apiKey,
+            timeout: 130000, // 130 seconds - allows for 120s operation timeout + buffer
+            maxRetries: 2,   // Retry up to 2 times on transient failures
         });
         console.log('[ClaudeClient] ✅ Initialized with valid API key');
     }
