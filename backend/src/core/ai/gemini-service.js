@@ -34,21 +34,24 @@ class GeminiService {
     }
 
     /**
-     * Get the appropriate model for a specific feature
+     * Get the appropriate model for a specific feature.
+     * Always returns a facade that routes through the AI fallback chain
+     * (Gemini → Claude), even if no Gemini key is configured.
      * @param {string} feature - The feature identifier (dsa, interview, resume, etc.)
      */
     getModel(feature = 'general') {
         const key = this.keys[feature] || this.keys.general;
 
         if (!key) {
-            console.warn(`[GeminiService] No API key found for feature: ${feature}`);
-            return null; // Will trigger fallback error handled in caller
+            console.warn(`[GeminiService] No Gemini API key for feature: ${feature}. Will use Claude fallback if configured.`);
         }
 
         const aiService = require('../../services/ai/aiService');
 
-        // Return a facade that mimics the SDK model interface
-        // This ensures all legacy code routes through our new robust AI fallback manager
+        // Return a facade that mimics the SDK model interface.
+        // This ensures ALL code routes through the robust AI fallback manager
+        // (Gemini key rotation → Claude paid fallback).
+        // If no Gemini key exists, aiService will skip Gemini and go straight to Claude.
         return {
             generateContent: async (prompt, options = {}) => {
                 const timeoutMs = options.timeoutMs || 30000;
@@ -70,11 +73,6 @@ class GeminiService {
         console.log(`[GeminiService] Generating feedback for "${questionTitle}"...`);
 
         const model = this.getModel('dsa');
-
-        if (!model) {
-            console.error("[GeminiService] Model creation failed for DSA - Missing Key.");
-            return "Configuration Error: AI Service Key (GEMINI_KEY_1) is missing from backend. Please ask the administrator to check server logs.";
-        }
 
         try {
             // Enhanced Prompt for Professionalism and Accuracy
@@ -114,41 +112,24 @@ class GeminiService {
             return text;
 
         } catch (error) {
-            console.error("Gemini AI API Error:", error);
+            console.error("[GeminiService] AI Feedback Error (all providers failed):", error.message || error);
 
             // Log full error to file for debugging
             try {
-                const logPath = path.join(process.cwd(), 'gemini-errors.log');
+                const logPath = path.join(process.cwd(), 'ai-errors.log');
                 const logEntry = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\n---\n`;
                 fs.writeFileSync(logPath, logEntry, { flag: 'a' });
             } catch (e) {
-                console.error("Failed to write to gemini-errors.log", e);
+                // Logging failure is non-critical
             }
 
-            // Detailed Error Mapping
             const errorMsg = error.toString();
 
-            if (errorMsg.includes('API key not valid')) {
-                return "Authentication Error: The configured AI API Key is invalid. Please check backend settings.";
-            }
-
-            if (errorMsg.includes('429')) {
-                return "Service Busy: I'm currently handling too many requests. Please try again in 30 seconds.";
-            }
-
-            if (errorMsg.includes('User location is not supported')) {
-                return "Region Error: AI Service is currently unavailable in this server region.";
-            }
-
-            if (errorMsg.includes('quota')) {
-                return "Quota Exceeded: The AI service has reached its usage limit for today.";
-            }
-
-            if (errorMsg.includes('candidate')) {
+            if (errorMsg.includes('candidate') || errorMsg.includes('safety')) {
                 return "Safety Filter: Your response triggered a safety filter. Please try rephrasing.";
             }
 
-            return `Connection Error: ${error.message || "Unknown error"}. Please check gemini-errors.log for details.`;
+            return `AI Service Error: Unable to generate feedback. Please try again shortly.`;
         }
 
     }
@@ -159,11 +140,7 @@ class GeminiService {
      */
     async generateResumeContent(aggregatedText) {
         console.log(`[GeminiService] Generating resume from profile data...`);
-        const model = this.getModel('resume'); // Use resume key
-
-        if (!model) {
-            return { error: "Configuration Error: AI Service Key (GEMINI_KEY_3) is missing." };
-        }
+        const model = this.getModel('resume');
 
         try {
             const prompt = `
@@ -377,7 +354,7 @@ class GeminiService {
             }
 
         } catch (error) {
-            console.error("Gemini AI API Error (Resume):", error.message || error);
+            console.error("[GeminiService] AI Resume Error (all providers failed):", error.message || error);
             return { error: "AI Service Error: " + (error.message || String(error)) };
         }
     }
@@ -389,10 +366,6 @@ class GeminiService {
     async analyzeResume(resumeData, jobDescription = '') {
         console.log(`[GeminiService] Analyzing resume for ATS score...`);
         const model = this.getModel('resume');
-
-        if (!model) {
-            return { atsScore: 0, improvements: ["Configuration Error: AI Service Key (GEMINI_KEY_3) is missing."] };
-        }
 
         try {
             const prompt = `
@@ -435,7 +408,7 @@ Return STRICT JSON (no markdown, no backticks):
                 return { atsScore: 0, improvements: ["AI returned an unreadable response. Please try again."], error: parsed.error };
             }
         } catch (error) {
-            console.error("Gemini AI API Error (Analyze Resume):", error.message || error);
+            console.error("[GeminiService] AI ATS Analysis Error (all providers failed):", error.message || error);
             return { atsScore: 0, improvements: ["AI Service Error: " + (error.message || String(error))], error: error.message };
         }
     }
@@ -447,8 +420,6 @@ Return STRICT JSON (no markdown, no backticks):
     async regenerateSummary(resumeData) {
         console.log(`[GeminiService] Regenerating professional summary...`);
         const model = this.getModel('resume');
-
-        if (!model) return "Configuration Error: AI Service Key (GEMINI_KEY_3) is missing.";
 
         try {
             const prompt = `
@@ -478,7 +449,7 @@ Return ONLY the summary text (no JSON, no explanation, no quotes):
             const response = await result.response;
             return response.text().trim();
         } catch (error) {
-            console.error("Gemini AI API Error (Regenerate Summary):", error);
+            console.error("[GeminiService] AI Summary Error (all providers failed):", error.message || error);
             return "Error regenerating summary: " + error.message;
         }
     }
@@ -553,7 +524,7 @@ Return STRICT JSON array (no markdown, no backticks, no explanation):
                 return { error: "AI returned an unreadable response. Please try again." };
             }
         } catch (error) {
-            console.error("Gemini AI API Error (Generate Questions):", error.message || error);
+            console.error("[GeminiService] AI Interview Questions Error (all providers failed):", error.message || error);
             return { error: "AI service error: " + (error.message || String(error)) };
         }
     }
@@ -605,7 +576,7 @@ Return STRICT JSON (no markdown, no backticks):
                 return { error: "AI returned an unreadable response. Please try again." };
             }
         } catch (error) {
-            console.error("Gemini AI API Error (Evaluate Answer):", error.message || error);
+            console.error("[GeminiService] AI Evaluate Answer Error (all providers failed):", error.message || error);
             return { error: "AI service error: " + (error.message || String(error)) };
         }
     }
@@ -616,7 +587,6 @@ Return STRICT JSON (no markdown, no backticks):
      */
     async generateRoadmap({ currentRole, targetGoal, timelineMonths, skills = [], experience = '' }) {
         const model = this.getModel('roadmap');
-        if (!model) return { error: 'AI unavailable' };
         try {
             const prompt = `You are an expert career coach and technical mentor.
 
@@ -675,7 +645,7 @@ Rules:
                 return { error: 'AI returned an unreadable response. Please try again.' };
             }
         } catch (error) {
-            console.error('Gemini AI API Error (Generate Roadmap):', error.message || error);
+            console.error('[GeminiService] AI Roadmap Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + (error.message || String(error)) };
         }
     }
@@ -869,7 +839,7 @@ Return ONLY valid JSON array (no markdown, no backticks):
             console.log(`[GeminiService] Generated ${normalized.length} PDF quiz questions.`);
             return { questions: normalized };
         } catch (error) {
-            console.error('Gemini AI API Error (PDF Quiz):', error);
+            console.error('[GeminiService] AI PDF Quiz Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1020,7 +990,7 @@ Return ONLY valid JSON array:
             console.log(`[GeminiService] Generated ${normalized.length} assertion-reason questions.`);
             return { questions: normalized };
         } catch (error) {
-            console.error('Gemini AI API Error (Assertion-Reason):', error);
+            console.error('[GeminiService] AI Assertion-Reason Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1095,7 +1065,7 @@ Return ONLY valid JSON array (no markdown, no backticks):
             console.log(`[GeminiService] Generated ${questions.length} marked exam questions.`);
             return { questions };
         } catch (error) {
-            console.error('Gemini AI API Error (Marked Questions):', error);
+            console.error('[GeminiService] AI Marked Questions Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1146,7 +1116,7 @@ Return ONLY valid JSON (no markdown, no backticks):
             console.log(`[GeminiService] Answer graded: ${grading.score}/${marks}`);
             return grading;
         } catch (error) {
-            console.error('Gemini AI API Error (Grade Answer):', error);
+            console.error('[GeminiService] AI Grade Answer Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1269,7 +1239,7 @@ Provide the same citations in BibTeX format for LaTeX users.
             console.log(`[GeminiService] Research (${type}) generated for "${topic}"`);
             return { content, citations };
         } catch (error) {
-            console.error('Gemini AI API Error (Research):', error);
+            console.error('[GeminiService] AI Research Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1314,7 +1284,7 @@ Return ONLY valid JSON (no markdown):
 
             return { skills };
         } catch (error) {
-            console.error('Gemini AI API Error (Detect Skills):', error);
+            console.error('[GeminiService] AI Detect Skills Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1370,7 +1340,7 @@ Return ONLY valid JSON (no markdown):
                 encouragement: String(parsed.encouragement || '').trim(),
             };
         } catch (error) {
-            console.error('Gemini AI API Error (AI Mentor Plan):', error);
+            console.error('[GeminiService] AI Mentor Error (all providers failed):', error.message || error);
             return { error: 'AI Service Error: ' + error.message };
         }
     }
@@ -1385,7 +1355,6 @@ Return ONLY valid JSON (no markdown):
      */
     async checkAnswerOriginality({ question, answer }) {
         const model = this.getModel('interview');
-        if (!model) return { isPlagiarized: false, confidence: 'low', reason: 'AI unavailable' };
         try {
             const prompt = `You are a plagiarism detection expert for technical interviews.
 Analyze the answer below and determine if it appears to have been COPIED from an internet source (Wikipedia, documentation, tutorials, Stack Overflow, blogs) rather than written genuinely by the candidate.
@@ -1416,7 +1385,7 @@ Return ONLY valid JSON, no markdown:
             console.log(`[GeminiService] Plagiarism check: isPlagiarized=${parsed.isPlagiarized}, confidence=${parsed.confidence}`);
             return parsed;
         } catch (error) {
-            console.error('Gemini AI API Error (Plagiarism Check):', error);
+            console.error('[GeminiService] AI Plagiarism Check Error (all providers failed):', error.message || error);
             return { isPlagiarized: false, confidence: 'low', reason: 'Check failed' };
         }
     }
@@ -1471,7 +1440,7 @@ Rules:
                 growthAreas: Array.isArray(parsed.growthAreas) ? parsed.growthAreas.slice(0, 5) : ['Communication', 'Project depth', 'Interview confidence'],
             };
         } catch (error) {
-            console.error('Gemini AI API Error (Career Twin Profile):', error);
+            console.error('[GeminiService] AI Career Twin Profile Error:', error.message || error);
             return {
                 personality: 'Analytical and growth-oriented',
                 workStyle: 'Hands-on learner with iterative improvement',
@@ -1507,7 +1476,7 @@ Return ONLY valid JSON:
                 recommendation: String(parsed.recommendation || 'Break the goal into weekly milestones, track progress, and iterate based on feedback.'),
             };
         } catch (error) {
-            console.error('Gemini AI API Error (Career Twin Simulation):', error);
+            console.error('[GeminiService] AI Career Twin Simulation Error:', error.message || error);
             return {
                 scenario,
                 outcome: 'This scenario can work, but results depend on consistency, project quality, and interview practice.',

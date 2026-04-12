@@ -1,13 +1,16 @@
 const { executeWithRetry } = require('./retryHandler');
 const GeminiClient = require('./geminiClient');
 
-// These are the models confirmed available via the List Models API (April 2026).
+// Models confirmed available via the List Models API (April 2026).
 // Ordered by quality. gemini-2.5-flash is the best free-tier model.
 const GEMINI_MODEL_CHAIN = [
     'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
 ];
+
+// Claude model to use as paid fallback
+const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 class AIFallbackManager {
     constructor(primaryClient, providerName, geminiClient, claudeClient = null) {
@@ -26,11 +29,31 @@ class AIFallbackManager {
     }
 
     /**
+     * Determines if an error should trigger immediate Claude fallback
+     * (as opposed to trying the next Gemini model/key).
+     */
+    _isClaudeFallbackError(error) {
+        const msg = (error.message || '').toLowerCase();
+        return (
+            msg.includes('429') || msg.includes('rate limit') || msg.includes('quota') ||
+            msg.includes('api key not valid') || msg.includes('invalid api key') ||
+            msg.includes('404') || msg.includes('not found') || msg.includes('not supported') ||
+            msg.includes('timeout') || msg.includes('timed out') ||
+            msg.includes('malformed') || msg.includes('parse') ||
+            msg.includes('network') || msg.includes('econnreset') || msg.includes('fetch') ||
+            msg.includes('overloaded') || msg.includes('503') || msg.includes('service unavailable') ||
+            msg.includes('unsupported model')
+        );
+    }
+
+    /**
      * Tries models in the fallback chain one by one.
      * On 429 for a model, also rotates through spare keys before giving up.
+     * Falls back to Claude if all Gemini models fail.
      */
     async generateWithFallback(prompt, timeoutMs = 30000) {
         let lastError = null;
+        let geminiAttempted = false;
 
         // 1. Try Cloudflare first if it's the primary provider
         if (this.providerName === 'cloudflare' && this.primaryClient) {
@@ -47,71 +70,95 @@ class AIFallbackManager {
             }
         }
 
-        // 2. Try each model in the Gemini chain.
+        // 2. Skip Gemini entirely if no keys are configured
+        const hasGeminiKeys = this.spareGeminiKeys.length > 0;
+        if (!hasGeminiKeys) {
+            console.warn('[AI] No Gemini API keys configured. Skipping Gemini.');
+        }
+
+        // 3. Try each model in the Gemini chain.
         //    For each model, also try rotating through spare API keys on 429.
-        for (const modelName of GEMINI_MODEL_CHAIN) {
-            // Build a list of clients to try: primary client first, then spare keys
-            const clientsToTry = [this.geminiClient];
-            for (const key of this.spareGeminiKeys) {
-                // Only add spare clients that differ from the primary
-                clientsToTry.push(new GeminiClient(key));
-            }
+        if (hasGeminiKeys) {
+            for (const modelName of GEMINI_MODEL_CHAIN) {
+                // Build a list of clients to try: primary client first, then spare keys
+                const clientsToTry = [this.geminiClient];
+                for (const key of this.spareGeminiKeys) {
+                    // Only add spare clients that differ from the primary
+                    clientsToTry.push(new GeminiClient(key));
+                }
 
-            for (let ci = 0; ci < clientsToTry.length; ci++) {
-                const client = clientsToTry[ci];
-                try {
-                    if (modelName !== GEMINI_MODEL_CHAIN[0] || this.providerName === 'cloudflare' || ci > 0) {
-                        console.log(`[AI] Trying ${modelName} (key slot ${ci + 1}/${clientsToTry.length})`);
-                    }
+                for (let ci = 0; ci < clientsToTry.length; ci++) {
+                    const client = clientsToTry[ci];
+                    try {
+                        geminiAttempted = true;
+                        if (modelName !== GEMINI_MODEL_CHAIN[0] || this.providerName === 'cloudflare' || ci > 0) {
+                            console.log(`[AI] Trying ${modelName} (key slot ${ci + 1}/${clientsToTry.length})`);
+                        }
 
-                    const result = await client.generateContent(prompt, modelName, timeoutMs);
-                    if (modelName !== GEMINI_MODEL_CHAIN[0] || ci > 0) {
-                        console.log(`[AI] ✅ Success with ${modelName} (key slot ${ci + 1})`);
-                    }
-                    return result;
+                        const result = await client.generateContent(prompt, modelName, timeoutMs);
 
-                } catch (error) {
-                    lastError = error;
-                    const msg = (error.message || '').toLowerCase();
+                        // Validate that we got a non-empty response
+                        if (!result || (typeof result === 'string' && result.trim().length === 0)) {
+                            throw new Error('Gemini returned empty response');
+                        }
 
-                    // Invalid key — stop trying this model entirely
-                    if (msg.includes('api key not valid') || msg.includes('invalid api key')) {
-                        console.warn(`[AI] Invalid API key for ${modelName}. Skipping remaining keys for this model.`);
-                        break;
-                    }
+                        if (modelName !== GEMINI_MODEL_CHAIN[0] || ci > 0) {
+                            console.log(`[AI] ✅ Gemini success with ${modelName} (key slot ${ci + 1})`);
+                        }
+                        return result;
 
-                    // Model not found (404) — skip to next model entirely, don't waste keys
-                    if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
-                        console.warn(`[AI] ${modelName} returned 404 (model not available). Skipping.`);
-                        break;
-                    }
+                    } catch (error) {
+                        lastError = error;
+                        const msg = (error.message || '').toLowerCase();
 
-                    // Rate limit (429) — try next key
-                    if (msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')) {
-                        if (ci < clientsToTry.length - 1) {
-                            console.warn(`[AI] ${modelName} rate-limited (key ${ci + 1}). Rotating to next key...`);
-                            continue; // try next key
-                        } else {
-                            console.warn(`[AI] ${modelName} rate-limited on all keys. Moving to next model.`);
+                        // Invalid key — stop trying this model entirely
+                        if (msg.includes('api key not valid') || msg.includes('invalid api key')) {
+                            console.warn(`[AI] Invalid API key for ${modelName}. Skipping remaining keys for this model.`);
                             break;
                         }
-                    }
 
-                    // Other error — move to next model
-                    console.warn(`[AI] ${modelName} failed: ${error.message?.substring(0, 100)}`);
-                    break;
+                        // Model not found (404) — skip to next model entirely, don't waste keys
+                        if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
+                            console.warn(`[AI] ${modelName} returned 404 (model not available). Skipping.`);
+                            break;
+                        }
+
+                        // Rate limit (429) — try next key
+                        if (msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')) {
+                            if (ci < clientsToTry.length - 1) {
+                                console.warn(`[AI] ${modelName} rate-limited (key ${ci + 1}). Rotating to next key...`);
+                                continue; // try next key
+                            } else {
+                                console.warn(`[AI] ${modelName} rate-limited on all keys. Moving to next model.`);
+                                break;
+                            }
+                        }
+
+                        // Other error — move to next model
+                        console.warn(`[AI] ${modelName} failed: ${error.message?.substring(0, 120)}`);
+                        break;
+                    }
                 }
             }
         }
 
-        // 3. Try Claude if provided
+        // 4. Try Claude as reliable paid fallback
         if (this.claudeClient) {
             try {
-                console.log(`[AI] Switched to claude-3-haiku-20240307 (Anthropic)`);
-                const result = await executeWithRetry(
-                    () => this.claudeClient.generateContent(prompt, 'claude-3-haiku-20240307', timeoutMs),
-                    `Model Claude 3 Haiku`
-                );
+                if (geminiAttempted) {
+                    console.log(`[AI] Gemini failed, switching to Claude (${CLAUDE_MODEL})`);
+                } else {
+                    console.log(`[AI] Using Claude directly (${CLAUDE_MODEL})`);
+                }
+
+                const result = await this.claudeClient.generateContent(prompt, CLAUDE_MODEL, timeoutMs);
+
+                // Validate non-empty
+                if (!result || (typeof result === 'string' && result.trim().length === 0)) {
+                    throw new Error('Claude returned empty response');
+                }
+
+                console.log(`[AI] ✅ Claude success`);
                 return result;
             } catch (error) {
                 lastError = error;
@@ -122,7 +169,7 @@ class AIFallbackManager {
             console.warn(`[AI] Claude skipped because CLAUDE_API_KEY is missing from environment.`);
         }
         
-        throw new Error(`All AI models in the fallback chain failed. Last error: ${lastError ? lastError.message : 'Unknown'}`);
+        throw new Error(`All AI providers failed. Last error: ${lastError ? lastError.message : 'Unknown'}`);
     }
 }
 

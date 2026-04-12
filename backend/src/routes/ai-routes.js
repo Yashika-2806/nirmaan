@@ -8,9 +8,7 @@ const { protect } = require('../core/auth/middleware');
  * @route POST /api/ai/review
  * @access Private
  */
-// router.post('/review', protect, async (req, res) => {
 router.post('/review', protect, async (req, res) => {
-    // router.post('/review', async (req, res) => {
     try {
         const { questionTitle, userAnswer, currentQuestion } = req.body;
 
@@ -20,16 +18,24 @@ router.post('/review', protect, async (req, res) => {
 
         const feedback = await geminiService.generateFeedback(questionTitle, userAnswer, currentQuestion);
 
+        // Check if feedback is an error string from the service
+        if (typeof feedback === 'string' && feedback.startsWith('AI Service Error:')) {
+            return res.status(503).json({
+                success: false,
+                error: feedback
+            });
+        }
+
         res.status(200).json({
             success: true,
             feedback: feedback
         });
 
     } catch (error) {
-        console.error('AI Review Error:', error);
+        console.error('[AI Review] Error:', error.message || error);
         res.status(500).json({
             success: false,
-            error: 'AI service unavailable'
+            error: 'AI service encountered an error. Please try again.'
         });
     }
 });

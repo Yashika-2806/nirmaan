@@ -1,5 +1,5 @@
-const BASE_RETRY_DELAY_MS = 2000; // 2 seconds base
-const MAX_RETRIES = 2; // allow 2 retries (3 total attempts)
+const BASE_RETRY_DELAY_MS = 1500; // 1.5 seconds base
+const MAX_RETRIES = 1; // allow 1 retry (2 total attempts) — fail fast, Claude is the reliable fallback
 
 /**
  * Determines if an error is retryable based on specific conditions.

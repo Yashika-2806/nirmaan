@@ -61,7 +61,7 @@ class DSAAIWrapper {
             }
 
             throw new AppError(
-                'AI service temporarily unavailable. Please try again.',
+                'AI service encountered an error. Please try again.',
                 503,
                 ERROR_CODES.AI_SERVICE_ERROR
             );
