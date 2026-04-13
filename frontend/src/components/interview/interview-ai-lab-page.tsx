@@ -464,17 +464,19 @@ export default function InterviewAiLabPage() {
             const harnessCompileOutput = harnessResult.compile_output?.trim();
             const harnessRuntimeError = harnessResult.stderr?.trim();
             if (harnessCompileOutput || harnessRuntimeError) {
+                const harnessErr = harnessCompileOutput || harnessRuntimeError || 'Harness execution failed';
                 setRunResult({
                     status: 'error',
                     verdict: harnessCompileOutput ? 'Compilation Error' : 'Runtime Error',
                     stdout: '',
-                    stderr: harnessCompileOutput || harnessRuntimeError || 'Harness execution failed',
+                    stderr: harnessErr,
+                    errorOutput: harnessErr,
                     memory: harnessResult.memory ? `${Number(harnessResult.memory).toFixed(1)} MB` : '--',
                     time: harnessResult.time || '--',
                     testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
                 });
-                setActiveTab('errors');
-                toast.error('Code compiled, but test harness failed to execute.');
+                setActiveTab('feedback');
+                toast.error('Code compiled, but test harness failed — AI is analyzing.')
                 return;
             }
 
