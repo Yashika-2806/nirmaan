@@ -68,6 +68,7 @@ interface LocalRunResult {
     verdict: RunVerdict;
     stdout: string;
     stderr: string;
+    errorOutput: string;   // raw error for AI analysis
     memory: string;
     time: string;
     testCases: Array<{ id: number; input: string; expected: string; got: string; passed: boolean }>;
@@ -316,6 +317,7 @@ export default function InterviewAiLabPage() {
         verdict: 'Idle',
         stdout: 'Run your code to see output here.',
         stderr: '',
+        errorOutput: '',
         memory: '--',
         time: '--',
         testCases: SAMPLE_CASES,
@@ -364,6 +366,7 @@ export default function InterviewAiLabPage() {
             verdict: 'Idle',
             stdout: 'Run your code to see output here.',
             stderr: '',
+            errorOutput: '',
             memory: '--',
             time: '--',
             testCases: SAMPLE_CASES,
@@ -399,21 +402,24 @@ export default function InterviewAiLabPage() {
                     verdict: 'Compilation Error',
                     stdout: '',
                     stderr: compileOutput,
+                    errorOutput: compileOutput,
                     memory: '--',
                     time: '--',
                     testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
                 });
-                setActiveTab('errors');
-                toast.error('Compilation failed.');
+                setActiveTab('feedback');
+                toast.error('Compilation failed — AI feedback loaded.');
                 return;
             }
 
             if (runtimeError || /runtime|error|exception/i.test(statusDescription)) {
+                const runtimeMsg = runtimeError || judgeMessage || statusDescription || 'Runtime error';
                 setRunResult({
                     status: 'error',
                     verdict: 'Runtime Error',
                     stdout: stdout,
-                    stderr: runtimeError || judgeMessage || statusDescription || 'Runtime error',
+                    stderr: runtimeMsg,
+                    errorOutput: runtimeMsg,
                     memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
                     time: result.time || '--',
                     testCases: SAMPLE_CASES.map((testCase) => ({
@@ -422,8 +428,8 @@ export default function InterviewAiLabPage() {
                         passed: false,
                     })),
                 });
-                setActiveTab('errors');
-                toast.error('Runtime error while executing code.');
+                setActiveTab('feedback');
+                toast.error('Runtime error — AI is analyzing the issue.');
                 return;
             }
 
@@ -506,24 +512,27 @@ export default function InterviewAiLabPage() {
             const passedCount = testCases.slice(0, evaluatedCount).filter((testCase) => testCase.passed).length;
             const allEvaluatedPassed = evaluatedCount > 0 && passedCount === evaluatedCount;
 
+            const wrongAnswerError = !allEvaluatedPassed
+                ? `Output mismatch. Matched ${passedCount}/${Math.max(1, evaluatedCount)} sample output(s).`
+                : '';
+
             setRunResult({
                 status: allEvaluatedPassed ? 'success' : 'error',
                 verdict: allEvaluatedPassed ? 'Accepted' : 'Wrong Answer',
                 stdout: allEvaluatedPassed ? (actualOutput || `Execution successful. Matched ${passedCount} sample output(s).`) : '',
-                stderr: allEvaluatedPassed
-                    ? ''
-                    : `Output mismatch. Matched ${passedCount}/${Math.max(1, evaluatedCount)} emitted output line(s).`,
+                stderr: wrongAnswerError,
+                errorOutput: wrongAnswerError,
                 memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
                 time: result.time || '--',
                 testCases,
             });
 
+            // Always open AI Feedback tab — it handles both success and failure
+            setActiveTab('feedback');
             if (allEvaluatedPassed) {
-                setActiveTab('feedback');
-                toast.success('Execution passed sample tests');
+                toast.success('All sample tests passed!');
             } else {
-                setActiveTab('tests');
-                toast.error('Code ran, but sample output did not match.');
+                toast.error('Wrong answer — AI is analyzing the issue.');
             }
         } catch (error: any) {
             const errorMsg = error?.response?.data?.message || error?.message || 'Judge0 execution failed';
@@ -532,6 +541,7 @@ export default function InterviewAiLabPage() {
                 verdict: 'Execution Error',
                 stdout: '',
                 stderr: errorMsg,
+                errorOutput: errorMsg,
                 memory: '--',
                 time: '--',
                 testCases: SAMPLE_CASES.map((testCase) => ({ ...testCase, got: '', passed: false })),
@@ -597,6 +607,7 @@ export default function InterviewAiLabPage() {
             verdict: 'Idle',
             stdout: 'Editor reset to starter template.',
             stderr: '',
+            errorOutput: '',
             testCases: prev.testCases.map((t) => ({ ...t, got: '--', passed: false })),
         }));
         setActiveTab('output');
@@ -1015,6 +1026,9 @@ export default function InterviewAiLabPage() {
                                           language={language}
                                           time={runResult.time}
                                           memory={runResult.memory}
+                                          errorOutput={runResult.errorOutput}
+                                          question={currentQuestion?.question}
+                                          testResults={runResult.testCases}
                                         />
                                     )}
                                 </div>

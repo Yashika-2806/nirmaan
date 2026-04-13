@@ -33,12 +33,30 @@ const plagiarismSchema = Joi.object({
     answer: Joi.string().required().min(10),
 });
 
-router.post('/start',             aiLimiter, validate(startSchema),      interviewController.startSession);
-router.post('/evaluate',          aiLimiter, validate(evaluateSchema),   interviewController.evaluateAnswer);
-router.post('/complete',                     validate(completeSchema),   interviewController.completeSession);
-router.post('/plagiarism-check',  aiLimiter, validate(plagiarismSchema), interviewController.checkPlagiarism);
-router.get('/sessions',                                                   interviewController.getSessions);
-router.get('/sessions/:id',                                               interviewController.getSession);
-router.delete('/sessions/:id',                                            interviewController.deleteSession);
+const evaluateCodeSchema = Joi.object({
+    code: Joi.string().required().min(1).max(50000),
+    language: Joi.string().required().valid('python', 'java', 'cpp', 'javascript'),
+    verdict: Joi.string().required(),
+    errorOutput: Joi.string().optional().allow('').max(10000),
+    question: Joi.string().optional().allow('').max(5000),
+    testResults: Joi.array().items(Joi.object({
+        id: Joi.number(),
+        input: Joi.string().allow(''),
+        expected: Joi.string().allow(''),
+        got: Joi.string().allow(''),
+        passed: Joi.boolean(),
+    })).optional(),
+    executionTime: Joi.string().optional().allow(''),
+    memory: Joi.string().optional().allow(''),
+});
+
+router.post('/start',             aiLimiter, validate(startSchema),          interviewController.startSession);
+router.post('/evaluate',          aiLimiter, validate(evaluateSchema),       interviewController.evaluateAnswer);
+router.post('/complete',                     validate(completeSchema),       interviewController.completeSession);
+router.post('/plagiarism-check',  aiLimiter, validate(plagiarismSchema),     interviewController.checkPlagiarism);
+router.post('/evaluate-code',     aiLimiter, validate(evaluateCodeSchema),   interviewController.evaluateCode);
+router.get('/sessions',                                                       interviewController.getSessions);
+router.get('/sessions/:id',                                                   interviewController.getSession);
+router.delete('/sessions/:id',                                                interviewController.deleteSession);
 
 module.exports = router;
