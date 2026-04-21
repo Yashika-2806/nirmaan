@@ -305,7 +305,10 @@ export default function InterviewAiLabPage() {
         }));
 
         const questionTestCases: SampleTestCase[] = currentQuestion?.sampleTestCases ?? [];
-        const isCoding = currentQuestion?.isCodingQuestion !== false && questionTestCases.length > 0;
+        // Treat as coding question unless explicitly flagged as non-coding (system design, behavioral, hr)
+        const isExplicitlyNonCoding = currentQuestion?.isCodingQuestion === false;
+        const hasTestCases = questionTestCases.length > 0;
+        const isCodingRun = !isExplicitlyNonCoding;
 
         try {
             // First run: plain code (to check for compile/runtime errors)
@@ -333,7 +336,7 @@ export default function InterviewAiLabPage() {
                 setRunResult({
                     status: 'error', verdict: 'Runtime Error',
                     stdout, stderr: msg, errorOutput: msg,
-                    memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
+                    memory: result.memory ? `${(Number(result.memory) / 1024).toFixed(1)} MB` : '--',
                     time: result.time || '--',
                     testCases: buildTestCasesFromQuestion(currentQuestion).map((tc) => ({ ...tc, got: stdout || '', passed: false })),
                 });
@@ -342,46 +345,11 @@ export default function InterviewAiLabPage() {
                 return;
             }
 
-            // If it's a coding question with sample test cases, compare outputs
-            if (isCoding) {
-                // Build a harness that makes the code print one output per test case
-                const harnessCode = buildGenericHarness(currentCode, language, questionTestCases);
-                const harnessResult = await executeWithJudge0(harnessCode, language);
-
-                const harnessErr = harnessResult.compile_output?.trim() || harnessResult.stderr?.trim();
-                if (harnessErr) {
-                    // Harness itself failed — use plain run result for feedback
-                    const harnessLines = stdout ? stdout.split('\n').map((l) => l.trim()).filter(Boolean) : [];
-                    const testCases = questionTestCases.map((tc, i) => ({
-                        id: i + 1,
-                        input: tc.input,
-                        expected: tc.expected,
-                        got: harnessLines[i] ?? '--',
-                        passed: harnessLines[i] ? outputsMatch(harnessLines[i], tc.expected) : false,
-                    }));
-                    const passed = testCases.filter((t) => t.passed).length;
-                    const allPassed = passed === testCases.length && testCases.length > 0;
-                    setRunResult({
-                        status: allPassed ? 'success' : 'error',
-                        verdict: allPassed ? 'Accepted' : 'Wrong Answer',
-                        stdout: stdout || 'Code ran but output could not be verified.',
-                        stderr: allPassed ? '' : `Matched ${passed}/${testCases.length} sample outputs.`,
-                        errorOutput: allPassed ? '' : `Matched ${passed}/${testCases.length} sample outputs.`,
-                        memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
-                        time: result.time || '--',
-                        testCases,
-                    });
-                    setActiveTab('feedback');
-                    if (allPassed) toast.success('All sample tests passed!');
-                    else toast.error('Wrong answer — AI is analyzing the issue.');
-                    return;
-                }
-
-                const harnessOut = (harnessResult.stdout || '').replace(/\r\n/g, '\n');
-                const harnessLines = harnessOut.split('\n').map((l) => l.trim()).filter(Boolean);
-
+            if (isCodingRun && hasTestCases) {
+                // Has AI-generated test cases → compare stdout lines against expected outputs
+                const stdoutLines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
                 const testCases = questionTestCases.map((tc, i) => {
-                    const got = harnessLines[i] ?? '--';
+                    const got = stdoutLines[i] ?? '--';
                     return {
                         id: i + 1,
                         input: tc.input,
@@ -390,31 +358,44 @@ export default function InterviewAiLabPage() {
                         passed: got !== '--' && !got.startsWith('ERROR:') ? outputsMatch(got, tc.expected) : false,
                     };
                 });
-
-                const passed   = testCases.filter((t) => t.passed).length;
+                const passed    = testCases.filter((t) => t.passed).length;
                 const allPassed = passed === testCases.length && testCases.length > 0;
-                const errMsg   = allPassed ? '' : `Matched ${passed}/${testCases.length} sample outputs.`;
+                const errMsg    = allPassed ? '' : `Matched ${passed}/${testCases.length} sample outputs.`;
 
                 setRunResult({
                     status: allPassed ? 'success' : 'error',
                     verdict: allPassed ? 'Accepted' : 'Wrong Answer',
-                    stdout: (harnessResult.stdout || stdout || '').trim() || `Matched ${passed}/${testCases.length} samples.`,
+                    stdout: stdout || `Ran. Matched ${passed}/${testCases.length} samples.`,
                     stderr: errMsg, errorOutput: errMsg,
-                    memory: harnessResult.memory ? `${Number(harnessResult.memory).toFixed(1)} MB` : '--',
-                    time: harnessResult.time || '--',
+                    memory: result.memory ? `${(Number(result.memory) / 1024).toFixed(1)} MB` : '--',
+                    time: result.time || '--',
                     testCases,
                 });
-                setActiveTab('feedback');
+                setActiveTab(allPassed ? 'tests' : 'feedback');
                 if (allPassed) toast.success('All sample tests passed!');
                 else toast.error('Wrong answer — AI is analyzing the issue.');
 
+            } else if (isCodingRun && !hasTestCases) {
+                // Coding question but no test cases yet (session generated without them)
+                // Show code output and let AI feedback analyze it
+                setRunResult({
+                    status: 'success', verdict: 'Accepted',
+                    stdout: stdout || 'Code ran with no output.',
+                    stderr: '', errorOutput: '',
+                    memory: result.memory ? `${(Number(result.memory) / 1024).toFixed(1)} MB` : '--',
+                    time: result.time || '--',
+                    testCases: [], // empty — no test cases from this session
+                });
+                setActiveTab('feedback');
+                toast.success('Code ran — AI is reviewing your solution.');
+
             } else {
-                // Non-coding question or no test cases: just show raw output
+                // Explicitly non-coding question (system design, behavioral, hr)
                 setRunResult({
                     status: 'success', verdict: 'Accepted',
                     stdout: stdout || 'No output.',
                     stderr: '', errorOutput: '',
-                    memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
+                    memory: result.memory ? `${(Number(result.memory) / 1024).toFixed(1)} MB` : '--',
                     time: result.time || '--',
                     testCases: [],
                 });
@@ -925,26 +906,36 @@ export default function InterviewAiLabPage() {
                                     {activeTab === 'tests' && (
                                         <div className="space-y-2">
                                             {runResult.testCases.length === 0 ? (
-                                                <p className="text-xs text-slate-400 py-4 text-center">
-                                                    {currentQuestion?.isCodingQuestion === false
-                                                        ? 'This is a conceptual question — no automated test cases.'
-                                                        : 'Run your code to see test results.'}
-                                                </p>
+                                                <div className="py-6 text-center">
+                                                    {currentQuestion?.isCodingQuestion === false ? (
+                                                        <p className="text-xs text-slate-400">This is a conceptual question — no automated test cases.</p>
+                                                    ) : runResult.status === 'idle' ? (
+                                                        <p className="text-xs text-slate-400">Run your code to see test results.</p>
+                                                    ) : (currentQuestion?.sampleTestCases ?? []).length === 0 ? (
+                                                        <div className="space-y-1">
+                                                            <p className="text-xs font-semibold text-amber-300">No test cases for this session</p>
+                                                            <p className="text-xs text-slate-400">Start a new session — questions now include auto-generated test cases.</p>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-400">Run your code to see test results.</p>
+                                                    )}
+                                                </div>
                                             ) : runResult.testCases.map((test) => (
                                                 <div key={test.id} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
                                                     <div className="flex items-center justify-between">
                                                         <p className="font-semibold text-slate-200">Case {test.id}</p>
-                                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${test.passed ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/20 text-rose-200'}`}>
+                                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${test.passed ? 'bg-emerald-500/20 text-emerald-200' : test.got === '--' ? 'bg-slate-500/20 text-slate-300' : 'bg-rose-500/20 text-rose-200'}`}>
                                                             {test.got === '--' ? 'pending' : test.passed ? 'pass' : 'fail'}
                                                         </span>
                                                     </div>
                                                     <p className="mt-1 text-slate-400">Input: {test.input}</p>
-                                                    <p className="text-slate-400">Expected: {test.expected}</p>
-                                                    <p className="text-slate-300">Got: {test.got}</p>
+                                                    <p className="text-slate-400">Expected: <span className="text-slate-200">{test.expected}</span></p>
+                                                    <p className="text-slate-300">Got: <span className={test.passed ? 'text-emerald-300' : test.got === '--' ? 'text-slate-500' : 'text-rose-300'}>{test.got}</span></p>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
+
                                     {activeTab === 'feedback' && (
                                         <AIInterviewFeedback
                                             verdict={runResult.verdict}
