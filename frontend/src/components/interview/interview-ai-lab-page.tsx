@@ -521,7 +521,7 @@ export default function InterviewAiLabPage() {
             setRunResult({
                 status: allEvaluatedPassed ? 'success' : 'error',
                 verdict: allEvaluatedPassed ? 'Accepted' : 'Wrong Answer',
-                stdout: allEvaluatedPassed ? (actualOutput || `Execution successful. Matched ${passedCount} sample output(s).`) : '',
+                stdout: actualOutput || `Execution completed. Matched ${passedCount}/${Math.max(1, evaluatedCount)} sample output(s).`,
                 stderr: wrongAnswerError,
                 errorOutput: wrongAnswerError,
                 memory: result.memory ? `${Number(result.memory).toFixed(1)} MB` : '--',
