@@ -480,6 +480,7 @@ Return ONLY the summary text (no JSON, no explanation, no quotes):
         };
 
         try {
+            const isCodingRound = round === 'technical';
             const prompt = `
 You are a senior technical interviewer at ${company} with deep knowledge of how ${company} conducts their hiring process.
 
@@ -499,6 +500,12 @@ REQUIREMENTS:
 5. For behavioral: use ${company}'s known behavioral competencies.
 6. For system-design: reference real systems similar to what ${company} builds at scale.
 7. Each question should have a clear "what they are testing" hint.
+${isCodingRound ? `8. For EVERY coding question, include:
+   - "sampleTestCases": 3 representative test cases with "input" (human-readable description) and "expected" (exact expected output string as the code should print it)
+   - "starterCode": a minimal Python starter function stub (just the def + docstring, no solution body, just "pass")
+   - "functionSignature": the Python function signature string (e.g. "def two_sum(nums: list, target: int) -> list:")
+   - "isCodingQuestion": true
+   For non-coding/conceptual questions set "isCodingQuestion": false and omit sampleTestCases/starterCode/functionSignature.` : ''}
 
 Return STRICT JSON array (no markdown, no backticks, no explanation):
 [
@@ -507,7 +514,15 @@ Return STRICT JSON array (no markdown, no backticks, no explanation):
     "question": "The full question text",
     "hint": "What the interviewer is testing / what a good answer covers in 1 sentence",
     "difficulty": "easy|medium|hard",
-    "category": "sub-category (e.g. Arrays, Leadership, API Design)"
+    "category": "sub-category (e.g. Arrays, Leadership, API Design)"${isCodingRound ? `,
+    "isCodingQuestion": true,
+    "functionSignature": "def solution_function(param: type) -> return_type:",
+    "starterCode": "def solution_function(param):\\n    # Write your solution here\\n    pass",
+    "sampleTestCases": [
+      { "input": "human-readable input description", "expected": "exact output the function should print" },
+      { "input": "human-readable input description", "expected": "exact output" },
+      { "input": "edge case input description",      "expected": "exact output" }
+    ]` : ''}
   }
 ]
 `;

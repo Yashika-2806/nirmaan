@@ -118,7 +118,7 @@ const interviewController = {
 
             const prompt = `You are an expert FAANG-level technical interviewer evaluating a candidate's code submission during a coding interview.
 
-PROBLEM: ${question || 'Two Sum — return indices of the two numbers that add up to target.'}
+PROBLEM: ${question || 'A coding interview problem (no problem statement provided).'}
 LANGUAGE: ${language}
 VERDICT: ${verdict}
 

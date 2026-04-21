@@ -6,6 +6,17 @@ const questionSchema = new mongoose.Schema({
     hint: String,
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'] },
     category: String,
+    // Coding IDE fields (populated by AI for technical rounds)
+    isCodingQuestion: { type: Boolean, default: false },
+    functionSignature: { type: String, default: '' },
+    starterCode: { type: String, default: '' },
+    sampleTestCases: [
+        {
+            input: String,    // human-readable input description
+            expected: String, // exact expected output (as code should print it)
+        }
+    ],
+    // Answer / evaluation fields
     answer: { type: String, default: '' },
     score: { type: Number, default: null },
     verdict: { type: String, default: null },
