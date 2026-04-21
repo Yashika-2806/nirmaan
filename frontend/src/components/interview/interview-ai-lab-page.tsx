@@ -146,28 +146,42 @@ tests = [([2,7,11,15], 9), ([3,2,4], 6), ([3,3], 6)]
 
 for nums, target in tests:
     try:
-        # Try to find and call the function
         result = None
-        if 'two_sum' in dir():
-            result = two_sum(nums[:], target)
-        elif 'twoSum' in dir():
-            result = twoSum(nums[:], target)
-        else:
-            # Find first callable function that looks like it could solve this
-            for name in dir():
-                try:
-                    obj = eval(name)
-                    if callable(obj) and not name.startswith('_'):
+        
+        # Try accessing function from globals directly
+        if 'two_sum' in globals():
+            result = globals()['two_sum'](nums[:], target)
+        elif 'twoSum' in globals():
+            result = globals()['twoSum'](nums[:], target)
+        
+        # Try Solution class pattern
+        if result is None and 'Solution' in globals():
+            try:
+                sol = globals()['Solution']()
+                if hasattr(sol, 'twoSum'):
+                    result = sol.twoSum(nums[:], target)
+                elif hasattr(sol, 'two_sum'):
+                    result = sol.two_sum(nums[:], target)
+            except:
+                pass
+        
+        # Fallback: iterate globals to find callable functions
+        if result is None:
+            skip_names = {'print', 'str', 'int', 'list', 'dict', 'set', 'tuple', 'len', 'range', 'enumerate', 'zip', 'map', 'filter', 'sorted', 'reversed', 'sum', 'max', 'min', 'abs', 'round'}
+            for name, obj in list(globals().items()):
+                if callable(obj) and not name.startswith('_') and name not in skip_names:
+                    try:
                         result = obj(nums[:], target)
-                        break
-                except:
-                    pass
+                        if result is not None:
+                            break
+                    except:
+                        pass
         
         if result is not None:
             print(str(result).replace(' ', ''))
         else:
             print('--')
-    except:
+    except Exception as e:
         print('--')
 `;
     }
