@@ -138,134 +138,91 @@ const CASE_MARKER = '__NIRMAAN_CASE__';
 
 function buildJudgeHarnessSource(sourceCode: string, language: Language) {
     if (language === 'python') {
-        return `${sourceCode}
+        return `
+${sourceCode}
 
-import sys
-import io
+# Direct test execution
+tests = [([2,7,11,15], 9), ([3,2,4], 6), ([3,3], 6)]
 
-def __nirmaan_runner__():
-    tests = [([2,7,11,15], 9), ([3,2,4], 6), ([3,3], 6)]
-    func = None
-    
-    # Find the function - try multiple ways
-    if 'two_sum' in globals():
-        func = two_sum
-    elif 'twoSum' in globals():
-        func = twoSum
-    
-    # If still not found, try to find any callable
-    if not func:
-        for name in list(globals().keys()):
-            try:
-                obj = globals()[name]
-                if callable(obj) and not name.startswith('_') and name not in ['print', 'input', 'len', 'range']:
-                    func = obj
-                    break
-            except:
-                pass
-    
-    for i, (nums, target) in enumerate(tests, start=1):
-        try:
-            if func is None:
-                print(f'${CASE_MARKER}{i}=func_not_found')
-                continue
-            
-            result = func(nums[:], target)
-            
-            if result is not None:
-                output = str(result).replace(' ', '').replace('\\n', '')
-                print(f'${CASE_MARKER}{i}={output}')
-            else:
-                print(f'${CASE_MARKER}{i}=null')
-        except Exception as e:
-            err_msg = str(e).split('\\n')[0][:100]
-            print(f'${CASE_MARKER}{i}=ERROR:{err_msg}')
-
-try:
-    __nirmaan_runner__()
-except Exception as e:
-    # Print markers for all cases even if harness fails
-    for j in range(1, 4):
-        print(f'${CASE_MARKER}{j}=harness_error')
+for nums, target in tests:
+    try:
+        # Try to find and call the function
+        result = None
+        if 'two_sum' in dir():
+            result = two_sum(nums[:], target)
+        elif 'twoSum' in dir():
+            result = twoSum(nums[:], target)
+        else:
+            # Find first callable function that looks like it could solve this
+            for name in dir():
+                try:
+                    obj = eval(name)
+                    if callable(obj) and not name.startswith('_'):
+                        result = obj(nums[:], target)
+                        break
+                except:
+                    pass
+        
+        if result is not None:
+            print(str(result).replace(' ', ''))
+        else:
+            print('--')
+    except:
+        print('--')
 `;
     }
 
     if (language === 'javascript') {
-        return `${sourceCode}
+        return `
+${sourceCode}
 
-(function __nirmaan_runner__(){
-  const tests = [
-    { nums: [2,7,11,15], target: 9 },
-    { nums: [3,2,4], target: 6 },
-    { nums: [3,3], target: 6 },
-  ];
+const tests = [
+  { nums: [2,7,11,15], target: 9 },
+  { nums: [3,2,4], target: 6 },
+  { nums: [3,3], target: 6 },
+];
 
-  let fn = null;
-  if (typeof twoSum === 'function') fn = twoSum;
-  else if (typeof two_sum === 'function') fn = two_sum;
-  else {
-    for (const key in this) {
-      if (typeof this[key] === 'function' && !key.startsWith('_')) {
-        fn = this[key];
-        break;
-      }
+tests.forEach((test) => {
+  try {
+    let result = null;
+    if (typeof twoSum === 'function') {
+      result = twoSum([...test.nums], test.target);
+    } else if (typeof two_sum === 'function') {
+      result = two_sum([...test.nums], test.target);
     }
+    
+    if (result !== null && result !== undefined) {
+      console.log(JSON.stringify(result));
+    } else {
+      console.log('--');
+    }
+  } catch (e) {
+    console.log('--');
   }
-
-  tests.forEach((t, idx) => {
-    try {
-      if (!fn) {
-        console.log('${CASE_MARKER}' + (idx + 1) + '=--');
-        return;
-      }
-      const ans = fn([...t.nums], t.target);
-      if (ans !== undefined && ans !== null) {
-        const output = JSON.stringify(ans).replace(/\\s+/g, '');
-        console.log('${CASE_MARKER}' + (idx + 1) + '=' + output);
-      } else {
-        console.log('${CASE_MARKER}' + (idx + 1) + '=--');
-      }
-    } catch (e) {
-      const errMsg = (e && e.message ? e.message : String(e)).split('\\n')[0] || 'Unknown';
-      console.log('${CASE_MARKER}' + (idx + 1) + '=ERROR:' + errMsg);
-    }
-  });
-})();
+});
 `;
     }
 
     if (language === 'java') {
-        return `${sourceCode}
+        return `
+${sourceCode}
 
 public class Main {
-    private static String arr(int[] v) {
-        if (v == null) return "null";
-        if (v.length == 0) return "[]";
-        if (v.length >= 2) return "[" + v[0] + "," + v[1] + "]";
-        return "[" + v[0] + "]";
-    }
-
     public static void main(String[] args) {
-        try {
-            Solution s = new Solution();
-            int[][] nums = new int[][] { {2,7,11,15}, {3,2,4}, {3,3} };
-            int[] targets = new int[] { 9, 6, 6 };
-            
-            for (int i = 0; i < nums.length; i++) {
-                try {
-                    int[] ans = s.twoSum(nums[i], targets[i]);
-                    System.out.println("${CASE_MARKER}" + (i + 1) + "=" + arr(ans));
-                } catch (Exception e) {
-                    String errMsg = e.getMessage();
-                    if (errMsg == null) errMsg = e.getClass().getSimpleName();
-                    int nlIdx = errMsg.indexOf('\\n');
-                    if (nlIdx > 0) errMsg = errMsg.substring(0, nlIdx);
-                    System.out.println("${CASE_MARKER}" + (i + 1) + "=ERROR:" + errMsg);
+        Solution s = new Solution();
+        int[][] nums = { {2,7,11,15}, {3,2,4}, {3,3} };
+        int[] targets = { 9, 6, 6 };
+        
+        for (int i = 0; i < 3; i++) {
+            try {
+                int[] result = s.twoSum(nums[i], targets[i]);
+                if (result != null && result.length >= 2) {
+                    System.out.println("[" + result[0] + "," + result[1] + "]");
+                } else {
+                    System.out.println("--");
                 }
-            }
-        } catch (Exception e) {
-            for (int i = 1; i <= 3; i++) {
-                System.out.println("${CASE_MARKER}" + i + "=--");
+            } catch (Exception e) {
+                System.out.println("--");
             }
         }
     }
@@ -274,12 +231,10 @@ public class Main {
     }
 
     if (language === 'cpp') {
-        // If user already provides main, execute as-is and fall back to stdout parsing.
         if (/\bint\s+main\s*\(/.test(sourceCode)) {
             return sourceCode;
         }
 
-        // Detect if user already has includes
         const hasVectorInclude = /#include\s*[<"]vector[>"]/.test(sourceCode);
         const hasIostreamInclude = /#include\s*[<"]iostream[>"]/.test(sourceCode);
         const hasUsingNamespace = /using\s+namespace\s+std/.test(sourceCode);
@@ -293,28 +248,19 @@ public class Main {
 ${sourceCode}
 
 int main() {
-    vector<vector<int>> nums = {{2,7,11,15}, {3,2,4}, {3,3}};
-    vector<int> targets = {9, 6, 6};
+    vector<vector<int>> nums = { {2,7,11,15}, {3,2,4}, {3,3} };
+    vector<int> targets = { 9, 6, 6 };
     
     for (int i = 0; i < 3; i++) {
         try {
-            auto arr = nums[i];
-            auto ans = twoSum(arr, targets[i]);
-            
-            if (ans.empty()) {
-                cout << "${CASE_MARKER}" << (i + 1) << "=[]" << endl;
-            } else if (ans.size() == 1) {
-                cout << "${CASE_MARKER}" << (i + 1) << "=[" << ans[0] << "]" << endl;
+            auto result = twoSum(nums[i], targets[i]);
+            if (result.size() >= 2) {
+                cout << "[" << result[0] << "," << result[1] << "]" << endl;
             } else {
-                cout << "${CASE_MARKER}" << (i + 1) << "=[" << ans[0] << "," << ans[1] << "]" << endl;
+                cout << "--" << endl;
             }
-        } catch (const exception& e) {
-            string err = e.what();
-            size_t nl = err.find('\\n');
-            if (nl != string::npos) err = err.substr(0, nl);
-            cout << "${CASE_MARKER}" << (i + 1) << "=ERROR:" << err << endl;
         } catch (...) {
-            cout << "${CASE_MARKER}" << (i + 1) << "=ERROR:Unknown" << endl;
+            cout << "--" << endl;
         }
     }
     return 0;
@@ -568,31 +514,12 @@ export default function InterviewAiLabPage() {
             const harnessStdout = (harnessResult.stdout || '').replace(/\r\n/g, '\n');
             const harnessLines = harnessStdout.split('\n').map((line) => line.trim()).filter(Boolean);
             
-            // Extract marker-based outputs (highest priority)
-            const mappedOutputs: Record<number, string> = {};
-            harnessLines.forEach((line) => {
-                const match = line.match(/^__NIRMAAN_CASE__(\d+)=(.*)$/);
-                if (match) {
-                    const caseNum = Number(match[1]);
-                    const rawOutput = (match[2] || '').trim();
-                    // Convert special values back to displayable format
-                    let output = rawOutput;
-                    if (output === 'func_not_found') output = '--';
-                    if (output === 'null') output = '--';
-                    if (output === 'harness_error') output = '--';
-                    mappedOutputs[caseNum] = output;
-                }
-            });
-
-            // Fallback: if no markers found, try sequential parsing
-            const fallbackLines = harnessLines.filter(line => !line.startsWith(CASE_MARKER));
-            
+            // NEW: Simple sequential parsing - each line is one test case result
             const testCases = expectedOutputs.map((expected, index) => {
                 const caseId = index + 1;
-                // Priority: markers > fallback lines > not evaluated
-                const raw = mappedOutputs[caseId] !== undefined ? mappedOutputs[caseId] : (fallbackLines[index] ?? '--');
-                const got = raw;
-                const evaluated = got !== '--' && got !== '' && !got.startsWith('harness_error');
+                // Get the corresponding output line (first 3 non-empty lines)
+                const got = harnessLines[index] ??  '--';
+                const evaluated = got !== '--' && got !== '';
                 return {
                     id: caseId,
                     input: index === 0 ? 'nums=[2,7,11,15], target=9' : index === 1 ? 'nums=[3,2,4], target=6' : 'nums=[3,3], target=6',
