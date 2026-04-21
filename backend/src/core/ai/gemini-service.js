@@ -481,8 +481,62 @@ Return ONLY the summary text (no JSON, no explanation, no quotes):
 
         try {
             const isCodingRound = round === 'technical';
-            const prompt = `
-You are a senior technical interviewer at ${company} with deep knowledge of how ${company} conducts their hiring process.
+
+            // ─── Build the coding fields instruction with a concrete example ──────────────
+            const codingInstruction = isCodingRound ? `
+
+═══════════════════════════════════════════════════════════════
+CODING QUESTION REQUIREMENTS (MANDATORY for technical round)
+═══════════════════════════════════════════════════════════════
+
+For EVERY question in a technical round, you MUST include these extra fields:
+
+  "isCodingQuestion": true   (true if code must be written, false for pure conceptual)
+  "functionSignature": Python function signature string.
+  "starterCode": A Python code string that:
+      1. Defines the function stub with "pass" as body
+      2. Adds 3 PRINT statements at the bottom that call the function with sample inputs
+      3. Must be executable as-is and produce exactly 3 lines of printed output
+  "sampleTestCases": Array of 3 objects { "input": "...", "expected": "..." }
+      - "input"    → human-readable description of the test input
+      - "expected" → the EXACT string printed to stdout when the correct solution runs
+
+══════════════════
+CONCRETE EXAMPLE:
+══════════════════
+Question: "Given an array of integers and a target, return indices of the two numbers that add up to the target."
+
+Correct JSON fields for this question:
+
+  "isCodingQuestion": true,
+  "functionSignature": "def two_sum(nums: list, target: int) -> list:",
+  "starterCode": "def two_sum(nums, target):\\n    # Write your solution here\\n    pass\\n\\n# Sample test cases\\nprint(two_sum([2, 7, 11, 15], 9))\\nprint(two_sum([3, 2, 4], 6))\\nprint(two_sum([3, 3], 6))",
+  "sampleTestCases": [
+    { "input": "nums=[2,7,11,15], target=9",  "expected": "[0, 1]" },
+    { "input": "nums=[3,2,4], target=6",       "expected": "[1, 2]" },
+    { "input": "nums=[3,3], target=6",         "expected": "[0, 1]" }
+  ]
+
+RULES for "expected" values (what Python's print() outputs):
+  • Function returns a list  → use Python list format: "[0, 1]"  (with square brackets and spaces after commas)
+  • Function returns an int  → just the integer string: "42"
+  • Function returns a bool  → "True" or "False"  (capital first letter, Python style)
+  • Function returns a str   → just the string, no quotes: "hello"
+  • Function returns None    → "None"
+
+RULES for "starterCode":
+  • Use \\n to represent newlines inside the JSON string (double-escaped)
+  • Use \\t for indentation if needed (double-escaped)
+  • The 3 print() calls MUST match the 3 sampleTestCases in the same order
+  • Example for a function returning bool: print(is_palindrome("racecar")) → expected: "True"
+  • Example for a function returning int:  print(max_depth(root))         → expected: "3"
+
+For system-design or purely conceptual questions set "isCodingQuestion": false
+and OMIT functionSignature, starterCode, sampleTestCases entirely.
+═══════════════════════════════════════════════════════════════
+` : '';
+
+            const prompt = `You are a senior technical interviewer at ${company} with deep knowledge of how ${company} conducts their hiring process.
 
 Generate exactly ${count} interview questions for a ${role} position at ${company}.
 
@@ -496,36 +550,30 @@ REQUIREMENTS:
 1. Questions must be tailored to ${company}'s actual interview style and culture.
 2. Questions must be appropriate for ${round} round.
 3. Vary difficulty: 2 easy warm-up, ${count - 4} medium core questions, 2 challenging.
-4. For technical: include coding/algorithmic thinking questions relevant to ${company}.
+4. For technical: ALL coding questions must have starterCode + sampleTestCases.
 5. For behavioral: use ${company}'s known behavioral competencies.
 6. For system-design: reference real systems similar to what ${company} builds at scale.
 7. Each question should have a clear "what they are testing" hint.
-${isCodingRound ? `8. For EVERY coding question, include:
-   - "sampleTestCases": 3 representative test cases with "input" (human-readable description) and "expected" (exact expected output string as the code should print it)
-   - "starterCode": a minimal Python starter function stub (just the def + docstring, no solution body, just "pass")
-   - "functionSignature": the Python function signature string (e.g. "def two_sum(nums: list, target: int) -> list:")
-   - "isCodingQuestion": true
-   For non-coding/conceptual questions set "isCodingQuestion": false and omit sampleTestCases/starterCode/functionSignature.` : ''}
-
-Return STRICT JSON array (no markdown, no backticks, no explanation):
+${codingInstruction}
+Return STRICT JSON array (no markdown fences, no backticks, no explanation text):
 [
   {
     "id": 1,
-    "question": "The full question text",
-    "hint": "What the interviewer is testing / what a good answer covers in 1 sentence",
-    "difficulty": "easy|medium|hard",
-    "category": "sub-category (e.g. Arrays, Leadership, API Design)"${isCodingRound ? `,
+    "question": "Full question text",
+    "hint": "What the interviewer is testing in 1 sentence",
+    "difficulty": "easy",
+    "category": "Arrays"${isCodingRound ? `,
     "isCodingQuestion": true,
-    "functionSignature": "def solution_function(param: type) -> return_type:",
-    "starterCode": "def solution_function(param):\\n    # Write your solution here\\n    pass",
+    "functionSignature": "def solution_name(param: type) -> return_type:",
+    "starterCode": "def solution_name(param):\\n    # Write your solution here\\n    pass\\n\\n# Sample test cases\\nprint(solution_name(input1))\\nprint(solution_name(input2))\\nprint(solution_name(input3))",
     "sampleTestCases": [
-      { "input": "human-readable input description", "expected": "exact output the function should print" },
-      { "input": "human-readable input description", "expected": "exact output" },
-      { "input": "edge case input description",      "expected": "exact output" }
+      { "input": "human readable input 1", "expected": "exact printed output 1" },
+      { "input": "human readable input 2", "expected": "exact printed output 2" },
+      { "input": "edge case input",        "expected": "exact printed output 3" }
     ]` : ''}
   }
-]
-`;
+]`;
+
             const result = await model.generateContent(prompt);
             const response = await result.response;
             let text = response.text();

@@ -111,17 +111,37 @@ function makeIdleRunResult(): LocalRunResult {
 // ─── Get starter code for a question ─────────────────────────────────────────
 function getStarterCode(question: EvaluatedQuestion | undefined, language: Language): string {
     if (!question?.isCodingQuestion) return BLANK_TEMPLATES[language];
-    // For Python, use AI-generated starter code if available
+
+    // Python: use the AI-provided starter as-is — it already has function stub +
+    // 3 print() test calls, so it's immediately runnable and produces 3 output lines.
     if (question.starterCode && language === 'python') {
-        return question.starterCode + '\n# TODO: add print statements to output your results\n';
+        return question.starterCode;
     }
-    // For other languages, show the signature + blank template
+
+    // Other languages: build a template with test cases listed as comments
     const sig = question.functionSignature || '';
-    const base = BLANK_TEMPLATES[language];
-    if (sig) {
-        return `# Signature: ${sig}\n${base}`;
+    const cases = question.sampleTestCases ?? [];
+    const casesComment = cases.length > 0
+        ? cases.map((tc, i) =>
+            language === 'java'
+                ? `    // Test ${i + 1}: ${tc.input}  →  expected: ${tc.expected}`
+                : `// Test ${i + 1}: ${tc.input}  →  expected: ${tc.expected}`
+          ).join('\n')
+        : '';
+
+    if (language === 'javascript') {
+        const sigComment = sig ? `// Signature: ${sig}\n` : '';
+        return `${sigComment}${casesComment ? casesComment + '\n\n' : ''}// Write your solution and console.log each test case output\nfunction solution() {\n\n}\n`;
     }
-    return base;
+    if (language === 'java') {
+        const sigComment = sig ? `    // Signature: ${sig}\n` : '';
+        return `class Solution {\n${sigComment}${casesComment ? casesComment + '\n' : ''}\n    // Write your solution here\n    // Use System.out.println() for output\n}\n`;
+    }
+    if (language === 'cpp') {
+        const sigComment = sig ? `// Signature: ${sig}\n` : '';
+        return `#include <bits/stdc++.h>\nusing namespace std;\n\n${sigComment}${casesComment ? casesComment + '\n\n' : ''}// Write your solution here\n// Use cout << ... << endl; for each test case output\n`;
+    }
+    return BLANK_TEMPLATES[language];
 }
 
 // ─── Build placeholder test cases from question metadata ─────────────────────
@@ -825,7 +845,13 @@ export default function InterviewAiLabPage() {
                                         language={language === 'cpp' ? 'cpp' : language}
                                         value={currentCode}
                                         onChange={(value) => updateCurrentCode(value)}
-                                        onMount={(editor) => {
+                                        onMount={(editor, monaco) => {
+                                            // Wire Ctrl+Enter to Run
+                                            editor.addCommand(
+                                                monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+                                                () => handleRunCode()
+                                            );
+                                            // Track paste for integrity flag
                                             editor.onDidPaste(() => {
                                                 setPastedQuestions((prev) => ({ ...prev, [currentIndex]: true }));
                                             });
