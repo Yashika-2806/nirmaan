@@ -13,7 +13,7 @@ const interviewController = {
                 experienceLevel: experienceLevel || 'mid',
                 count: count || 8,
             });
-            return ApiResponse.created(res, session, 'Interview session started');
+            return ApiResponse.created(res, session.toObject(), 'Interview session started');
         } catch (err) {
             next(err);
         }

@@ -7,7 +7,7 @@ const questionSchema = new mongoose.Schema({
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'] },
     category: String,
     // Coding IDE fields (populated by AI for technical rounds)
-    isCodingQuestion: { type: Boolean, default: false },
+    isCodingQuestion: { type: Boolean, default: null },
     functionSignature: { type: String, default: '' },
     starterCode: { type: String, default: '' },
     sampleTestCases: [

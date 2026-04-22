@@ -579,16 +579,108 @@ Return STRICT JSON array (no markdown fences, no backticks, no explanation text)
             let text = response.text();
 
             const parsed = safeParseAIJson(text, 'array');
-            if (parsed.ok) {
-                console.log(`[GeminiService] Generated ${parsed.data.length} interview questions.`);
-                return { questions: parsed.data };
-            } else {
-                console.error("[GeminiService] Failed to parse interview questions JSON:", parsed.error);
-                return { error: "AI returned an unreadable response. Please try again." };
+            if (!parsed.ok) {
+                console.error('[GeminiService] Failed to parse interview questions JSON:', parsed.error);
+                return { error: 'AI returned an unreadable response. Please try again.' };
             }
+
+            let questions = parsed.data;
+            console.log(`[GeminiService] Parsed ${questions.length} questions. Fields on Q1:`, Object.keys(questions[0] || {}));
+
+            // ─── Guaranteed fallback: enrich any coding question missing sampleTestCases ──
+            if (isCodingRound) {
+                const missing = questions.filter(
+                    (q) => q.isCodingQuestion !== false && (!q.sampleTestCases || q.sampleTestCases.length === 0)
+                );
+                console.log(`[GeminiService] ${missing.length}/${questions.length} questions need test case enrichment.`);
+
+                if (missing.length > 0) {
+                    // Enrich sequentially to avoid rate-limiting (fallback AI calls)
+                    const enriched = [];
+                    for (const q of questions) {
+                        if (q.isCodingQuestion === false || (q.sampleTestCases && q.sampleTestCases.length > 0)) {
+                            enriched.push(q);
+                        } else {
+                            try {
+                                const extra = await this._generateTestCasesForQuestion(q.question, model);
+                                enriched.push({ ...q, ...extra });
+                            } catch (err) {
+                                console.warn(`[GeminiService] Enrichment failed for: ${String(q.question).substring(0, 50)}`, err.message);
+                                enriched.push(q);
+                            }
+                            // Small delay between calls to avoid rate-limit bursts
+                            await new Promise((r) => setTimeout(r, 300));
+                        }
+                    }
+                    questions = enriched;
+                    const afterEnrich = questions.filter((q) => q.sampleTestCases && q.sampleTestCases.length > 0).length;
+                    console.log(`[GeminiService] After enrichment: ${afterEnrich}/${questions.length} questions have test cases.`);
+                }
+            }
+
+            return { questions };
         } catch (error) {
-            console.error("[GeminiService] AI Interview Questions Error (all providers failed):", error.message || error);
-            return { error: "AI service error: " + (error.message || String(error)) };
+            console.error('[GeminiService] AI Interview Questions Error (all providers failed):', error.message || error);
+            return { error: 'AI service error: ' + (error.message || String(error)) };
+        }
+    }
+
+    /**
+     * Targeted fallback: generate sampleTestCases + starterCode for a single question.
+     * Called when the main generation loop omits these fields.
+     */
+    async _generateTestCasesForQuestion(questionText, model) {
+        const fallbackModel = model || this.getModel('interview');
+        if (!fallbackModel) return {};
+
+        const prompt = `You are a Python coding expert.
+
+PROBLEM: "${String(questionText).substring(0, 500)}"
+
+Generate a Python function stub and 3 concrete test cases for this problem.
+
+CRITICAL RULES:
+1. starterCode must define the function with "pass" body, then call print() 3 times with real sample inputs
+2. sampleTestCases[i].expected must EXACTLY match what Python prints for that call when solved correctly
+3. Return ONLY valid JSON, no markdown, no explanation
+
+Return this EXACT JSON structure:
+{
+  "isCodingQuestion": true,
+  "functionSignature": "def fn_name(param: type) -> return_type:",
+  "starterCode": "def fn_name(param):\\n    # Write your solution here\\n    pass\\n\\nprint(fn_name(sample_input_1))\\nprint(fn_name(sample_input_2))\\nprint(fn_name(sample_input_3))",
+  "sampleTestCases": [
+    { "input": "readable description of sample_input_1", "expected": "exact_printed_output_1" },
+    { "input": "readable description of sample_input_2", "expected": "exact_printed_output_2" },
+    { "input": "edge case description",                  "expected": "exact_printed_output_3" }
+  ]
+}
+
+Example – for "Two Sum":
+{
+  "isCodingQuestion": true,
+  "functionSignature": "def two_sum(nums: list, target: int) -> list:",
+  "starterCode": "def two_sum(nums, target):\\n    # Write your solution here\\n    pass\\n\\nprint(two_sum([2, 7, 11, 15], 9))\\nprint(two_sum([3, 2, 4], 6))\\nprint(two_sum([3, 3], 6))",
+  "sampleTestCases": [
+    { "input": "nums=[2,7,11,15], target=9", "expected": "[0, 1]" },
+    { "input": "nums=[3,2,4], target=6",     "expected": "[1, 2]" },
+    { "input": "nums=[3,3], target=6",       "expected": "[0, 1]" }
+  ]
+}`;
+
+        try {
+            const result = await fallbackModel.generateContent(prompt);
+            const response = await result.response;
+            const parsed = safeParseAIJson(response.text(), 'object');
+            if (parsed.ok && parsed.data.sampleTestCases?.length > 0) {
+                console.log(`[GeminiService] Fallback enrichment succeeded. starterCode length: ${parsed.data.starterCode?.length || 0}`);
+                return parsed.data;
+            }
+            console.warn('[GeminiService] Fallback enrichment: AI returned invalid/empty data.');
+            return {};
+        } catch (err) {
+            console.error('[GeminiService] Fallback enrichment call failed:', err.message);
+            return {};
         }
     }
 
