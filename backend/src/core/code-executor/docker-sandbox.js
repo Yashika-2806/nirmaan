@@ -132,6 +132,17 @@ class DockerSandboxExecutor {
                 throw new Error('Test cases must be a non-empty array');
             }
 
+            // ── Self-testing pattern detection ──────────────────────────────────
+            // If the source code already contains print() calls (AI-generated
+            // starter code pattern), run it ONCE and split output lines to match
+            // each test case expected value — no stdin injection needed.
+            const isSelfTesting = language === 'python' && /print\s*\(/.test(sourceCode);
+
+            if (isSelfTesting) {
+                return await this._executeWithSelfTestingCode(sourceCode, language, testCases, options);
+            }
+
+            // ── Classic stdin-per-test pattern ──────────────────────────────────
             const results = [];
             let passedCount = 0;
             let failedCount = 0;
@@ -191,6 +202,74 @@ class DockerSandboxExecutor {
                 testCases: [],
             };
         }
+    }
+
+    /**
+     * Execute self-testing code (AI starter code with print() calls baked in).
+     * Runs the code once, splits stdout by newlines, compares line[i] to testCases[i].expected.
+     */
+    async _executeWithSelfTestingCode(sourceCode, language, testCases, options = {}) {
+        const result = await this.executeCode(sourceCode, language, '', options);
+
+        if (!result.success && result.stderr) {
+            // Code crashed — mark all as failed with the error
+            return {
+                success: false,
+                verdict: result.stderr.includes('Time Limit') ? 'Time Limit Exceeded' : 'Runtime Error',
+                passedCount: 0,
+                failedCount: testCases.length,
+                totalCount: testCases.length,
+                testCases: testCases.map((tc, i) => ({
+                    id: i + 1,
+                    input: tc.input || '',
+                    expected: tc.expected || '',
+                    output: '',
+                    passed: false,
+                    error: result.stderr,
+                    time: result.executionTime,
+                    memory: result.memory,
+                })),
+            };
+        }
+
+        // Split output lines (one per print() call)
+        const outputLines = result.stdout
+            .split('\n')
+            .map(l => l.trim())
+            .filter((_, i) => i < testCases.length + 5); // safety cap
+
+        const results = [];
+        let passedCount = 0;
+        let failedCount = 0;
+
+        for (let i = 0; i < testCases.length; i++) {
+            const actualOutput = outputLines[i] !== undefined ? outputLines[i] : '';
+            const expected = (testCases[i].expected || '').trim();
+            const passed = this.outputsMatch(actualOutput, expected);
+
+            results.push({
+                id: i + 1,
+                input: testCases[i].input || '',
+                expected,
+                output: actualOutput,
+                passed,
+                error: '',
+                time: result.executionTime,
+                memory: result.memory,
+            });
+
+            if (passed) passedCount++;
+            else failedCount++;
+        }
+
+        return {
+            success: true,
+            verdict: this.getVerdict(failedCount, results),
+            passedCount,
+            failedCount,
+            totalCount: testCases.length,
+            testCases: results,
+        };
     }
 
     /**
@@ -385,7 +464,12 @@ class DockerSandboxExecutor {
         // Exact match
         if (got === expected) return true;
 
-        // Whitespace normalization
+        // Normalize whitespace
+        const gotNorm = got.replace(/\s+/g, ' ').trim();
+        const expNorm = expected.replace(/\s+/g, ' ').trim();
+        if (gotNorm === expNorm) return true;
+
+        // Strip all whitespace
         if (got.replace(/\s+/g, '') === expected.replace(/\s+/g, '')) return true;
 
         // Numeric comparison
@@ -394,6 +478,16 @@ class DockerSandboxExecutor {
         if (!isNaN(gotNum) && !isNaN(expectedNum)) {
             return Math.abs(gotNum - expectedNum) < 1e-9;
         }
+
+        // Python list/tuple normalization: "[0, 1]" vs "[0,1]" vs "(0, 1)"
+        try {
+            const normalize = (s) => s
+                .replace(/\(/g, '[').replace(/\)/g, ']')   // tuples → lists
+                .replace(/,\s*/g, ',')                      // remove spaces after commas
+                .replace(/\s*,/g, ',')                      // remove spaces before commas
+                .toLowerCase();
+            if (normalize(got) === normalize(expected)) return true;
+        } catch (_) { /* ignore */ }
 
         return false;
     }
