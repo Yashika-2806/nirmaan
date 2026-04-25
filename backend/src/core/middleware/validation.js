@@ -9,6 +9,7 @@ const validate = (schema) => {
         });
 
         if (error) {
+            console.error('Joi Validation Error:', error.details);
             const errors = error.details.map(detail => ({
                 field: detail.path.join('.'),
                 message: detail.message,

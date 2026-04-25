@@ -4,8 +4,8 @@ const logger = require('../../core/utils/logger');
 const config = require('../../config/env');
 const DockerSandboxExecutor = require('./docker-sandbox');
 const Judge0Service = require('./judge0-service');
-const ExecutionResultModel = require('../interview/models/execution-result-model');
-const TestCaseModel = require('../interview/models/test-case-model');
+const ExecutionResultModel = require('../../modules/interview/models/execution-result-model');
+const TestCaseModel = require('../../modules/interview/models/test-case-model');
 
 /**
  * Execution queue for code execution requests

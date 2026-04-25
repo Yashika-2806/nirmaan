@@ -61,6 +61,8 @@ services:
       JUDGE0_BASE_URL: ${JUDGE0_BASE_URL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       DOCKER_SOCKET: /var/run/docker.sock
+    env_file:
+      - ./backend/.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend/src:/app/src

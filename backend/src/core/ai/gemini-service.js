@@ -549,7 +549,7 @@ INTERVIEW DETAILS:
 REQUIREMENTS:
 1. Questions must be tailored to ${company}'s actual interview style and culture.
 2. Questions must be appropriate for ${round} round.
-3. Vary difficulty: 2 easy warm-up, ${count - 4} medium core questions, 2 challenging.
+3. Vary difficulty: 2 easy warm-up, ${count - 4} medium core questions, 2 hard.
 4. For technical: ALL coding questions must have starterCode + sampleTestCases.
 5. For behavioral: use ${company}'s known behavioral competencies.
 6. For system-design: reference real systems similar to what ${company} builds at scale.

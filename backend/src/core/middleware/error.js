@@ -40,6 +40,7 @@ const errorHandler = (err, req, res, next) => {
 
     // Mongoose validation error
     if (err.name === 'ValidationError') {
+        logger.error('Mongoose Validation Error:', err);
         const errors = Object.values(err.errors).map(e => e.message);
         const message = 'Validation failed';
         return ApiResponse.badRequest(res, message, errors);

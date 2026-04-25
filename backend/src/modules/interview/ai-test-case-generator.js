@@ -1,4 +1,4 @@
-const geminiService = require('../ai/gemini-service');
+const geminiService = require('../../core/ai/gemini-service');
 const logger = require('../../core/utils/logger');
 const TestCaseModel = require('./models/test-case-model');
 

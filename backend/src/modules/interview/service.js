@@ -12,13 +12,23 @@ class InterviewService {
 
         if (result.error) throw new Error(result.error);
 
+        // Sanitize AI outputs to prevent Mongoose validation errors
+        const sanitizedQuestions = (result.questions || []).map(q => {
+            if (q.difficulty) {
+                let diff = q.difficulty.toLowerCase();
+                if (diff === 'challenging') diff = 'hard';
+                q.difficulty = diff;
+            }
+            return q;
+        });
+
         const session = await InterviewSession.create({
             userId,
             company,
             role,
             round,
             experienceLevel,
-            questions: result.questions,
+            questions: sanitizedQuestions,
             status: 'in-progress',
         });
 
