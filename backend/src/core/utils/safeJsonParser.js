@@ -96,16 +96,61 @@ function safeParseAIJson(raw, expect = 'object') {
         const data = JSON.parse(jsonStr);
         return { ok: true, data };
     } catch (firstErr) {
-        // 5. Second attempt: strip control characters (except \n, \t)
-        const cleaned = jsonStr.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+        // 5. Second attempt: escape unescaped newlines/tabs in strings
+        // This handles cases where AI returns literal newlines in string values
+        let fixedStr = '';
+        let inString = false;
+        let escaped = false;
+        
+        for (let i = 0; i < jsonStr.length; i++) {
+            const ch = jsonStr[i];
+            const nextCh = jsonStr[i + 1];
+            
+            if (inString) {
+                if (escaped) {
+                    fixedStr += ch;
+                    escaped = false;
+                } else if (ch === '\\') {
+                    fixedStr += ch;
+                    escaped = true;
+                } else if (ch === '\n') {
+                    // Replace literal newline with escaped newline
+                    fixedStr += '\\n';
+                } else if (ch === '\r') {
+                    // Replace literal carriage return with escaped \\r
+                    fixedStr += '\\r';
+                } else if (ch === '\t') {
+                    // Replace literal tab with escaped \\t
+                    fixedStr += '\\t';
+                } else if (ch === '"') {
+                    fixedStr += ch;
+                    inString = false;
+                } else {
+                    fixedStr += ch;
+                }
+            } else {
+                if (ch === '"') {
+                    inString = true;
+                }
+                fixedStr += ch;
+            }
+        }
+        
         try {
-            const data = JSON.parse(cleaned);
+            const data = JSON.parse(fixedStr);
             return { ok: true, data };
         } catch (secondErr) {
-            return {
-                ok: false,
-                error: `JSON parse failed: ${firstErr.message}. First 200 chars: ${jsonStr.substring(0, 200)}`
-            };
+            // 6. Third attempt: strip control characters (except properly escaped ones)
+            const cleaned = fixedStr.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+            try {
+                const data = JSON.parse(cleaned);
+                return { ok: true, data };
+            } catch (thirdErr) {
+                return {
+                    ok: false,
+                    error: `JSON parse failed: ${firstErr.message}. Attempted fixes did not resolve the issue.`
+                };
+            }
         }
     }
 }

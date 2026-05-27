@@ -53,12 +53,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
+      FRONTEND_URLS: http://localhost:3500,http://localhost:3000
       MONGODB_URI: mongodb://admin:password@mongodb:27017/nirmaan?authSource=admin
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      JUDGE0_API_BASE_URL: https://judge0-ce.p.rapidapi.com
+      JUDGE0_API_HOST: judge0-ce.p.rapidapi.com
       JUDGE0_API_KEY: ${JUDGE0_API_KEY}
-      JUDGE0_API_HOST: ${JUDGE0_API_HOST}
-      JUDGE0_BASE_URL: ${JUDGE0_BASE_URL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       DOCKER_SOCKET: /var/run/docker.sock
     env_file:
@@ -72,6 +73,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - nirmaan-network
 
@@ -80,12 +87,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://nirmaan-backend:5000
     container_name: nirmaan-frontend
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3500:3000'
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      BACKEND_URL: http://nirmaan-backend:5000
       NEXT_PUBLIC_ENVIRONMENT: production
     depends_on:
       - backend

@@ -19,6 +19,7 @@ const apiLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req, res) => req.user?.userId || req.ip || 'unknown',
     handler: (req, res) => {
         ApiResponse.tooManyRequests(res, 'Rate limit exceeded. Please try again later.');
     },
@@ -30,6 +31,7 @@ const authLimiter = rateLimit({
     max: config.rateLimit.authMax,
     skipSuccessfulRequests: true,
     message: 'Too many authentication attempts, please try again later',
+    keyGenerator: (req, res) => req.ip || 'unknown',
     handler: (req, res) => {
         ApiResponse.tooManyRequests(res, 'Too many login attempts. Please try again after 15 minutes.');
     },
@@ -40,6 +42,7 @@ const aiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: config.rateLimit.aiMax,
     message: 'AI request limit exceeded',
+    keyGenerator: (req, res) => req.user?.userId || req.ip || 'unknown',
     handler: (req, res) => {
         ApiResponse.tooManyRequests(res, 'AI request limit exceeded. Upgrade your plan for higher limits.');
     },

@@ -17,6 +17,9 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
     title: 'Nirmaan - Placement Acceleration Platform',
     description: 'Daily placement sprints, AI mentor guidance, and interview prep for faster shortlist outcomes.',
+    icons: {
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%2307c" width="100" height="100"/><text x="50" y="70" font-size="60" font-weight="bold" text-anchor="middle" fill="white" font-family="sans-serif">N</text></svg>',
+    },
 };
 
 export default function RootLayout({

@@ -15,6 +15,7 @@ const interviewController = {
             });
             return ApiResponse.created(res, session.toObject(), 'Interview session started');
         } catch (err) {
+            console.error('[interviewController.startSession] ERROR:', err);
             next(err);
         }
     },

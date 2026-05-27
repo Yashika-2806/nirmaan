@@ -29,7 +29,7 @@ interface InterviewFeedbackProps {
     memory?: string;
     errorOutput?: string;
     question?: string;
-    testResults?: Array<{ id: number; input: string; expected: string; got: string; passed: boolean }>;
+    testResults?: Array<{ id: number; input: string; expected: string; got?: string; output?: string; passed: boolean }>;
 }
 
 interface AIFeedback {

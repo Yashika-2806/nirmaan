@@ -685,15 +685,20 @@ Example – for "Two Sum":
     }
 
     /**
-     * For each coding question, ask the AI to verify and correct expected outputs.
-     * This catches hallucinated expected values (e.g. "[0,1]" for an index-returning function).
+     * For each coding question, fully regenerate the starterCode + sampleTestCases
+     * as one atomic unit so the print() calls always match the function stub and
+     * expected values always match what a correct solution would actually print.
+     *
+     * This is the #1 source of wrong-answer false positives: AI generates
+     *   def is_anagram(s, t): ...
+     *   print(two_sum([2,7,11,15], 9))   ← WRONG function name!
+     *   expected: "[0, 1]"               ← WRONG expected value!
      */
     async _validateAndFixExpectedOutputs(questions, model) {
         const fallbackModel = model || this.getModel('interview');
         const fixed = [];
 
         for (const q of questions) {
-            // Only process coding questions that have starterCode + sampleTestCases
             if (
                 q.isCodingQuestion === false ||
                 !q.starterCode ||
@@ -705,11 +710,27 @@ Example – for "Two Sum":
             }
 
             try {
-                const prompt = `You are a Python execution expert. Given the following function stub + print calls, determine the EXACT output each print() statement would produce when the function is correctly implemented.
+                // Extract function name from functionSignature or starterCode
+                const fnMatch = (q.functionSignature || q.starterCode || '').match(/def\s+(\w+)\s*\(/);
+                const fnName = fnMatch ? fnMatch[1] : null;
+
+                // Detect wrong print calls: print calls that do NOT call fnName
+                let starterCodeHasWrongCalls = false;
+                if (fnName) {
+                    const printCallMatch = q.starterCode.match(/print\s*\(\s*(\w+)\s*\(/);
+                    if (printCallMatch && printCallMatch[1] !== fnName) {
+                        starterCodeHasWrongCalls = true;
+                        console.log(`[GeminiService] ⚠️  starterCode calls "${printCallMatch[1]}" but fn is "${fnName}" — regenerating for Q: "${String(q.question).substring(0, 60)}"`);
+                    }
+                }
+
+                if (!starterCodeHasWrongCalls) {
+                    // StarterCode looks fine — just verify/correct expected values
+                    const prompt = `You are a Python execution expert.
 
 PROBLEM: "${String(q.question).substring(0, 300)}"
 
-STARTER CODE (the print() calls are already there — assume a CORRECT solution replaces "pass"):
+STARTER CODE (assume CORRECT solution replaces "pass"):
 \`\`\`python
 ${q.starterCode}
 \`\`\`
@@ -717,59 +738,46 @@ ${q.starterCode}
 CURRENT sampleTestCases (may have WRONG expected values):
 ${JSON.stringify(q.sampleTestCases, null, 2)}
 
-TASK:
-1. Mentally implement the correct solution for this problem.
-2. Trace what each print() call in starterCode would output with a correct solution.
-3. Return the CORRECTED sampleTestCases with accurate expected values.
+Mentally implement the correct solution. Determine the EXACT string each print() call outputs.
+Return ONLY a JSON array (no markdown):
+[{ "input": "same as before", "expected": "exact print output" }, ...]`;
 
-RULES for expected values:
-- If function returns an int → expected is just the number: "0"
-- If function returns a bool → expected is "True" or "False" (Python capitalization)
-- If function returns a list → expected is Python list format: "[0, 1]"
-- If function returns a string → expected is the string value without quotes: "hello"
-- If function returns -1 (not found) → expected is "-1"
-- expected must EXACTLY match Python's print() output
+                    const result = await fallbackModel.generateContent(prompt);
+                    const parsed = safeParseAIJson(result.response.text(), 'array');
 
-Return ONLY valid JSON array, no markdown:
-[
-  { "input": "same as before", "expected": "corrected exact output" },
-  ...
-]`;
-
-                const result = await fallbackModel.generateContent(prompt);
-                const text = result.response.text();
-                const parsed = safeParseAIJson(text, 'array');
-
-                if (parsed.ok && parsed.data.length === q.sampleTestCases.length) {
-                    const corrected = parsed.data;
-                    const hasChanges = corrected.some((tc, i) => tc.expected !== q.sampleTestCases[i].expected);
-                    if (hasChanges) {
-                        console.log(`[GeminiService] ✅ Fixed expected outputs for: "${String(q.question).substring(0, 60)}"`);
-                        corrected.forEach((tc, i) => {
-                            if (tc.expected !== q.sampleTestCases[i].expected) {
-                                console.log(`  Case ${i + 1}: "${q.sampleTestCases[i].expected}" → "${tc.expected}"`);
-                            }
-                        });
-                        fixed.push({ ...q, sampleTestCases: corrected });
+                    if (parsed.ok && parsed.data.length === q.sampleTestCases.length) {
+                        const corrected = parsed.data;
+                        const hasChanges = corrected.some((tc, i) => tc.expected !== q.sampleTestCases[i].expected);
+                        if (hasChanges) {
+                            console.log(`[GeminiService] ✅ Corrected expected values for: "${String(q.question).substring(0, 60)}"`);
+                        }
+                        fixed.push({ ...q, sampleTestCases: hasChanges ? corrected : q.sampleTestCases });
                     } else {
-                        console.log(`[GeminiService] ✓ Expected outputs verified OK for: "${String(q.question).substring(0, 60)}"`);
                         fixed.push(q);
                     }
                 } else {
-                    console.warn(`[GeminiService] Validation returned mismatched count for Q, keeping original.`);
-                    fixed.push(q);
+                    // starterCode has WRONG print calls → regenerate everything from scratch
+                    const repaired = await this._generateTestCasesForQuestion(q.question, fallbackModel);
+                    if (repaired.starterCode && repaired.sampleTestCases && repaired.sampleTestCases.length > 0) {
+                        console.log(`[GeminiService] 🔧 Rebuilt starterCode + sampleTestCases for: "${String(q.question).substring(0, 60)}"`);
+                        fixed.push({ ...q, ...repaired });
+                    } else {
+                        console.warn(`[GeminiService] Rebuild failed, keeping original`);
+                        fixed.push(q);
+                    }
                 }
             } catch (err) {
                 console.warn(`[GeminiService] Validation failed for Q, keeping original:`, err.message);
                 fixed.push(q);
             }
 
-            // Rate-limit buffer
+            // Rate-limit buffer between calls
             await new Promise((r) => setTimeout(r, 200));
         }
 
         return fixed;
     }
+
 
     /**
      * Evaluates a candidate's answer to an interview question.

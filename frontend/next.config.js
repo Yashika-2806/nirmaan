@@ -7,6 +7,16 @@ const nextConfig = {
     images: {
         domains: ['localhost'],
     },
+    async rewrites() {
+        return {
+            beforeFiles: [
+                {
+                    source: '/api/:path*',
+                    destination: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/:path*`,
+                },
+            ],
+        };
+    },
     async headers() {
         return [
             {
@@ -15,7 +25,7 @@ const nextConfig = {
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
                     { key: 'X-Frame-Options', value: 'DENY' },
                     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-                    { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+                    { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
                 ],
             },
         ];

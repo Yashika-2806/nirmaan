@@ -1,6 +1,7 @@
 const Docker = require('dockerode');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const logger = require('../../core/utils/logger');
 const config = require('../../config/env');
 
@@ -75,7 +76,11 @@ class DockerSandboxExecutor {
 
             // Prepare execution environment based on language
             const { entrypoint, workingDir, mountDir } = this.getLanguageConfig(language);
-            const tempDir = path.join('/tmp', `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+            
+            // Use system temp directory instead of hardcoded Unix path
+            const baseTemp = os.tmpdir();
+            const uniqueDir = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const tempDir = path.join(baseTemp, uniqueDir);
             
             // Create temporary directory and write code
             if (!fs.existsSync(tempDir)) {
@@ -119,6 +124,95 @@ class DockerSandboxExecutor {
     }
 
     /**
+     * Generate Python test harness for function-based problems
+     * Wraps user code with a harness that parses stdin and calls the function
+     */
+    _generatePythonTestHarness(sourceCode, testCases) {
+        // Extract function name (assumes "def functionName(" pattern)
+        const funcMatch = sourceCode.match(/def\s+(\w+)\s*\(/);
+        if (!funcMatch) {
+            return sourceCode; // Return original if no function found
+        }
+        const functionName = funcMatch[1];
+
+        // Generate test harness
+        const harness = `
+${sourceCode}
+
+# Test harness - parse input and call function
+import sys
+import json
+
+def parse_input(input_str):
+    """Parse various input formats"""
+    lines = input_str.strip().split('\\n')
+    
+    if len(lines) == 0:
+        return []
+    
+    if len(lines) == 1:
+        # Single line: try to parse as array or single value
+        line = lines[0].strip()
+        # Try parsing as array
+        if ' ' in line:
+            try:
+                return [int(x) for x in line.split() if x]
+            except:
+                pass
+        # Try parsing as single value
+        try:
+            return [int(line)]
+        except:
+            return [line]
+    
+    # Multi-line input: likely array then target
+    result = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Try to parse as space-separated integers
+        try:
+            nums = [int(x) for x in line.split() if x]
+            result.append(nums if len(nums) > 1 else nums[0] if nums else line)
+        except:
+            # Parse as string or single value
+            try:
+                result.append(int(line))
+            except:
+                result.append(line)
+    
+    return result
+
+try:
+    # Read all input
+    test_input = sys.stdin.read().strip()
+    if not test_input:
+        sys.exit(0)
+    
+    # Parse input arguments
+    args = parse_input(test_input)
+    
+    # Call function with parsed arguments
+    result = ${functionName}(*args)
+    
+    # Format output
+    if isinstance(result, list):
+        print(' '.join(map(str, result)))
+    elif isinstance(result, tuple):
+        print(' '.join(map(str, result)))
+    else:
+        print(result)
+        
+except Exception as e:
+    import traceback
+    sys.stderr.write(traceback.format_exc())
+    sys.exit(1)
+`;
+        return harness;
+    }
+
+    /**
      * Execute code with test cases
      * @param {string} sourceCode - The source code
      * @param {string} language - Programming language
@@ -142,6 +236,13 @@ class DockerSandboxExecutor {
                 return await this._executeWithSelfTestingCode(sourceCode, language, testCases, options);
             }
 
+            // ── Python function-based test harness ──────────────────────────────
+            // For Python code with functions, wrap with a test harness
+            let executionCode = sourceCode;
+            if (language === 'python' && /def\s+\w+\s*\(/.test(sourceCode)) {
+                executionCode = this._generatePythonTestHarness(sourceCode, testCases);
+            }
+
             // ── Classic stdin-per-test pattern ──────────────────────────────────
             const results = [];
             let passedCount = 0;
@@ -150,7 +251,7 @@ class DockerSandboxExecutor {
             for (let i = 0; i < testCases.length; i++) {
                 const testCase = testCases[i];
                 const result = await this.executeCode(
-                    sourceCode,
+                    executionCode,
                     language,
                     testCase.input || '',
                     options
@@ -273,6 +374,28 @@ class DockerSandboxExecutor {
     }
 
     /**
+     * Convert Windows path to Docker-compatible format
+     * Docker Desktop on Windows mounts Windows paths through WSL2
+     */
+    _convertPathForDocker(windowsPath) {
+        if (process.platform !== 'win32') {
+            return windowsPath;
+        }
+
+        // For Docker Desktop on Windows, we need to use /mnt/c format
+        // Convert C:\path\to\dir to /mnt/c/path/to/dir
+        let converted = windowsPath.replace(/\\/g, '/');
+        
+        // Handle drive letters like C:, D:, etc.
+        if (/^[a-zA-Z]:\//.test(converted)) {
+            const drive = converted.charAt(0).toLowerCase();
+            converted = `/mnt/${drive}${converted.slice(2)}`;
+        }
+        
+        return converted;
+    }
+
+    /**
      * Internal: Execute in Docker container
      */
     async _executeInContainer(language, volumePath, entrypoint, workingDir, timeLimit, memoryLimit) {
@@ -283,6 +406,11 @@ class DockerSandboxExecutor {
         let container = null;
 
         try {
+            // Convert Windows paths for Docker Desktop
+            const dockerVolumePath = this._convertPathForDocker(volumePath);
+            
+            logger.debug(`Mounting volume: ${dockerVolumePath}:${workingDir}`);
+            
             // Create container
             container = await this.docker.createContainer({
                 Image: imageName,
@@ -292,18 +420,29 @@ class DockerSandboxExecutor {
                     [workingDir]: {},
                 },
                 HostConfig: {
-                    Binds: [`${volumePath}:${workingDir}`],
-                    Memory: memoryLimit * 1024 * 1024, // Convert MB to bytes
-                    CpuShares: 512,
-                    PidsLimit: 50,
-                    ReadonlyRootfs: false,
-                    NetworkMode: 'none', // Disable network access
+                    Binds: [`${dockerVolumePath}:${workingDir}:ro`], // read-only mount
+                    Memory: memoryLimit * 1024 * 1024, // MB → bytes
+                    MemorySwap: memoryLimit * 1024 * 1024, // Disable swap
+                    CpuQuota: parseInt(process.env.DOCKER_CPU_QUOTA || '50000'), // 50% of one CPU
+                    CpuPeriod: 100000,
+                    PidsLimit: 30, // Prevent fork bombs
+                    ReadonlyRootfs: true, // Prevent filesystem writes
+                    NetworkMode: 'none',
+                    SecurityOpt: ['no-new-privileges'], // Prevent privilege escalation
+                    Tmpfs: {
+                        '/tmp': 'rw,noexec,nosuid,size=32m', // Writable /tmp only
+                    },
+                    Ulimits: [
+                        { Name: 'nofile', Soft: 64, Hard: 64 },  // File descriptors
+                        { Name: 'nproc',  Soft: 30, Hard: 30 },  // Processes
+                    ],
                 },
                 NetworkDisabled: true,
                 name: containerName,
-                AttachStdin: false,
+                AttachStdin: true,
                 AttachStdout: true,
                 AttachStderr: true,
+                Tty: false,
             });
 
             // Start container with timeout
@@ -321,13 +460,37 @@ class DockerSandboxExecutor {
             ]);
 
             // Get logs
-            const logsStream = await container.logs({
-                stdout: true,
-                stderr: true,
-                follow: false,
-            });
+            let output;
+            try {
+                const logsStream = await container.logs({
+                    stdout: true,
+                    stderr: true,
+                    follow: false,
+                });
+                
+                output = await this._parseDockerLogs(logsStream);
+            } catch (logError) {
+                logger.warn('Failed to parse logs as stream, trying as buffer:', logError.message);
+                // Try to get logs differently or as buffer
+                try {
+                    const logsBuffer = await container.logs({
+                        stdout: true,
+                        stderr: true,
+                        follow: false,
+                    });
+                    output = {
+                        stdout: logsBuffer.toString().trim(),
+                        stderr: ''
+                    };
+                } catch (fallbackError) {
+                    logger.error('Failed to get logs:', fallbackError.message);
+                    output = {
+                        stdout: '',
+                        stderr: 'Could not retrieve logs'
+                    };
+                }
+            }
 
-            const output = await this._parseDockerLogs(logsStream);
             const executionTime = Date.now() - startTime;
 
             return {
@@ -380,6 +543,33 @@ class DockerSandboxExecutor {
      * Parse Docker logs stream
      */
     async _parseDockerLogs(stream) {
+        // Check if stream is already a string or buffer
+        if (typeof stream === 'string' || Buffer.isBuffer(stream)) {
+            const buf = Buffer.isBuffer(stream) ? stream : Buffer.from(stream);
+            // Remove Docker stream headers (8 bytes per line)
+            let output = '';
+            let i = 0;
+            while (i < buf.length) {
+                if (i + 8 > buf.length) {
+                    // Less than 8 bytes left, just take it as is
+                    output += buf.slice(i).toString();
+                    break;
+                }
+                // Skip the 8-byte Docker header
+                const dataLength = buf.readUInt32BE(i + 4);
+                i += 8;
+                // Read the data
+                output += buf.slice(i, i + dataLength).toString();
+                i += dataLength;
+            }
+            return { stdout: output.trim(), stderr: '' };
+        }
+
+        // Check if stream is a readable stream
+        if (!stream || typeof stream.on !== 'function') {
+            return { stdout: '', stderr: 'Invalid stream object' };
+        }
+
         return new Promise((resolve, reject) => {
             let stdout = '';
             let stderr = '';
@@ -411,12 +601,12 @@ class DockerSandboxExecutor {
     getLanguageConfig(language) {
         const configs = {
             python: {
-                entrypoint: ['python', 'solution.py'],
+                entrypoint: ['bash', '-c', 'python solution.py < stdin.txt'],
                 workingDir: '/app',
                 filename: 'solution.py',
             },
             java: {
-                entrypoint: ['java', 'Solution'],
+                entrypoint: ['bash', '-c', 'javac Solution.java && java Solution < stdin.txt'],
                 workingDir: '/app',
                 filename: 'Solution.java',
             },

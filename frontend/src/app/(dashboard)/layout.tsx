@@ -33,6 +33,9 @@ export default function DashboardLayout({
     const { isLight } = useTheme();
     // Removed auth check redirect - dashboard is now publicly accessible
 
+    // Hide navigation during interview
+    const isOnInterview = pathname.includes('/interview');
+
     const handleLogout = async () => {
         await logout();
         router.push('/login');
@@ -70,7 +73,8 @@ export default function DashboardLayout({
 
     return (
         <div className={`min-h-screen font-sans selection:bg-[#00D9FF]/30 ${isLight ? 'bg-slate-100 text-slate-900' : 'bg-[#0a0a0a] text-white'}`}>
-            {/* Top Header Navigation */}
+            {/* Top Header Navigation - Hidden during interview */}
+            {!isOnInterview && (
             <header className={`sticky top-0 z-50 border-b backdrop-blur-md ${isLight ? 'border-slate-300/80 bg-white/95' : 'border-gray-800/80 bg-[#0a0a0a]/95'}`}>
                 <div
                     className={`overflow-hidden border-b ${isLight ? 'border-slate-200' : 'border-gray-900'}`}
@@ -148,13 +152,18 @@ export default function DashboardLayout({
                     </nav>
                 </div>
             </header>
+            )}
 
             {/* Main Content */}
-            <main className="p-3 md:p-6 relative min-h-[calc(100vh-104px)]">
+            <main className={`${isOnInterview ? 'p-0 relative h-screen' : 'p-3 md:p-6 relative min-h-[calc(100vh-104px)]'}`}>
+                {!isOnInterview && (
+                <>
                 {/* Background ambient glow */}
                 <div className={`fixed top-0 left-0 right-0 h-96 blur-[120px] pointer-events-none rounded-full translate-y-[-50%] ${isLight ? 'bg-sky-300/20' : 'bg-[#00D9FF]/5'}`}></div>
+                </>
+                )}
 
-                <div className="relative z-10 w-full mx-auto">
+                <div className={isOnInterview ? 'w-full h-full' : 'relative z-10 w-full mx-auto'}>
                     {children}
                 </div>
             </main>

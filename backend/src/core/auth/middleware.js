@@ -9,9 +9,17 @@ const protect = async (req, res, next) => {
     try {
         let token;
 
-        // Get token from header
+        // 1. Get token from Authorization header (standard flow)
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             token = req.headers.authorization.split(' ')[1];
+        }
+
+        // 2. Fallback: query param token — only for SSE endpoints (EventSource can't set headers)
+        if (!token && req.query.token && typeof req.query.token === 'string') {
+            // Only allow for GET requests (SSE is always GET)
+            if (req.method === 'GET') {
+                token = req.query.token;
+            }
         }
 
         if (!token) {
@@ -30,6 +38,7 @@ const protect = async (req, res, next) => {
         next(error);
     }
 };
+
 
 // Restrict to specific roles
 const restrictTo = (...roles) => {

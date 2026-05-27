@@ -17,9 +17,6 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', config.trustProxy);
 
-// Connect to MongoDB
-connectDB();
-
 // Security middleware
 app.use(helmet());
 app.use(hpp());
@@ -72,15 +69,25 @@ app.use((req, res) => {
 // Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
+// Start server with async initialization
 const PORT = config.port;
 
-app.listen(PORT, () => {
-    logger.info(`🚀 Career OS API running on port ${PORT}`);
-    logger.info(`📝 Environment: ${config.nodeEnv}`);
-    logger.info(`🌐 Frontend URLs: ${config.frontendUrls.join(', ')}`);
-    startCareerTwinScheduler();
-});
+(async () => {
+    try {
+        // Connect to MongoDB
+        await connectDB();
+        
+        app.listen(PORT, '0.0.0.0', () => {
+            logger.info(`🚀 Career OS API running on port ${PORT}`);
+            logger.info(`📝 Environment: ${config.nodeEnv}`);
+            logger.info(`🌐 Frontend URLs: ${config.frontendUrls.join(', ')}`);
+            startCareerTwinScheduler();
+        });
+    } catch (error) {
+        logger.error('Failed to start server:', error);
+        process.exit(1);
+    }
+})();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

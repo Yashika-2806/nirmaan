@@ -67,11 +67,6 @@ class Judge0Service {
                 throw new Error(`Unsupported language: ${language}. Supported: python, java, cpp, javascript, c, go, rust, swift, kotlin`);
             }
 
-            if (!config.judge0.apiKey) {
-                logger.warn('Judge0 API key not configured. Using TEST MODE.');
-                return this.executeCodeTestMode(sourceCode, language);
-            }
-
             const payload = {
                 source_code: sourceCode,
                 language_id: languageId,
@@ -88,12 +83,20 @@ class Judge0Service {
             logger.info(`Executing code with language_id=${languageId}`, { language });
 
             // Create submission with Judge0
-            const createResponse = await axios.post(`${config.judge0.baseUrl}/submissions?base64_encoded=false&wait=true`, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-RapidAPI-Key': config.judge0.apiKey,
-                    'X-RapidAPI-Host': config.judge0.apiHost,
-                },
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            // Add API key headers only if configured
+            if (config.judge0.apiKey && config.judge0.apiHost) {
+                headers['X-RapidAPI-Key'] = config.judge0.apiKey;
+                headers['X-RapidAPI-Host'] = config.judge0.apiHost;
+            }
+
+            const baseUrl = config.judge0.baseUrl || 'https://judge0-ce.p.rapidapi.com';
+            const createResponse = await axios.post(`${baseUrl}/submissions?base64_encoded=false&wait=true`, payload, {
+                headers,
+                timeout: 30000,
             });
 
             const submission = createResponse.data;
@@ -168,12 +171,6 @@ class Judge0Service {
         try {
             if (!Array.isArray(testCases) || testCases.length === 0) {
                 throw new Error('Test cases must be a non-empty array with {input, expected} format');
-            }
-
-            // Fallback to test mode if API key not configured
-            if (!config.judge0.apiKey) {
-                logger.warn('Judge0 API key not configured. Using TEST MODE for submission.');
-                return this.executeWithTestCasesTestMode(sourceCode, language, testCases);
             }
 
             const results = [];

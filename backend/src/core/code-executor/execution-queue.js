@@ -13,34 +13,68 @@ const TestCaseModel = require('../../modules/interview/models/test-case-model');
  */
 class ExecutionQueue {
     constructor() {
-        // Initialize Redis client
-        this.redisClient = redis.createClient({
-            host: config.redis?.host || 'localhost',
-            port: config.redis?.port || 6379,
-            password: config.redis?.password,
-        });
+        this.redisAvailable = false;
+        this.redisClient = null;
+        this.executionQueue = null;
 
-        // Create execution queue
-        this.executionQueue = new Queue('code-execution', {
-            redis: {
+        this._init();
+    }
+
+    /**
+     * Lazy initializer — called in constructor.
+     * Failures here are logged but DO NOT crash the process.
+     */
+    _init() {
+        try {
+            const redisConfig = {
                 host: config.redis?.host || 'localhost',
                 port: config.redis?.port || 6379,
                 password: config.redis?.password,
-            },
-            defaultJobOptions: {
-                attempts: 2,
-                backoff: {
-                    type: 'exponential',
-                    delay: 2000,
-                },
-                removeOnComplete: {
-                    age: 3600, // Keep completed jobs for 1 hour
-                },
-                removeOnFail: false,
-            },
-        });
+            };
 
-        this.setupProcessors();
+            // Initialize Redis client (v3 style used by bull)
+            this.redisClient = redis.createClient(redisConfig);
+            this.redisClient.on('error', (err) => {
+                if (this.redisAvailable) {
+                    logger.warn('Redis connection error — async queue disabled:', err.message);
+                    this.redisAvailable = false;
+                }
+            });
+            this.redisClient.on('connect', () => {
+                if (!this.redisAvailable) {
+                    logger.info('Redis connected — async execution queue enabled');
+                    this.redisAvailable = true;
+                }
+            });
+
+            // Create Bull execution queue
+            this.executionQueue = new Queue('code-execution', {
+                redis: redisConfig,
+                defaultJobOptions: {
+                    attempts: 2,
+                    backoff: { type: 'exponential', delay: 2000 },
+                    removeOnComplete: { age: 3600 },
+                    removeOnFail: false,
+                },
+            });
+
+            this.executionQueue.on('error', (err) => {
+                logger.warn('Execution queue error:', err.message);
+                this.redisAvailable = false;
+            });
+
+            this.executionQueue.on('ready', () => {
+                this.redisAvailable = true;
+                logger.info('Execution queue ready');
+            });
+
+            this.setupProcessors();
+            logger.info('ExecutionQueue initialized (Redis-backed)');
+        } catch (err) {
+            logger.warn('ExecutionQueue: Redis not available — async queuing disabled. Synchronous execution only.', err.message);
+            this.redisAvailable = false;
+            this.executionQueue = null;
+        }
     }
 
     /**
@@ -75,33 +109,23 @@ class ExecutionQueue {
      * Queue a run request (test with sample cases)
      */
     async queueRun(data) {
+        if (!this.redisAvailable || !this.executionQueue) {
+            throw new Error('Async execution queue is unavailable (Redis not connected). Use synchronous execution instead.');
+        }
         try {
-            const {
-                userId,
-                questionId,
-                sourceCode,
-                language,
-                sessionId,
-            } = data;
+            const { userId, questionId, sourceCode, language, sessionId } = data;
 
             const job = await this.executionQueue.add('run', {
-                userId,
-                questionId,
-                sourceCode,
-                language,
-                sessionId,
+                userId, questionId, sourceCode, language, sessionId,
                 timestamp: Date.now(),
             }, {
-                priority: 10, // Higher priority
+                priority: 10,
                 jobId: `run-${userId}-${Date.now()}`,
-                timeout: 30000, // 30 seconds
+                timeout: 30000,
             });
 
             logger.info(`Queued run job: ${job.id}`);
-            return {
-                jobId: job.id,
-                status: 'queued',
-            };
+            return { jobId: job.id, status: 'queued' };
         } catch (error) {
             logger.error('Failed to queue run:', error.message);
             throw error;
@@ -112,33 +136,23 @@ class ExecutionQueue {
      * Queue a submit request (test with all cases)
      */
     async queueSubmit(data) {
+        if (!this.redisAvailable || !this.executionQueue) {
+            throw new Error('Async execution queue is unavailable (Redis not connected). Use synchronous execution instead.');
+        }
         try {
-            const {
-                userId,
-                questionId,
-                sourceCode,
-                language,
-                sessionId,
-            } = data;
+            const { userId, questionId, sourceCode, language, sessionId } = data;
 
             const job = await this.executionQueue.add('submit', {
-                userId,
-                questionId,
-                sourceCode,
-                language,
-                sessionId,
+                userId, questionId, sourceCode, language, sessionId,
                 timestamp: Date.now(),
             }, {
-                priority: 5, // Lower priority than run
+                priority: 5,
                 jobId: `submit-${userId}-${Date.now()}`,
-                timeout: 60000, // 60 seconds
+                timeout: 60000,
             });
 
             logger.info(`Queued submit job: ${job.id}`);
-            return {
-                jobId: job.id,
-                status: 'queued',
-            };
+            return { jobId: job.id, status: 'queued' };
         } catch (error) {
             logger.error('Failed to queue submit:', error.message);
             throw error;
@@ -149,6 +163,9 @@ class ExecutionQueue {
      * Get job status
      */
     async getJobStatus(jobId) {
+        if (!this.redisAvailable || !this.executionQueue) {
+            return { jobId, state: 'unavailable', message: 'Queue not connected' };
+        }
         try {
             const job = await this.executionQueue.getJob(jobId);
             if (!job) {

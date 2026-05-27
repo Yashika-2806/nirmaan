@@ -101,6 +101,7 @@ function RegisterContent() {
                                     <input
                                         type="email"
                                         required
+                                        autoComplete="email"
                                         className="input"
                                         placeholder="you@example.com"
                                         value={formData.email}
@@ -114,6 +115,7 @@ function RegisterContent() {
                                         type="password"
                                         required
                                         minLength={8}
+                                        autoComplete="new-password"
                                         className="input"
                                         placeholder="Minimum 8 characters"
                                         value={formData.password}
@@ -127,6 +129,7 @@ function RegisterContent() {
                                         type="password"
                                         required
                                         minLength={8}
+                                        autoComplete="new-password"
                                         className="input"
                                         placeholder="Re-enter password"
                                         value={formData.confirmPassword}

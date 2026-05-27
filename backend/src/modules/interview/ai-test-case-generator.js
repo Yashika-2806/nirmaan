@@ -12,9 +12,9 @@ class AITestCaseGenerator {
     async generateTestCases(question, options = {}) {
         try {
             const {
-                count = 5, // Number of test cases to generate
+                count = 5,
                 includeEdgeCases = true,
-                difficultySplit = true, // Mix easy/medium/hard
+                difficultySplit = true,
                 language = 'python',
             } = options;
 
@@ -24,14 +24,17 @@ class AITestCaseGenerator {
 
             logger.info(`Generating ${count} test cases for question: ${question._id}`);
 
-            // Build prompt for Gemini
             const prompt = this._buildGenerationPrompt(question, count, language, includeEdgeCases);
 
-            // Call Gemini API
-            const response = await geminiService.generateContent(prompt);
-            const content = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            // Use the correct service API: getModel('general').generateContent(prompt)
+            const model = geminiService.getModel('general');
+            const result = await model.generateContent(prompt);
+            const content = result.response.text();
 
-            // Parse response
+            if (!content || typeof content !== 'string') {
+                throw new Error('Empty or invalid response from AI service');
+            }
+
             const testCases = this._parseGeneratedTestCases(content, language);
 
             if (testCases.length === 0) {
@@ -189,10 +192,11 @@ Return a JSON array with format:
 
 Extract and return ONLY valid JSON array, no other text:`;
 
-            const response = await geminiService.generateContent(prompt);
-            const content = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const model = geminiService.getModel('general');
+            const result = await model.generateContent(prompt);
+            const content = result.response.text();
+            if (!content || typeof content !== 'string') return [];
             const testCases = this._parseGeneratedTestCases(content, 'python');
-
             return testCases.slice(0, expectedCount);
         } catch (error) {
             logger.warn('Failed to extract example test cases:', error.message);
@@ -220,8 +224,10 @@ Generate additional test cases focused on ${targetImprovement} that would:
 
 Return a JSON array with the same format as before.`;
 
-            const response = await geminiService.generateContent(prompt);
-            const content = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const model = geminiService.getModel('general');
+            const result = await model.generateContent(prompt);
+            const content = result.response.text();
+            if (!content || typeof content !== 'string') return [];
             return this._parseGeneratedTestCases(content, 'python');
         } catch (error) {
             logger.warn('Failed to improve test cases:', error.message);
