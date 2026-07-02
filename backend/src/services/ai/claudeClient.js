@@ -24,12 +24,12 @@ class ClaudeClient {
     /**
      * Generate content using Claude.
      * @param {string} prompt - The user prompt
-     * @param {string} modelName - Claude model to use (default: claude-sonnet-4-20250514)
+     * @param {string} modelName - Claude model to use (default: claude-3-5-sonnet-latest)
      * @param {number} timeoutMs - Timeout in milliseconds (default 30000)
      * @returns {Promise<string>} - AI-generated response text
      * @throws {Error} - If request fails or times out
      */
-    async generateContent(prompt, modelName = 'claude-sonnet-4-20250514', timeoutMs = 30000) {
+    async generateContent(prompt, modelName = 'claude-3-5-sonnet-latest', timeoutMs = 30000) {
         if (!prompt || typeof prompt !== 'string') {
             throw new Error('[ClaudeClient] Invalid prompt: must be a non-empty string');
         }

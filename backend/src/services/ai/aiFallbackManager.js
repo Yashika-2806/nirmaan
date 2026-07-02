@@ -10,7 +10,7 @@ const GEMINI_MODEL_CHAIN = [
 ];
 
 // Claude model to use as paid fallback
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'claude-3-5-sonnet-latest';
 
 class AIFallbackManager {
     constructor(primaryClient, providerName, geminiClient, claudeClient = null) {

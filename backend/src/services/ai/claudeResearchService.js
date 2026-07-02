@@ -124,7 +124,7 @@ Provide the same citations in BibTeX format for LaTeX users.
 
         try {
             console.log(`[ClaudeResearchService] Generating ${type} for "${topic}"...`);
-            const text = await this.client.generateContent(prompt, 'claude-sonnet-4-20250514', 120000);
+            const text = await this.client.generateContent(prompt, 'claude-3-5-sonnet-latest', 120000);
 
             // Extract citations JSON if present
             let content = text;
