@@ -71,7 +71,7 @@ class AIFallbackManager {
         }
 
         // 2. Skip Gemini entirely if no keys are configured
-        const hasGeminiKeys = this.spareGeminiKeys.length > 0;
+        const hasGeminiKeys = this.spareGeminiKeys.length > 0 || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here');
         if (!hasGeminiKeys) {
             console.warn('[AI] No Gemini API keys configured. Skipping Gemini.');
         }

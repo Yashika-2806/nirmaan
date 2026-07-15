@@ -24,7 +24,7 @@ class ClaudeClient {
     /**
      * Generate content using Claude.
      * @param {string} prompt - The user prompt
-     * @param {string} modelName - Claude model to use (default: claude-3-5-sonnet-latest)
+     * @param {string} modelName - Claude model to use (default: claude-sonnet-5)
      * @param {number} timeoutMs - Timeout in milliseconds (default 30000)
      * @returns {Promise<string>} - AI-generated response text
      * @throws {Error} - If request fails or times out
@@ -55,19 +55,17 @@ class ClaudeClient {
         }
 
         try {
-            // Map the string prompt to Anthropic's messages format
             const requestPromise = this.anthropic.messages.create({
                 model: modelName,
                 max_tokens: maxTokens,
                 messages: [{ role: 'user', content: prompt }]
             }).then(response => {
-                // Anthropic returns an array of content blocks
-                if (!response.content || response.content.length === 0) {
-                    throw new Error('[ClaudeClient] Empty response from Claude API');
-                }
-                const text = response.content[0].text;
+                const text = response.content
+                    .filter(block => block.type === 'text')
+                    .map(block => block.text)
+                    .join('\n');
                 if (!text || text.trim() === '') {
-                    throw new Error('[ClaudeClient] Claude returned empty text');
+                    throw new Error('[ClaudeClient] Claude returned empty text (no text blocks found)');
                 }
                 return text;
             }).catch(error => {

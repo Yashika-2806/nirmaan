@@ -123,8 +123,24 @@ Provide the same citations in BibTeX format for LaTeX users.
         const prompt = prompts[type] || prompts['literature-review'];
 
         try {
-            console.log(`[ClaudeResearchService] Generating ${type} for "${topic}"...`);
-            const text = await this.client.generateContent(prompt, 'claude-sonnet-5', 120000);
+            let text;
+            if (this.client) {
+                try {
+                    console.log(`[ClaudeResearchService] Generating ${type} for "${topic}" using Claude...`);
+                    text = await this.client.generateContent(prompt, 'claude-3-5-sonnet-latest', 120000);
+                    console.log(`[ClaudeResearchService] ✅ Research (${type}) generated successfully using Claude`);
+                } catch (claudeError) {
+                    console.warn(`[ClaudeResearchService] Claude failed (${claudeError.message}). Trying Gemini fallback...`);
+                }
+            } else {
+                console.warn('[ClaudeResearchService] Claude client not configured. Trying Gemini fallback...');
+            }
+
+            if (!text) {
+                const aiService = require('./aiService');
+                text = await aiService.generate(prompt, null, 120000);
+                console.log(`[ClaudeResearchService] ✅ Research (${type}) generated successfully using Gemini`);
+            }
 
             // Extract citations JSON if present
             let content = text;
@@ -140,7 +156,6 @@ Provide the same citations in BibTeX format for LaTeX users.
                 }
             }
 
-            console.log(`[ClaudeResearchService] ✅ Research (${type}) generated successfully`);
             return { content, citations };
         } catch (error) {
             console.error('[ClaudeResearchService] Error:', error.message || error);

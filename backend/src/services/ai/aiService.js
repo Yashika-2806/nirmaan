@@ -18,13 +18,13 @@ class AIService {
             const geminiClient = new GeminiClient(keyToUse);
 
             // Initialize Claude as reliable paid fallback
-            const claudeKey = process.env.CLAUDE_API_KEY;
-            const claudeClient = claudeKey ? new ClaudeClient(claudeKey) : null;
+            const claudeKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+            const claudeClient = (claudeKey && claudeKey !== 'your_anthropic_api_key_here' && claudeKey !== 'your_claude_api_key_here') ? new ClaudeClient(claudeKey) : null;
 
-            if (claudeKey) {
+            if (claudeClient) {
                 console.log('[AIService] ✅ Claude fallback configured with API key');
             } else {
-                console.warn('[AIService] ⚠️ CLAUDE_API_KEY not set in environment. Fallback to Claude will not be available.');
+                console.warn('[AIService] ⚠️ CLAUDE_API_KEY / ANTHROPIC_API_KEY not configured or is using a placeholder. Claude will not be available.');
             }
 
             // Only use Cloudflare if BOTH key and account ID are present and non-empty
