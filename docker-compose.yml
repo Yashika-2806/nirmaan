@@ -53,10 +53,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      FRONTEND_URLS: http://localhost:3500,http://localhost:3000
+      FRONTEND_URLS: http://localhost:3500,http://localhost:3000,https://nirmaan.gladsw.cloud
       # Use in-container Mongo/Redis hostnames (credentials come from backend/.env via env_file)
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/nirmaan?authSource=admin
       DOCKER_SOCKET: /var/run/docker.sock
     env_file:
       - ./backend/.env

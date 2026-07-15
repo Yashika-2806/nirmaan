@@ -34,6 +34,50 @@ router.get('/health', (req, res) => {
     });
 });
 
+// Temporary Database Diagnostics
+router.get('/db-test', async (req, res) => {
+    try {
+        const mongoose = require('mongoose');
+        const state = mongoose.connection.readyState;
+        const states = {
+            0: 'disconnected',
+            1: 'connected',
+            2: 'connecting',
+            3: 'disconnecting'
+        };
+        
+        let dbError = null;
+        let usersCount = 0;
+        try {
+            const User = require('../core/auth/model');
+            usersCount = await User.countDocuments();
+        } catch (err) {
+            dbError = {
+                message: err.message,
+                stack: err.stack,
+                name: err.name
+            };
+        }
+
+        res.json({
+            success: true,
+            connectionState: states[state] || state,
+            usersCount,
+            dbError,
+            env: {
+                hasMongoUri: !!process.env.MONGODB_URI,
+                nodeEnv: process.env.NODE_ENV,
+                mongoUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 25) + '...' : null
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Mount routes
 router.use('/auth', authRoutes);
 router.use('/admin/ai-keys', aiKeyRoutes);

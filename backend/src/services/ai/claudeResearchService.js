@@ -7,9 +7,9 @@ const ClaudeClient = require('./claudeClient');
  */
 class ClaudeResearchService {
     constructor() {
-        const apiKey = process.env.CLAUDE_API_KEY;
+        const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
         if (!apiKey) {
-            console.warn('[ClaudeResearchService] ⚠️ CLAUDE_API_KEY not configured');
+            console.warn('[ClaudeResearchService] ⚠️ CLAUDE_API_KEY / ANTHROPIC_API_KEY not configured');
             this.client = null;
         } else {
             try {
@@ -124,7 +124,7 @@ Provide the same citations in BibTeX format for LaTeX users.
 
         try {
             console.log(`[ClaudeResearchService] Generating ${type} for "${topic}"...`);
-            const text = await this.client.generateContent(prompt, 'claude-3-5-sonnet-latest', 120000);
+            const text = await this.client.generateContent(prompt, 'claude-sonnet-5', 120000);
 
             // Extract citations JSON if present
             let content = text;
