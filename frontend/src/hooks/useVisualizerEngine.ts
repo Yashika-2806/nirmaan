@@ -35,12 +35,12 @@ export function useVisualizerEngine() {
             setCurrentStepIndex(index);
             const step = steps[index];
             if (step.audioText) {
-                narration.speak(step.audioText);
+                narration.speak(step.audioText, speed);
             }
         } else {
             setIsPlaying(false);
         }
-    }, [steps, narration]);
+    }, [steps, narration, speed]);
 
     // Handle Auto Play with async loop to wait for narration
     const activeRef = useRef(false);
@@ -63,7 +63,7 @@ export function useVisualizerEngine() {
 
                 if (narration.isNarrationEnabled && step.audioText) {
                     // Try waiting for audio + a small buffer, but cap it so it's not freezing forever
-                    const audioPromise = narration.speak(step.audioText);
+                    const audioPromise = narration.speak(step.audioText, speed);
                     const timeoutPromise = new Promise(resolve => setTimeout(resolve, baseDelay));
                     
                     // Wait for both minimal delay and the audio to finish

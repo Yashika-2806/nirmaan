@@ -72,13 +72,15 @@ export const aiService = {
      * Generate speech audio from text using Sarvam AI
      * @param text The text to convert to speech
      * @param language The language of the text ('en' | 'hi' | 'hinglish')
+     * @param rate The speaking rate multiplier (default 1)
      * @returns Promise containing the base64 encoded audio string
      */
-    generateSpeech: async (text: string, language: 'en' | 'hi' | 'hinglish') => {
+    generateSpeech: async (text: string, language: 'en' | 'hi' | 'hinglish', rate: number = 1) => {
         try {
             const response = await api.post('/ai/tts', {
                 text,
-                language
+                language,
+                pace: rate
             });
 
             return response.data;

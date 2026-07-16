@@ -58,7 +58,7 @@ const axios = require('axios');
  */
 router.post('/tts', protect, async (req, res) => {
     try {
-        const { text, language } = req.body;
+        const { text, language, pace } = req.body;
 
         if (!text || !language) {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -87,11 +87,15 @@ router.post('/tts', protect, async (req, res) => {
             speaker = 'anushka';
         }
 
+        // Limit pace to acceptable range [0.5, 2.0] for Sarvam API
+        const targetPace = pace !== undefined ? Math.min(Math.max(Number(pace), 0.5), 2.0) : 1.0;
+
         const response = await axios.post('https://api.sarvam.ai/text-to-speech', {
             text: text,
             target_language_code: targetLanguageCode,
             speaker: speaker,
-            model: 'bulbul:v3'
+            model: 'bulbul:v3',
+            pace: targetPace
         }, {
             headers: {
                 'api-subscription-key': apiKey,

@@ -6,6 +6,7 @@ export function useNarration() {
     const synthRef = useRef<SpeechSynthesis | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentTextRef = useRef<string>('');
+    const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -21,10 +22,11 @@ export function useNarration() {
             audioRef.current.pause();
             audioRef.current = null;
         }
+        activeUtteranceRef.current = null;
         currentTextRef.current = '';
     }, []);
 
-    const speak = useCallback((texts: { en: string; hi: string; hinglish: string }): Promise<void> => {
+    const speak = useCallback((texts: { en: string; hi: string; hinglish: string }, rate: number = 1.0): Promise<void> => {
         return new Promise(async (resolve) => {
             if (!isNarrationEnabled) {
                 resolve();
@@ -49,7 +51,7 @@ export function useNarration() {
             // 1. Try Sarvam AI Text to Speech (requires SARVAM_API_KEY in backend .env)
             try {
                 const { aiService } = await import('@/services/aiService');
-                const result = await aiService.generateSpeech(textToSpeak, language);
+                const result = await aiService.generateSpeech(textToSpeak, language, rate);
                 
                 // If user changed step during the fetch, discard this result
                 if (currentTextRef.current !== textToSpeak) {
@@ -88,6 +90,10 @@ export function useNarration() {
             }
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            activeUtteranceRef.current = utterance; // Retain a strong reference to prevent GC bugs
+
+            // Set speaking rate (0.5 to 2.0 based on visualizer speed)
+            utterance.rate = rate;
             
             // Pick appropriate premium voice if possible
             const voices = synthRef.current.getVoices();
@@ -107,9 +113,11 @@ export function useNarration() {
             }
 
             utterance.onend = () => {
+                activeUtteranceRef.current = null;
                 resolve();
             };
             utterance.onerror = () => {
+                activeUtteranceRef.current = null;
                 resolve();
             };
 
