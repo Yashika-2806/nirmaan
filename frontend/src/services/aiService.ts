@@ -66,6 +66,26 @@ export const aiService = {
             console.error('DSA Analysis Error:', error);
             throw error;
         }
+    },
+
+    /**
+     * Generate speech audio from text using Sarvam AI
+     * @param text The text to convert to speech
+     * @param language The language of the text ('en' | 'hi' | 'hinglish')
+     * @returns Promise containing the base64 encoded audio string
+     */
+    generateSpeech: async (text: string, language: 'en' | 'hi' | 'hinglish') => {
+        try {
+            const response = await api.post('/ai/tts', {
+                text,
+                language
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('Sarvam TTS Error:', error);
+            throw error;
+        }
     }
 };
 

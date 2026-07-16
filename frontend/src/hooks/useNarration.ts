@@ -4,6 +4,7 @@ export function useNarration() {
     const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en');
     const [isNarrationEnabled, setIsNarrationEnabled] = useState(false);
     const synthRef = useRef<SpeechSynthesis | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -11,18 +12,57 @@ export function useNarration() {
         }
     }, []);
 
+    const stop = useCallback(() => {
+        if (synthRef.current) {
+            synthRef.current.cancel();
+        }
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+    }, []);
+
     const speak = useCallback((texts: { en: string; hi: string; hinglish: string }): Promise<void> => {
-        return new Promise((resolve) => {
-            if (!isNarrationEnabled || !synthRef.current) {
+        return new Promise(async (resolve) => {
+            if (!isNarrationEnabled) {
                 resolve();
                 return;
             }
             
-            // Cancel any ongoing speech
-            synthRef.current.cancel();
+            // Cancel any ongoing speech or audio
+            stop();
 
             const textToSpeak = texts[language];
             if (!textToSpeak) {
+                resolve();
+                return;
+            }
+
+            // 1. Try Sarvam AI Text to Speech (requires SARVAM_API_KEY in backend .env)
+            try {
+                const { aiService } = await import('@/services/aiService');
+                const result = await aiService.generateSpeech(textToSpeak, language);
+                
+                if (result.success && result.audioBase64) {
+                    const audio = new Audio("data:audio/mp3;base64," + result.audioBase64);
+                    audioRef.current = audio;
+                    
+                    audio.onended = () => {
+                        resolve();
+                    };
+                    audio.onerror = () => {
+                        resolve();
+                    };
+                    
+                    await audio.play();
+                    return; // Success, audio played via Sarvam AI
+                }
+            } catch (err) {
+                console.warn("Sarvam AI TTS API failed, falling back to native SpeechSynthesis:", err);
+            }
+
+            // 2. Fallback to Browser native speech synthesis
+            if (!synthRef.current) {
                 resolve();
                 return;
             }
@@ -33,17 +73,14 @@ export function useNarration() {
             const voices = synthRef.current.getVoices();
             
             if (language === 'hi') {
-                // Try to find a premium Hindi voice
                 const hindiVoice = voices.find(v => v.lang === 'hi-IN' && (v.name.includes('Neural') || v.name.includes('Google'))) 
                     || voices.find(v => v.lang.includes('hi'));
                 if (hindiVoice) utterance.voice = hindiVoice;
             } else if (language === 'hinglish') {
-                // For Hinglish (Latin scripts), Indian English voices do the best job
                 const indianEnglishVoice = voices.find(v => v.lang === 'en-IN' && (v.name.includes('Neural') || v.name.includes('Google')))
                     || voices.find(v => v.lang === 'en-IN');
                 if (indianEnglishVoice) utterance.voice = indianEnglishVoice;
             } else {
-                // English Default
                 const englishVoice = voices.find(v => (v.lang === 'en-US' || v.lang === 'en-GB') && (v.name.includes('Neural') || v.name.includes('Google')))
                     || voices.find(v => v.lang.includes('en-US') || v.lang.includes('en-GB'));
                 if (englishVoice) utterance.voice = englishVoice;
@@ -58,13 +95,7 @@ export function useNarration() {
 
             synthRef.current.speak(utterance);
         });
-    }, [isNarrationEnabled, language]);
-
-    const stop = useCallback(() => {
-        if (synthRef.current) {
-            synthRef.current.cancel();
-        }
-    }, []);
+    }, [isNarrationEnabled, language, stop]);
 
     return {
         language,

@@ -49,4 +49,75 @@ router.post('/review', protect, async (req, res) => {
     }
 });
 
+const axios = require('axios');
+
+/**
+ * @desc Generate speech audio from text using Sarvam AI
+ * @route POST /api/ai/tts
+ * @access Private
+ */
+router.post('/tts', protect, async (req, res) => {
+    try {
+        const { text, language } = req.body;
+
+        if (!text || !language) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const apiKey = process.env.SARVAM_API_KEY;
+        if (!apiKey) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Sarvam API key is not configured on the server.' 
+            });
+        }
+
+        // Map language
+        let targetLanguageCode = 'hi-IN';
+        let speaker = 'anushka'; // or 'shubh' for male
+        
+        if (language === 'hi') {
+            targetLanguageCode = 'hi-IN';
+            speaker = 'anushka';
+        } else if (language === 'hinglish') {
+            targetLanguageCode = 'hi-IN'; // bulbul:v3 supports Hinglish code-switching in hi-IN
+            speaker = 'shubh';
+        } else {
+            targetLanguageCode = 'en-IN';
+            speaker = 'anushka';
+        }
+
+        const response = await axios.post('https://api.sarvam.ai/text-to-speech', {
+            text: text,
+            target_language_code: targetLanguageCode,
+            speaker: speaker,
+            model: 'bulbul:v3'
+        }, {
+            headers: {
+                'api-subscription-key': apiKey,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.data && response.data.audios && response.data.audios[0]) {
+            return res.status(200).json({
+                success: true,
+                audioBase64: response.data.audios[0]
+            });
+        } else {
+            return res.status(500).json({
+                success: false,
+                error: 'Invalid response from Sarvam AI speech service'
+            });
+        }
+
+    } catch (error) {
+        console.error('[AI TTS] Error generating speech:', error.response?.data || error.message);
+        res.status(500).json({
+            success: false,
+            error: error.response?.data?.message || 'Failed to generate speech using Sarvam AI'
+        });
+    }
+});
+
 module.exports = router;
