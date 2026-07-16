@@ -5,6 +5,7 @@ export function useNarration() {
     const [isNarrationEnabled, setIsNarrationEnabled] = useState(false);
     const synthRef = useRef<SpeechSynthesis | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const currentTextRef = useRef<string>('');
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -20,6 +21,7 @@ export function useNarration() {
             audioRef.current.pause();
             audioRef.current = null;
         }
+        currentTextRef.current = '';
     }, []);
 
     const speak = useCallback((texts: { en: string; hi: string; hinglish: string }): Promise<void> => {
@@ -29,19 +31,31 @@ export function useNarration() {
                 return;
             }
             
-            // Cancel any ongoing speech or audio
-            stop();
-
             const textToSpeak = texts[language];
             if (!textToSpeak) {
                 resolve();
                 return;
             }
 
+            // Set current text request
+            currentTextRef.current = textToSpeak;
+
+            // Cancel any ongoing speech or audio
+            stop();
+            
+            // Restore current text request after stop clears it
+            currentTextRef.current = textToSpeak;
+
             // 1. Try Sarvam AI Text to Speech (requires SARVAM_API_KEY in backend .env)
             try {
                 const { aiService } = await import('@/services/aiService');
                 const result = await aiService.generateSpeech(textToSpeak, language);
+                
+                // If user changed step during the fetch, discard this result
+                if (currentTextRef.current !== textToSpeak) {
+                    resolve();
+                    return;
+                }
                 
                 if (result.success && result.audioBase64) {
                     const audio = new Audio("data:audio/mp3;base64," + result.audioBase64);
@@ -59,6 +73,12 @@ export function useNarration() {
                 }
             } catch (err) {
                 console.warn("Sarvam AI TTS API failed, falling back to native SpeechSynthesis:", err);
+            }
+
+            // If user changed step during the fallback check, discard
+            if (currentTextRef.current !== textToSpeak) {
+                resolve();
+                return;
             }
 
             // 2. Fallback to Browser native speech synthesis
