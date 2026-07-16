@@ -22,4 +22,7 @@ export interface AlgorithmTemplate {
     visualizationType: VisualizationType;
     generateSteps: (input: any) => VisualizerStep[];
     supportedLanguages: string[];
+    timeComplexity?: string;
+    spaceComplexity?: string;
+    description?: string;
 }

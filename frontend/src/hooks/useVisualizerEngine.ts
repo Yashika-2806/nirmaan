@@ -126,6 +126,15 @@ export function useVisualizerEngine() {
         setCurrentStepIndex(0);
     };
 
+    const visualizeCustomInput = useCallback((customInput: any) => {
+        if (!template) return;
+        setIsPlaying(false);
+        narration.stop();
+        const generatedSteps = template.generateSteps(customInput);
+        setSteps(generatedSteps);
+        setCurrentStepIndex(0);
+    }, [template, narration.stop]);
+
     const currentStep = steps[currentStepIndex] || null;
 
     return {
@@ -136,14 +145,17 @@ export function useVisualizerEngine() {
         setCode,
         steps,
         currentStepIndex,
+        setCurrentStepIndex,
         currentStep,
         isPlaying,
+        setIsPlaying,
         speed,
         setSpeed,
         handlePlayPause,
         handleNext,
         handlePrev,
         handleReset,
+        visualizeCustomInput,
         narration
     };
 }

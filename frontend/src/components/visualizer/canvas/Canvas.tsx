@@ -18,25 +18,45 @@ export function Canvas({ type, stateSnapshot }: CanvasProps) {
         const arr = stateSnapshot.array as number[];
         const maxVal = Math.max(...arr, 1);
         const { compared = [], swapped = [], sorted = [] } = stateSnapshot;
+        const pivotIndex = stateSnapshot.pivotIndex !== undefined ? stateSnapshot.pivotIndex : -1;
 
         return (
-            <div className="flex-1 flex items-end justify-center gap-1 w-full px-8 pb-8 h-full min-h-[300px]">
+            <div className="flex-1 flex items-end justify-center gap-2 md:gap-3 w-full px-6 pb-6 pt-12 h-full min-h-[320px]">
                 {arr.map((val, i) => {
-                    const barHeight = Math.max((val / maxVal) * 100, 2);
-                    let barColor = 'text-gray-700';
+                    const barHeight = Math.max((val / maxVal) * 100, 4);
+                    let barStyle = 'bg-slate-700/40 border border-slate-600/30 text-slate-300 hover:bg-slate-700/60 shadow-inner';
                     
-                    if (sorted.includes(i)) barColor = 'text-green-500';
-                    else if (swapped.includes(i)) barColor = 'text-red-500';
-                    else if (compared.includes(i)) barColor = 'text-yellow-500';
-                    else barColor = 'text-cyan-400';
+                    if (sorted.includes(i)) {
+                        barStyle = 'bg-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-[#10b981]/50 text-white';
+                    } else if (i === pivotIndex) {
+                        barStyle = 'bg-[#a855f7] shadow-[0_0_20px_rgba(168,85,247,0.6)] border border-[#a855f7]/70 text-white animate-pulse scale-105';
+                    } else if (swapped.includes(i)) {
+                        barStyle = 'bg-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-[#ef4444]/50 text-white scale-102';
+                    } else if (compared.includes(i)) {
+                        barStyle = 'bg-[#f59e0b] shadow-[0_0_15px_rgba(245,158,11,0.5)] border border-[#f59e0b]/50 text-white';
+                    } else {
+                        barStyle = 'bg-[#3b82f6]/20 shadow-[0_0_10px_rgba(59,130,246,0.1)] border border-[#3b82f6]/40 text-[#60a5fa] hover:bg-[#3b82f6]/30';
+                    }
 
                     return (
-                        <div key={i} className="flex flex-col items-center gap-2 group flex-1 h-full justify-end">
-                            <div className="text-xs text-gray-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val}</div>
-                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`w-full h-full max-h-full ${barColor}`}>
-                                <rect x="0" y={100 - barHeight} width="100" height={barHeight} className="fill-current transition-all duration-300" />
-                            </svg>
-                            <div className="text-xs text-gray-600">{i}</div>
+                        <div key={i} className="flex flex-col items-center gap-2 group flex-1 h-full justify-end relative select-none">
+                            {/* Hover tooltip for index */}
+                            <div className="absolute -top-8 text-[10px] font-bold bg-[#1e293b] border border-slate-700 text-slate-300 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+                                idx: {i}
+                            </div>
+                            {/* Bar element */}
+                            <div 
+                                style={{ height: `${barHeight}%` }}
+                                className={`w-full rounded-t-lg transition-all duration-300 ease-out flex items-end justify-center ${barStyle}`}
+                            >
+                                <span className="text-[10px] font-bold text-white mb-2 hidden md:inline opacity-70 group-hover:opacity-100 transition-opacity">
+                                    {val}
+                                </span>
+                            </div>
+                            {/* Value label under the bar */}
+                            <div className="text-xs md:text-sm font-semibold text-slate-300 mt-1 font-mono">
+                                {val}
+                            </div>
                         </div>
                     );
                 })}

@@ -24,6 +24,13 @@ const config = {
     // Database
     mongoUri: process.env.MONGODB_URI,
 
+    // Redis
+    redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: toPositiveInt(process.env.REDIS_PORT, 6379),
+        password: process.env.REDIS_PASSWORD || undefined,
+    },
+
     // JWT
     jwt: {
         secret: process.env.JWT_SECRET,
